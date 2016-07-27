@@ -7,9 +7,11 @@ import com.payneteasy.websocket.HexUtil;
 import com.payneteasy.websocket.IWebSocketListener;
 import com.payneteasy.websocket.MutableWebSocketFrame;
 import com.payneteasy.websocket.WebSocketContext;
+import io.pne.deploy.agent.IAgentListener;
 import io.pne.deploy.agent.tasks.ITaskService;
 import io.pne.deploy.agent.websocket.handlers.HeartbeatClientHandler;
 import io.pne.deploy.agent.websocket.handlers.ShellScriptParametersClientHandler;
+import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.api.messages.Heartbeat;
 import io.pne.deploy.api.tasks.ShellScriptParameters;
 import org.slf4j.Logger;
@@ -25,11 +27,13 @@ public class WebSocketFrameListenerImpl implements IWebSocketListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(WebSocketFrameListenerImpl.class);
 
-    private final ObjectMapper mapper;
-
+    private final ObjectMapper               mapper;
+    private final IAgentListener             agentListener;
     private final Map<Class, IClientHandler> handlers;
 
-    public WebSocketFrameListenerImpl(ITaskService aTaskService, IMessageSender aSender) {
+    public WebSocketFrameListenerImpl(ITaskService aTaskService, IMessageSender aSender, IAgentListener aAgentListener) {
+        agentListener = aAgentListener;
+
         mapper = new ObjectMapper();
         mapper.registerModule(new Jdk8Module());
 
@@ -49,7 +53,9 @@ public class WebSocketFrameListenerImpl implements IWebSocketListener {
         int version = buf[0];
         int typeId  = buf[1];
 
-        Object         message = createMessage(typeId, buf);
+        IServerMessage message = createMessage(typeId, buf);
+        agentListener.didReceiveMessage(message);
+
         IClientHandler handler = findHandler(typeId);
 
         //noinspection unchecked
@@ -65,10 +71,10 @@ public class WebSocketFrameListenerImpl implements IWebSocketListener {
         return handler;
     }
 
-    private Object createMessage(int aTypeId, byte[] aBuf) {
+    private IServerMessage createMessage(int aTypeId, byte[] aBuf) {
         Class type = findType(aTypeId);
         try {
-            return mapper.readValue(aBuf, 2, aBuf.length - 2, type);
+            return (IServerMessage) mapper.readValue(aBuf, 2, aBuf.length - 2, type);
         } catch (IOException e) {
             throw new IllegalStateException("Could not read from buffer "
                     + HexUtil.toFormattedHexString(aBuf, 2, aBuf.length-2)

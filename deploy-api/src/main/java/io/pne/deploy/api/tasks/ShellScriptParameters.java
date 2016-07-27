@@ -2,6 +2,7 @@ package io.pne.deploy.api.tasks;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.pne.deploy.api.IServerMessage;
 import org.immutables.value.Value;
 
 import java.util.Map;
@@ -10,7 +11,7 @@ import java.util.Optional;
 @Value.Immutable
 @JsonSerialize  (as = ImmutableShellScriptParameters.class)
 @JsonDeserialize(as = ImmutableShellScriptParameters.class)
-public interface ShellScriptParameters {
+public interface ShellScriptParameters extends IServerMessage {
 
     public static final String USERNAME_NON_ROOT = "non-root";
 

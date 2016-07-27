@@ -2,7 +2,9 @@ package io.pne.deploy.server.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import io.pne.deploy.api.IClientMessage;
 import io.pne.deploy.api.MessageTypes;
+import io.pne.deploy.server.IServerListener;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.WebSocketFrame;
@@ -15,12 +17,14 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerWebSocketFrameHandler.class);
-    private final ObjectMapper mapper;
 
-    public ServerWebSocketFrameHandler() {
+    private final ObjectMapper    mapper;
+    private final IServerListener serverListener;
+
+    public ServerWebSocketFrameHandler(IServerListener aServerListener) {
         mapper = new ObjectMapper();
         mapper.registerModule(new Jdk8Module());
-
+        serverListener = aServerListener;
     }
 
     @Override
@@ -34,15 +38,16 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
         byte version  = buffer.getByte(0);
         byte typeId   = buffer.getByte(1);
 
-        Object         message = createMessage(typeId, buffer);
+        IClientMessage message = createMessage(typeId, buffer);
+        serverListener.didReceiveMessage(message);
 
         LOG.info("Got {}", message);
     }
 
-    private Object createMessage(byte aTypeId, Buffer aBuffer) {
+    private IClientMessage createMessage(byte aTypeId, Buffer aBuffer) {
         Class type = MessageTypes.findType(aTypeId);
         try {
-            return mapper.readValue(aBuffer.getBytes(2, aBuffer.length()), type);
+            return (IClientMessage) mapper.readValue(aBuffer.getBytes(2, aBuffer.length()), type);
         } catch (IOException e) {
             throw new IllegalStateException("Could not parse", e);
         }

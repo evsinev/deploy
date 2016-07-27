@@ -4,9 +4,9 @@
     <packaging>jar</packaging>
 
     <groupId>io.pne.deploy</groupId>
-    <artifactId>server</artifactId>
+    <artifactId>integration-test</artifactId>
 
-    <name>Deploy server ${project.version}</name>
+    <name>Deploy integration test ${project.version}</name>
 
     <parent>
         <groupId>io.pne</groupId>
@@ -16,26 +16,33 @@
 
     <dependencies>
 
-
         <dependency>
             <groupId>io.pne.deploy</groupId>
             <artifactId>api</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
+            <groupId>io.pne.deploy</groupId>
+            <artifactId>agent</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
+            <groupId>io.pne.deploy</groupId>
+            <artifactId>server</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-unit</artifactId>
-            <scope>test</scope>
+            <groupId>io.pne.deploy</groupId>
+            <artifactId>client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.payneteasy.socket-nio</groupId>
+            <artifactId>client</artifactId>
         </dependency>
 
         <dependency>
@@ -47,19 +54,8 @@
         <dependency>
             <groupId>org.immutables</groupId>
             <artifactId>value</artifactId>
-            <!--<scope>opt</scope>-->
+            <scope>provided</scope>
         </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jdk8</artifactId>
-        </dependency>
-
-        <!--<dependency>-->
-            <!--<groupId>org.immutables</groupId>-->
-            <!--<artifactId>value</artifactId>-->
-            <!--<scope>provided</scope>-->
-        <!--</dependency>-->
 
         <!-- SLF4J -->
         <dependency>
@@ -88,11 +84,15 @@
             <artifactId>jul-to-slf4j</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jdk8</artifactId>
+        </dependency>
 
         <dependency>
-            <groupId>com.payneteasy.socket-nio</groupId>
-            <artifactId>client</artifactId>
-            <version>1.0-4</version>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

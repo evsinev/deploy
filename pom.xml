@@ -17,6 +17,8 @@
         <module>deploy-api</module>
         <module>deploy-agent</module>
         <module>deploy-server</module>
+        <module>deploy-client</module>
+        <module>deploy-integration-test</module>
     </modules>
 
     <properties>

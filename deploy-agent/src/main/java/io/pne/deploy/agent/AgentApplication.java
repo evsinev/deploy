@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketException;
 
 import static java.lang.Runtime.getRuntime;
 import static java.lang.Thread.currentThread;
@@ -24,24 +25,33 @@ public class AgentApplication {
     private final    IWebSocketListener listener;
     private volatile WebSocketSession   session;
     private final    MessageSenderImpl  sender;
+    private final    IAgentListener     agentListener;
 
-    public AgentApplication() {
+    public AgentApplication(IAgentListener aAgentListener) {
         ITaskService   taskService = new TaskServiceImpl();
 
-        sender      = new MessageSenderImpl();
-        listener    = new WebSocketFrameListenerImpl(taskService, sender);
-        client      = new WebSocketClient();
+        agentListener = aAgentListener;
+        sender        = new MessageSenderImpl();
+        listener      = new WebSocketFrameListenerImpl(taskService, sender, aAgentListener);
+        client        = new WebSocketClient();
     }
 
-    private void start() {
+    public void start() {
 
         addShutdownHook();
 
         while(!currentThread().isInterrupted()) {
             try {
                 session = connectToServer();
+                agentListener.didConnected();
                 try {
                     session.startAndWait(listener);
+                } catch (SocketException e) {
+                    if("Socket closed".equals(e.getMessage())) {
+                        LOG.warn("Socket closed");
+                    } else {
+                        LOG.error("Socket error", e);
+                    }
                 } catch (Exception e) {
                     LOG.error("Error in session", e);
                 }
@@ -88,7 +98,7 @@ public class AgentApplication {
     }
 
     public static void main(String[] args) throws IOException {
-        new AgentApplication().start();
+        new AgentApplication(new AgentListenerNoOp()).start();
     }
 
 }
