@@ -98,12 +98,6 @@
             <artifactId>jcommander</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.payneteasy.socket-nio</groupId>
-            <artifactId>client</artifactId>
-            <version>1.0-4</version>
-        </dependency>
-
     </dependencies>
 
     <build>
