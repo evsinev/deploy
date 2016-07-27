@@ -21,4 +21,10 @@ public class ServerListenerNoOp implements IServerListener {
     public <T extends IClientMessage> void didReceiveMessage(T aMessage) {
         LOG.info("Received message: {}", aMessage);
     }
+
+    @Override
+    public void didStartFailed(Throwable aException) {
+        LOG.error("Exiting with status -1", aException);
+        System.exit(-1);
+    }
 }

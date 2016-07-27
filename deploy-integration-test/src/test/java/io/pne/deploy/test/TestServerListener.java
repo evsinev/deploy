@@ -3,6 +3,7 @@ package io.pne.deploy.test;
 import io.pne.deploy.api.IClientMessage;
 import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.server.IServerListener;
+import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,13 @@ public class TestServerListener implements IServerListener {
 
     public <T extends IClientMessage> void didReceiveMessage(T aMessage) {
         messages.add(aMessage);
+    }
+
+
+    @Override
+    public void didStartFailed(Throwable aException) {
+        LOG.error("Could not start", aException);
+        Assert.fail(aException.getMessage());
     }
 
     public <T extends IClientMessage> T awaitMessage() throws InterruptedException {

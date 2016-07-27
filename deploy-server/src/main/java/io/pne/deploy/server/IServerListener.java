@@ -9,4 +9,5 @@ public interface IServerListener {
 
     <T extends IClientMessage> void didReceiveMessage(T aMessage);
 
+    void didStartFailed(Throwable cause);
 }

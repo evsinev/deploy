@@ -26,8 +26,15 @@ public class AgentApplication {
     private volatile WebSocketSession   session;
     private final    MessageSenderImpl  sender;
     private final    IAgentListener     agentListener;
+    private final    AgentParameters    agentParameters;
 
     public AgentApplication(IAgentListener aAgentListener) {
+        this(new AgentParameters(), aAgentListener);
+    }
+
+    public AgentApplication(AgentParameters aParameters, IAgentListener aAgentListener) {
+        agentParameters = aParameters;
+
         ITaskService   taskService = new TaskServiceImpl();
 
         agentListener = aAgentListener;
@@ -56,7 +63,7 @@ public class AgentApplication {
                     LOG.error("Error in session", e);
                 }
             } catch (Exception e) {
-                LOG.error("Error while connecting to server", e);
+                LOG.error("Error while connecting to server " + agentParameters.serverUrl, e);
             }
 
             session = null;
@@ -91,7 +98,7 @@ public class AgentApplication {
 
     private WebSocketSession connectToServer() throws IOException {
         WebSocketHandshakeRequest request = new WebSocketHandshakeRequest.Builder()
-                .url("http://localhost:9090/java")
+                .url(agentParameters.serverUrl)
                 .build();
 
         return client.connect(request, sender);

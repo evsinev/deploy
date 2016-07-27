@@ -8,7 +8,9 @@ import io.pne.deploy.api.messages.ImmutableHeartbeat;
 import io.pne.deploy.server.websocket.Connections;
 import io.pne.deploy.server.websocket.ServerWebSocketFrameHandler;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.ServerWebSocket;
 
 import static io.pne.deploy.api.MessageTypes.findTypeId;
@@ -19,16 +21,19 @@ public class WebSocketVerticle extends AbstractVerticle {
 
     private final ServerWebSocketFrameHandler serverWebSocketFrameHandler;
     private final Connections connections = new Connections();
+    private final int         port;
+    private HttpServer httpServer;
 
-    public WebSocketVerticle(IServerListener aServerListener) {
+    public WebSocketVerticle(int aPort, IServerListener aServerListener) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener);
+        port = aPort;
     }
 
     @Override
-    public void start() throws Exception {
-        LOG.debug("Starting ...");
+    public void start(Future<Void> aStartFuture) throws Exception {
+        LOG.info("Starting http server on port {}...", port);
 
-        vertx.createHttpServer()
+        httpServer = vertx.createHttpServer()
                 .websocketHandler(aSocket -> {
                     LOG.debug("URI              : {}", aSocket.uri());
                     LOG.debug("query            : {}", aSocket.query());
@@ -69,8 +74,25 @@ public class WebSocketVerticle extends AbstractVerticle {
                             .response()
                             .end("hello\n");
                 })
-                .listen(9090)
+                .listen(port, event -> {
+                    if(event.failed()) {
+                        aStartFuture.fail(event.cause());
+                    } else {
+                        aStartFuture.complete();
+                    }
+                })
         ;
+    }
+
+    @Override
+    public void stop(Future<Void> aStopFuture) throws Exception {
+        httpServer.close(event -> {
+            if(event.failed()) {
+                aStopFuture.fail(event.cause());
+            } else {
+                aStopFuture.complete();
+            }
+        });
     }
 
     private Buffer createBinaryFrame(IServerMessage aServerMessage) {
