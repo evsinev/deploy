@@ -23,8 +23,8 @@
         </dependency>
 
         <dependency>
-            <groupId>com.payneteasy.socket-nio</groupId>
-            <artifactId>client</artifactId>
+            <groupId>com.github.evsinev</groupId>
+            <artifactId>socket-nio</artifactId>
         </dependency>
 
         <dependency>

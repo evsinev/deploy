@@ -23,11 +23,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.payneteasy.socket-nio</groupId>
-            <artifactId>client</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>

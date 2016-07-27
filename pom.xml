@@ -45,6 +45,13 @@
         </site>
     </distributionManagement>
 
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
 
@@ -153,10 +160,13 @@
             </dependency>
 
             <dependency>
-                <groupId>com.payneteasy.socket-nio</groupId>
-                <artifactId>client</artifactId>
-                <version>1.0-7-SNAPSHOT</version>
+
+                <groupId>com.github.evsinev</groupId>
+                <artifactId>socket-nio</artifactId>
+                <version>fd6ae70</version>
+
                 <exclusions>
+
                     <exclusion>
                         <groupId>com.google.code.gson</groupId>
                         <artifactId>gson</artifactId>
