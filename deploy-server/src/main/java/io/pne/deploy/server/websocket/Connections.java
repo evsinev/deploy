@@ -9,6 +9,9 @@ public class Connections {
 
     private final Map<String, ServerWebSocket> map = new ConcurrentHashMap<>();
 
+    public Connections() {
+    }
+
     public void add(ServerWebSocket aSocket) {
         String hostname = getHostname(aSocket);
         map.put(hostname, aSocket);

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.api.messages.ImmutableHeartbeat;
+import io.pne.deploy.server.bus.IBus;
+import io.pne.deploy.server.httphandler.HttpHandler;
 import io.pne.deploy.server.websocket.Connections;
 import io.pne.deploy.server.websocket.ServerWebSocketFrameHandler;
 import io.vertx.core.AbstractVerticle;
@@ -20,13 +22,16 @@ public class WebSocketVerticle extends AbstractVerticle {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(WebSocketVerticle.class);
 
     private final ServerWebSocketFrameHandler serverWebSocketFrameHandler;
-    private final Connections connections = new Connections();
-    private final int         port;
-    private HttpServer httpServer;
+    private final Connections                 connections;
+    private final int                         port;
+    private       HttpServer                  httpServer;
+    private final IBus                        bus;
 
-    public WebSocketVerticle(int aPort, IServerListener aServerListener) {
-        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener);
+    public WebSocketVerticle(int aPort, IServerListener aServerListener, IBus aBus, Connections aConnections) {
+        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aBus);
         port = aPort;
+        bus = aBus;
+        connections = aConnections;
     }
 
     @Override
@@ -68,12 +73,7 @@ public class WebSocketVerticle extends AbstractVerticle {
                     aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(aRequest -> {
-                    LOG.debug("request {}", aRequest);
-                    aRequest
-                            .response()
-                            .end("hello\n");
-                })
+                .requestHandler(new HttpHandler(bus))
                 .listen(port, event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());

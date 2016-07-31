@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.pne.deploy.api.IClientMessage;
 import io.pne.deploy.api.MessageTypes;
+import io.pne.deploy.api.tasks.ShellScriptLog;
 import io.pne.deploy.server.IServerListener;
+import io.pne.deploy.server.bus.IBus;
+import io.pne.deploy.server.bus.handlers.script_log.ScriptLogAction;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.WebSocketFrame;
@@ -20,8 +23,10 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
     private final ObjectMapper    mapper;
     private final IServerListener serverListener;
+    private final IBus            bus;
 
-    public ServerWebSocketFrameHandler(IServerListener aServerListener) {
+    public ServerWebSocketFrameHandler(IServerListener aServerListener, IBus aBus) {
+        bus = aBus;
         mapper = new ObjectMapper();
         mapper.registerModule(new Jdk8Module());
         serverListener = aServerListener;
@@ -40,6 +45,11 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
         IClientMessage message = createMessage(typeId, buffer);
         serverListener.didReceiveMessage(message);
+
+        if(message instanceof ShellScriptLog) {
+            ShellScriptLog log = (ShellScriptLog) message;
+            bus.send(new ScriptLogAction(log));
+        }
 
         LOG.info("Got {}", message);
     }

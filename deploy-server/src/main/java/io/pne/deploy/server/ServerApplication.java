@@ -3,6 +3,10 @@ package io.pne.deploy.server;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 import io.pne.deploy.api.IServerMessage;
+import io.pne.deploy.server.bus.handlers.websocket_frame.WebSocketFrameAction;
+import io.pne.deploy.server.bus.impl.BusImpl;
+import io.pne.deploy.server.httphandler.Clients;
+import io.pne.deploy.server.websocket.Connections;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,16 +21,20 @@ public class ServerApplication {
     private final Vertx             vertx;
     private final WebSocketVerticle verticle;
     private final ServerParameters  parameters;
+    private final BusImpl           bus;
 
     public ServerApplication(IServerListener aServerListener) {
         this(new ServerParameters(), aServerListener);
     }
 
     public ServerApplication(ServerParameters aParameters, IServerListener aServerListener) {
+        Clients clients = new Clients();
+        Connections connections = new Connections();
         parameters = aParameters;
         listener   = aServerListener;
         vertx      = Vertx.vertx();
-        verticle   = new WebSocketVerticle(parameters.port, aServerListener);
+        bus = new BusImpl(clients, connections);
+        verticle   = new WebSocketVerticle(parameters.port, aServerListener, bus, connections);
     }
 
     public void start() {
@@ -48,7 +56,8 @@ public class ServerApplication {
     }
 
     public void sendMessage(String aHostname, IServerMessage aMessage) {
-        verticle.sendMessage(aHostname, aMessage);
+        bus.send(new WebSocketFrameAction(aHostname, aMessage));
+//        verticle.sendMessage(aHostname, aMessage);
     }
 
     public static void main(String[] args) throws IOException {
