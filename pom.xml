@@ -219,6 +219,12 @@
                 </configuration>
             </plugin>
 
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>1.4.2</version>
+            </plugin>
+
         </plugins>
     </build>
 
