@@ -6,7 +6,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.server.bus.IHandler;
 import io.pne.deploy.server.bus.IHandlerContext;
-import io.pne.deploy.server.websocket.Connections;
+import io.pne.deploy.server.websocket.AgentConnections;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
 
@@ -14,9 +14,9 @@ import static io.pne.deploy.api.MessageTypes.findTypeId;
 
 public class WebSocketFrameHandler implements IHandler<WebSocketFrameAction> {
 
-    private final Connections connections;
+    private final AgentConnections connections;
 
-    public WebSocketFrameHandler(Connections connections) {
+    public WebSocketFrameHandler(AgentConnections connections) {
         this.connections = connections;
     }
 

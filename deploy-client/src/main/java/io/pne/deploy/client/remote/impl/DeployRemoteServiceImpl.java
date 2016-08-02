@@ -1,5 +1,6 @@
 package io.pne.deploy.client.remote.impl;
 
+import io.pne.deploy.client.IClientListener;
 import io.pne.deploy.client.remote.IDeployRemoteService;
 import okhttp3.*;
 import org.slf4j.Logger;
@@ -7,18 +8,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.LineNumberReader;
-import java.io.Writer;
 
 public class DeployRemoteServiceImpl implements IDeployRemoteService {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeployRemoteServiceImpl.class);
 
     private final String baseUrl;
+    private final IClientListener clientListener;
 
     OkHttpClient client = new OkHttpClient();
 
-    public DeployRemoteServiceImpl(String baseUrl) {
+    public DeployRemoteServiceImpl(String baseUrl, IClientListener aListener) {
         this.baseUrl = baseUrl;
+        clientListener = aListener;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class DeployRemoteServiceImpl implements IDeployRemoteService {
         try (LineNumberReader in = new LineNumberReader(response.body().charStream())) {
             String line;
             while ((line = in.readLine()) != null) {
-                System.out.println(line);
+                clientListener.didReceiveLine(line);
             }
         }
 

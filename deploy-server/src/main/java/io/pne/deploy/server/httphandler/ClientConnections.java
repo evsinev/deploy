@@ -5,11 +5,11 @@ import io.vertx.core.http.HttpServerResponse;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Clients {
+public class ClientConnections {
 
     private final Map<String, HttpServerResponse> map;
 
-    public Clients() {
+    public ClientConnections() {
         this.map = new ConcurrentHashMap<>();
     }
 

@@ -16,8 +16,8 @@ import io.pne.deploy.server.bus.handlers.text_order.TextOrderAction;
 import io.pne.deploy.server.bus.handlers.text_order.TextOrderHandler;
 import io.pne.deploy.server.bus.handlers.websocket_frame.WebSocketFrameAction;
 import io.pne.deploy.server.bus.handlers.websocket_frame.WebSocketFrameHandler;
-import io.pne.deploy.server.httphandler.Clients;
-import io.pne.deploy.server.websocket.Connections;
+import io.pne.deploy.server.httphandler.ClientConnections;
+import io.pne.deploy.server.websocket.AgentConnections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,7 @@ public class BusImpl implements IBus {
     private final Map<Class<? extends IAction>, IHandler> handlers;
     private final IHandlerContext context;
 
-    public BusImpl(Clients aClients, Connections aConnections) {
+    public BusImpl(ClientConnections aClients, AgentConnections aConnections) {
         handlers = new HashMap<>();
         handlers.put(ClientCommandAction.class, new ClientCommandHandler(aClients));
         handlers.put(OrderAction.class, new OrderHandler());

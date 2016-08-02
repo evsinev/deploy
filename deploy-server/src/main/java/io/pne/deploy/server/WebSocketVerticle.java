@@ -7,7 +7,7 @@ import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.api.messages.ImmutableHeartbeat;
 import io.pne.deploy.server.bus.IBus;
 import io.pne.deploy.server.httphandler.HttpHandler;
-import io.pne.deploy.server.websocket.Connections;
+import io.pne.deploy.server.websocket.AgentConnections;
 import io.pne.deploy.server.websocket.ServerWebSocketFrameHandler;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -22,12 +22,12 @@ public class WebSocketVerticle extends AbstractVerticle {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(WebSocketVerticle.class);
 
     private final ServerWebSocketFrameHandler serverWebSocketFrameHandler;
-    private final Connections                 connections;
+    private final AgentConnections connections;
     private final int                         port;
     private       HttpServer                  httpServer;
     private final IBus                        bus;
 
-    public WebSocketVerticle(int aPort, IServerListener aServerListener, IBus aBus, Connections aConnections) {
+    public WebSocketVerticle(int aPort, IServerListener aServerListener, IBus aBus, AgentConnections aConnections) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aBus);
         port = aPort;
         bus = aBus;

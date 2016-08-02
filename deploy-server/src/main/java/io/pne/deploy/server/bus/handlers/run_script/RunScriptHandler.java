@@ -5,20 +5,18 @@ import io.pne.deploy.api.tasks.ShellScriptParameters;
 import io.pne.deploy.server.bus.IHandler;
 import io.pne.deploy.server.bus.IHandlerContext;
 import io.pne.deploy.server.bus.handlers.websocket_frame.WebSocketFrameAction;
-import io.pne.deploy.server.websocket.Connections;
+import io.pne.deploy.server.websocket.AgentConnections;
 import io.vertx.core.http.ServerWebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.UUID;
 
 public class RunScriptHandler implements IHandler<RunScriptAction> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RunScriptHandler.class);
 
-    private final Connections connections;
+    private final AgentConnections connections;
 
-    public RunScriptHandler(Connections connections) {
+    public RunScriptHandler(AgentConnections connections) {
         this.connections = connections;
     }
 

@@ -5,11 +5,11 @@ import io.vertx.core.http.ServerWebSocket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Connections {
+public class AgentConnections {
 
     private final Map<String, ServerWebSocket> map = new ConcurrentHashMap<>();
 
-    public Connections() {
+    public AgentConnections() {
     }
 
     public void add(ServerWebSocket aSocket) {

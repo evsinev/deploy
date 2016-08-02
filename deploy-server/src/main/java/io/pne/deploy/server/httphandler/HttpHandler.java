@@ -32,8 +32,10 @@ public class HttpHandler implements Handler<HttpServerRequest> {
 
             bus.send(action);
 
-            response.write("uri = "  + aRequest.uri());
-            response.write("\n");
+//            response.write("uri = "  + aRequest.uri());
+//            response.write("\n");
+//            response.write("uri = "  + aRequest.uri());
+//            response.write("\n");
         });
 
     }

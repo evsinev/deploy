@@ -4,6 +4,7 @@ import io.pne.deploy.agent.AgentApplication;
 import io.pne.deploy.client.ClientApplication;
 import io.pne.deploy.client.ClientParameters;
 import io.pne.deploy.server.ServerApplication;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -39,8 +40,17 @@ public class SendCommandFromClientTest {
         clientParameters.issue  = "123";
         clientParameters.command = "@script name=test.sh host=127.0.0.1 KEY_1=VALUE_1";
 
-        ClientApplication client = new ClientApplication(clientParameters);
-        client.runCommand();
+        TestClientListener clientListener = new TestClientListener();
+        ClientApplication client = new ClientApplication(clientListener, clientParameters);
+        executor.execute(client::runCommand);
+
+        Assert.assertEquals("ARGUMENT_1=", clientListener.awaitLine());
+        Assert.assertEquals("ENV_VARIABLE=", clientListener.awaitLine());
+        Assert.assertEquals("ERROR OUTPUT", clientListener.awaitLine());
+        Assert.assertEquals("STD OUTPUT", clientListener.awaitLine());
+
+
+
 
     }
 }

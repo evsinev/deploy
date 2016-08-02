@@ -5,8 +5,8 @@ import com.beust.jcommander.ParameterException;
 import io.pne.deploy.api.IServerMessage;
 import io.pne.deploy.server.bus.handlers.websocket_frame.WebSocketFrameAction;
 import io.pne.deploy.server.bus.impl.BusImpl;
-import io.pne.deploy.server.httphandler.Clients;
-import io.pne.deploy.server.websocket.Connections;
+import io.pne.deploy.server.httphandler.ClientConnections;
+import io.pne.deploy.server.websocket.AgentConnections;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +28,8 @@ public class ServerApplication {
     }
 
     public ServerApplication(ServerParameters aParameters, IServerListener aServerListener) {
-        Clients clients = new Clients();
-        Connections connections = new Connections();
+        ClientConnections clients = new ClientConnections();
+        AgentConnections connections = new AgentConnections();
         parameters = aParameters;
         listener   = aServerListener;
         vertx      = Vertx.vertx();

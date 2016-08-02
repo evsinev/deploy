@@ -15,14 +15,20 @@ public class ClientApplication {
 
     private final ClientParameters parameters;
     IDeployRemoteService deployService;
+    private final IClientListener clientListener;
 
-    public ClientApplication(ClientParameters parameters) {
+    public ClientApplication(IClientListener aListener, ClientParameters parameters) {
         this.parameters = parameters;
-        deployService = new DeployRemoteServiceImpl(parameters.server);
+        clientListener = aListener;
+        deployService = new DeployRemoteServiceImpl(parameters.server, aListener);
     }
 
-    public void runCommand() throws IOException {
-        deployService.runCommand(parameters.issue, parameters.command);
+    public void runCommand()  {
+        try {
+            deployService.runCommand(parameters.issue, parameters.command);
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not run command", e);
+        }
     }
 
     public static void main(String[] args) throws IOException {
@@ -47,7 +53,7 @@ public class ClientApplication {
             return;
         }
 
-        ClientApplication app = new ClientApplication(parameters);
+        ClientApplication app = new ClientApplication(new ClientListenerNoOp(), parameters);
         app.runCommand();
 
     }

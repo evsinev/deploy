@@ -4,7 +4,7 @@ import io.pne.deploy.server.bus.IHandler;
 import io.pne.deploy.server.bus.IHandlerContext;
 import io.pne.deploy.server.bus.handlers.text_order.CommandLine;
 import io.pne.deploy.server.bus.handlers.text_order.TextOrderAction;
-import io.pne.deploy.server.httphandler.Clients;
+import io.pne.deploy.server.httphandler.ClientConnections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,11 +13,11 @@ import java.util.UUID;
 
 public class ClientCommandHandler implements IHandler<ClientCommandAction> {
 
-    private final Clients clients;
+    private final ClientConnections clients;
 
     private static final Logger LOG = LoggerFactory.getLogger(ClientCommandHandler.class);
 
-    public ClientCommandHandler(Clients clients) {
+    public ClientCommandHandler(ClientConnections clients) {
         this.clients = clients;
     }
 
