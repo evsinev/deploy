@@ -15,16 +15,21 @@ import java.util.concurrent.Executors;
 
 public class TaskServiceImpl implements ITaskService {
 
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+
     private static final Logger LOG = LoggerFactory.getLogger(TaskServiceImpl.class);
 
-    private final File baseDir = new File(".");
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final File scriptsDir;
+
+    public TaskServiceImpl(File scriptsDir) {
+        this.scriptsDir = scriptsDir;
+    }
 
     @Override
     public void runScript(ShellScriptParameters aParameters, ITaskContext aContext) {
         executor.submit((Runnable) () -> {
             try {
-                ShellScriptTask task = new ShellScriptTask(baseDir);
+                ShellScriptTask task = new ShellScriptTask(scriptsDir);
                 ShellScriptResult result = task.execute(aContext, aParameters);
                 aContext.sendResultToServer(result);
             } catch (Exception e) {

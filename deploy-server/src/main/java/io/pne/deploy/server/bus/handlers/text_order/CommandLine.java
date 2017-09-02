@@ -1,10 +1,12 @@
 package io.pne.deploy.server.bus.handlers.text_order;
 
 import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.CommandState;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
+import java.util.UUID;
 
 public class CommandLine {
 
@@ -30,7 +32,7 @@ public class CommandLine {
                 map.put(key, value);
             }
 
-            return new Command(commandId, name, map);
+            return new Command(commandId, name, map, CommandState.CREATED);
         } catch (Exception e) {
             throw new IllegalStateException("Could not parse '"+line+"'", e);
         }
@@ -44,4 +46,7 @@ public class CommandLine {
         throw new IllegalStateException("No token for " + key + " in '" + text+"'");
     }
 
+    public static CommandLine createCommandFromLine(String aLine) {
+        return new CommandLine(UUID.randomUUID().toString(), aLine);
+    }
 }

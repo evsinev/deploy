@@ -5,6 +5,7 @@ import io.pne.deploy.server.bus.IHandlerContext;
 import io.pne.deploy.server.bus.handlers.order.OrderAction;
 import io.pne.deploy.server.model.Command;
 import io.pne.deploy.server.model.Order;
+import io.pne.deploy.server.model.OrderState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,7 @@ public class TextOrderHandler implements IHandler<TextOrderAction> {
                   UUID.randomUUID().toString()
                 , aAction.issue
                 , commands
+                , OrderState.CREATED
         );
 
         aContext.send(new OrderAction(order));

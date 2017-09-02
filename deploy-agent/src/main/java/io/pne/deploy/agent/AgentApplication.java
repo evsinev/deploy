@@ -11,6 +11,7 @@ import io.pne.deploy.agent.websocket.WebSocketFrameListenerImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.SocketException;
 
@@ -35,7 +36,7 @@ public class AgentApplication {
     public AgentApplication(AgentParameters aParameters, IAgentListener aAgentListener) {
         agentParameters = aParameters;
 
-        ITaskService   taskService = new TaskServiceImpl();
+        ITaskService   taskService = new TaskServiceImpl(aParameters.getScriptsDir());
 
         agentListener = aAgentListener;
         sender        = new MessageSenderImpl();

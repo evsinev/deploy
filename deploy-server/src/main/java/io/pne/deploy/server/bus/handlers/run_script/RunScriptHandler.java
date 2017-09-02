@@ -30,7 +30,6 @@ public class RunScriptHandler implements IHandler<RunScriptAction> {
 
         ImmutableShellScriptParameters shell = ImmutableShellScriptParameters.builder()
                 .filename(aAction.scriptName)
-                .group("../deploy-agent/src/test/resources/scripts")
                 .taskId(aAction.commandId)
                 .username(ShellScriptParameters.USERNAME_NON_ROOT)
                 .build();

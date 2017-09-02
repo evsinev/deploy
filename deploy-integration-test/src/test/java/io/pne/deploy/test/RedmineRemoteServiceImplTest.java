@@ -1,8 +1,8 @@
 package io.pne.deploy.test;
 
-import io.pne.deploy.server.redmine.IRedmineRemoteService;
-import io.pne.deploy.server.redmine.RedmineIssue;
-import io.pne.deploy.server.redmine.impl.RedmineRemoteServiceImpl;
+import io.pne.deploy.server.service.redmine.IRedmineRemoteService;
+import io.pne.deploy.server.service.redmine.RedmineIssue;
+import io.pne.deploy.server.service.redmine.impl.RedmineRemoteServiceImpl;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;

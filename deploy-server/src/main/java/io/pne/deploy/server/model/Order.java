@@ -7,11 +7,13 @@ public class Order {
     public final String        orderId;
     public final String        issue;
     public final List<Command> commands;
+    public final OrderState    orderState;
 
-    public Order(String aOrderId, String issue, List<Command> commands) {
-        orderId = aOrderId;
+    public Order(String orderId, String issue, List<Command> commands, OrderState orderState) {
+        this.orderId = orderId;
         this.issue = issue;
         this.commands = commands;
+        this.orderState = orderState;
     }
 
     @Override
@@ -20,6 +22,7 @@ public class Order {
                 "orderId='" + orderId + '\'' +
                 ", issue='" + issue + '\'' +
                 ", commands=" + commands +
+                ", orderState=" + orderState +
                 '}';
     }
 }

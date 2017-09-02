@@ -1,8 +1,8 @@
-package io.pne.deploy.server.redmine.impl;
+package io.pne.deploy.server.service.redmine.impl;
 
 import com.taskadapter.redmineapi.*;
 import com.taskadapter.redmineapi.bean.Issue;
-import io.pne.deploy.server.redmine.*;
+import io.pne.deploy.server.service.redmine.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,8 +38,9 @@ public class RedmineRemoteServiceImpl implements IRedmineRemoteService {
         }
         return issue.getJournals().stream()
                 .map(journal -> ImmutableRedmineComment.builder()
-                        .userId ( journal.getUser().getId() )
-                        .text   ( journal.getNotes()        )
+                        .userId    ( journal.getUser().getId() )
+                        .text      ( journal.getNotes()        )
+                        .commentId ( journal.getId()           )
                         .build())
                 .collect(Collectors.<RedmineComment>toList());
     }

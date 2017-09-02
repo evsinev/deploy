@@ -1,4 +1,4 @@
-package io.pne.deploy.server.redmine;
+package io.pne.deploy.server.service.redmine;
 
 import java.util.List;
 

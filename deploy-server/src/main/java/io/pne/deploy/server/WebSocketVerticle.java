@@ -22,7 +22,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(WebSocketVerticle.class);
 
     private final ServerWebSocketFrameHandler serverWebSocketFrameHandler;
-    private final AgentConnections connections;
+    private final AgentConnections            connections;
     private final int                         port;
     private       HttpServer                  httpServer;
     private final IBus                        bus;

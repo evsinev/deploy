@@ -1,7 +1,7 @@
-package io.pne.deploy.server.redmine.impl;
+package io.pne.deploy.server.service.redmine.impl;
 
-import io.pne.deploy.server.redmine.RedmineComment;
-import io.pne.deploy.server.redmine.RedmineIssue;
+import io.pne.deploy.server.service.redmine.RedmineComment;
+import io.pne.deploy.server.service.redmine.RedmineIssue;
 
 import java.util.*;
 
