@@ -27,11 +27,11 @@ public class ServerVertxApplicationTest {
         try {
             IDeployService deployService = application.getDeployService();
 
-            deployService.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
-                    new TaskCommand(agentByName("localhost"), new AgentCommand(
-                            generateCommandId(), new AgentCommandParameters(), SHELL, "echo", singletonList("test")
-                    ))))
-            );
+//            deployService.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
+//                    new TaskCommand(agentByName("localhost"), new AgentCommand(
+//                            generateCommandId(), new AgentCommandParameters(), SHELL, "echo", singletonList("test")
+//                    ))))
+//            );
         } finally {
             application.stop();
         }

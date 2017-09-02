@@ -1,7 +1,7 @@
 package io.pne.deploy.agent.api.command;
 
-import com.sun.istack.internal.NotNull;
 
+import javax.annotation.Nonnull;
 import java.util.UUID;
 
 public class AgentCommandId {
@@ -16,7 +16,7 @@ public class AgentCommandId {
         return new AgentCommandId(UUID.randomUUID().toString());
     }
 
-    @NotNull public String getId() {
+    @Nonnull public String getId() {
         return id;
     }
 
