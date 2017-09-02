@@ -1,6 +1,6 @@
 package io.pne.deploy.server.bus.handlers.text_order;
 
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 import io.pne.deploy.server.model.CommandState;
 
 import java.util.HashMap;
@@ -18,7 +18,7 @@ public class CommandLine {
         this.line = line;
     }
 
-    public Command createCommand() {
+    public OldCommand createCommand() {
         try {
             StringTokenizer tokenizer = new StringTokenizer(line, "\t ");
             String name = tokenizer.nextToken();
@@ -32,7 +32,7 @@ public class CommandLine {
                 map.put(key, value);
             }
 
-            return new Command(commandId, name, map, CommandState.CREATED);
+            return new OldCommand(commandId, name, map, CommandState.CREATED);
         } catch (Exception e) {
             throw new IllegalStateException("Could not parse '"+line+"'", e);
         }

@@ -6,10 +6,10 @@ public class Order {
 
     public final String        orderId;
     public final String        issue;
-    public final List<Command> commands;
+    public final List<OldCommand> commands;
     public final OrderState    orderState;
 
-    public Order(String orderId, String issue, List<Command> commands, OrderState orderState) {
+    public Order(String orderId, String issue, List<OldCommand> commands, OrderState orderState) {
         this.orderId = orderId;
         this.issue = issue;
         this.commands = commands;

@@ -1,6 +1,6 @@
 package io.pne.deploy.server.service.redmine.impl;
 
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 import io.pne.deploy.server.model.CommandState;
 import io.pne.deploy.server.model.Order;
 import io.pne.deploy.server.model.OrderState;
@@ -22,7 +22,7 @@ public class IssueToOrderConverter {
         );
     }
 
-    private List<Command> createCommands(RedmineIssue aIssue) {
+    private List<OldCommand> createCommands(RedmineIssue aIssue) {
         return Strings.split(aIssue.description(), "\n\r")
                 .map(String::trim)
                 .filter(line -> line.trim().startsWith("@"))
@@ -30,7 +30,7 @@ public class IssueToOrderConverter {
                 .collect(toList());
     }
 
-    public Command createCommand(String aLine) {
+    public OldCommand createCommand(String aLine) {
         try {
             String commandId = UUID.randomUUID().toString();
 
@@ -46,7 +46,7 @@ public class IssueToOrderConverter {
                 map.put(key, value);
             }
 
-            return new Command(commandId, name, map, CommandState.CREATED);
+            return new OldCommand(commandId, name, map, CommandState.CREATED);
         } catch (Exception e) {
             throw new IllegalStateException("Could not parse '" + aLine + "'", e);
         }

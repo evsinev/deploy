@@ -1,8 +1,8 @@
 package io.pne.deploy.server.service.command;
 
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 
 public interface ICommandService {
 
-    void scheduleCommand(Command aCommand);
+    void scheduleCommand(OldCommand aCommand);
 }

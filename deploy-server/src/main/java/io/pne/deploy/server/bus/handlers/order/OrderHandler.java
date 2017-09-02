@@ -3,7 +3,7 @@ package io.pne.deploy.server.bus.handlers.order;
 import io.pne.deploy.server.bus.IHandler;
 import io.pne.deploy.server.bus.IHandlerContext;
 import io.pne.deploy.server.bus.handlers.run_script.RunScriptAction;
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,9 +21,9 @@ public class OrderHandler implements IHandler<OrderAction> {
             throw new IllegalStateException("Commands is null");
         }
 
-        for (Command command : aAction.order.commands) {
+        for (OldCommand command : aAction.order.commands) {
             if(command == null) {
-                throw new IllegalStateException("Command is null");
+                throw new IllegalStateException("OldCommand is null");
             }
             if(command.commandName.equals("@script")) {
                 RunScriptAction scriptAction = new RunScriptAction(
@@ -40,15 +40,15 @@ public class OrderHandler implements IHandler<OrderAction> {
 
     }
 
-    private Map<String, String> getEnvironment(Command aCommand) {
+    private Map<String, String> getEnvironment(OldCommand aCommand) {
         return aCommand.parameters;
     }
 
-    private String getHostname(Command aCommand) {
+    private String getHostname(OldCommand aCommand) {
         return aCommand.parameters.get("host");
     }
 
-    private String getScriptName(Command aCommand) {
+    private String getScriptName(OldCommand aCommand) {
         return aCommand.parameters.get("name");
     }
 

@@ -1,7 +1,7 @@
 package io.pne.deploy.server.service.command.impl;
 
 import io.pne.deploy.server.dao.ICommandsDao;
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 import io.pne.deploy.server.service.command.ICommandService;
 
 public class CommandServiceImpl implements ICommandService {
@@ -13,7 +13,7 @@ public class CommandServiceImpl implements ICommandService {
     }
 
     @Override
-    public void scheduleCommand(Command aCommand) {
+    public void scheduleCommand(OldCommand aCommand) {
         if(aCommand.commandName.equals("@script")) {
             tryToSendScriptCommand(aCommand);
         } else {
@@ -21,7 +21,7 @@ public class CommandServiceImpl implements ICommandService {
         }
     }
 
-    private void tryToSendScriptCommand(Command aCommand) {
+    private void tryToSendScriptCommand(OldCommand aCommand) {
 
     }
 }

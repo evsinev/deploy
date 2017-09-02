@@ -1,9 +1,8 @@
 package io.pne.deploy.server.service.order.impl;
 
 import io.pne.deploy.server.bus.IBus;
-import io.pne.deploy.server.dao.ICommandsDao;
 import io.pne.deploy.server.dao.IOrdersDao;
-import io.pne.deploy.server.model.Command;
+import io.pne.deploy.server.model.OldCommand;
 import io.pne.deploy.server.model.Order;
 import io.pne.deploy.server.service.command.ICommandService;
 import io.pne.deploy.server.service.order.IOrderService;
@@ -32,7 +31,7 @@ public class OrderServiceImpl implements IOrderService {
     private void schedulerOrder(Order aOrder) {
         ordersDao.saveOrder(aOrder);
 
-        for (Command command : aOrder.commands) {
+        for (OldCommand command : aOrder.commands) {
             commandService.scheduleCommand(command);
         }
 
