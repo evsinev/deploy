@@ -1,11 +1,12 @@
 package io.pne.deploy.agent.api.messages;
 
-import io.pne.deploy.agent.api.command.AgentCommand;
-
 public enum AgentMessageType {
 
 
-    RUN_TASK(1, AgentCommand.class);
+      RUN_COMMAND_REQUEST  (1, RunAgentCommandRequest.class)
+    , RUN_COMMAND_RESPONSE (2, RunAgentCommandResponse.class)
+    , RUN_COMMAND_LOG      (3, RunAgentCommandLog.class    )
+    ;
 
     public final byte id;
     public final Class clazz;
@@ -24,7 +25,7 @@ public enum AgentMessageType {
         throw new IllegalStateException("Couldn't find type by id " + aTypeId);
     }
 
-    public static AgentMessageType findByClass(Class<? extends IAgentServerMessage> aClass) {
+    public static AgentMessageType findByClass(Class<?> aClass) {
         for (AgentMessageType type : values()) {
             if(aClass.equals(type.clazz)) {
                 return type;

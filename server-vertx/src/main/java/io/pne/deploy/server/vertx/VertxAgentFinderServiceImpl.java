@@ -8,14 +8,16 @@ public class VertxAgentFinderServiceImpl implements IAgentFinderService {
 
     private final  AgentConnections agentConnections;
     private final Gson gson;
+    private final CommandResponses commandResponses;
 
-    public VertxAgentFinderServiceImpl(AgentConnections agentConnections, Gson gson) {
+    public VertxAgentFinderServiceImpl(AgentConnections agentConnections, Gson gson, CommandResponses aResponses) {
         this.agentConnections = agentConnections;
         this.gson = gson;
+        commandResponses = aResponses;
     }
 
     @Override
     public IAgentService findAgentServiceById(String aId) {
-        return new VertxAgentServiceImpl(agentConnections, gson);
+        return new VertxAgentServiceImpl(agentConnections, gson, commandResponses);
     }
 }

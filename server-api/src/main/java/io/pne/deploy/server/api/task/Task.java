@@ -17,4 +17,13 @@ public class Task {
         commands    = aCommands;
         parameters  = aParameters;
     }
+
+    @Override
+    public String toString() {
+        return "Task{" +
+                "id=" + id +
+                ", commands=" + commands +
+                ", parameters=" + parameters +
+                '}';
+    }
 }

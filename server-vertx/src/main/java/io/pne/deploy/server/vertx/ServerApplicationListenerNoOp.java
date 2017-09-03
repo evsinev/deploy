@@ -1,11 +1,12 @@
 package io.pne.deploy.server.vertx;
 
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
+import io.pne.deploy.server.IServerApplicationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServerListenerNoOp implements IServerListener {
-    private static final Logger LOG = LoggerFactory.getLogger(ServerListenerNoOp.class);
+public class ServerApplicationListenerNoOp implements IServerApplicationListener {
+    private static final Logger LOG = LoggerFactory.getLogger(ServerApplicationListenerNoOp.class);
 
     @Override
     public void serverStopped() {

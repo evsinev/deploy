@@ -1,8 +1,8 @@
-package io.pne.deploy.server.vertx;
+package io.pne.deploy.server;
 
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
 
-public interface IServerListener {
+public interface IServerApplicationListener {
     void serverStopped();
 
     void didStarted();

@@ -3,6 +3,9 @@ package io.pne.deploy.server.vertx;
 import com.google.gson.Gson;
 import io.pne.deploy.agent.api.messages.AgentMessageType;
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
+import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
+import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
+import io.pne.deploy.server.IServerApplicationListener;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.WebSocketFrame;
@@ -16,12 +19,15 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerWebSocketFrameHandler.class);
 
-    private final Gson gson;
-    private final IServerListener serverListener;
+    private final Gson                       gson;
+    private final IServerApplicationListener serverListener;
+    private final CommandResponses           commandResponses;
 
-    public ServerWebSocketFrameHandler(IServerListener aServerListener, Gson aGson) {
+
+    public ServerWebSocketFrameHandler(IServerApplicationListener aServerListener, Gson aGson, CommandResponses aResponses) {
         gson = aGson;
         serverListener = aServerListener;
+        commandResponses = aResponses;
     }
 
     @Override
@@ -43,10 +49,14 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
         LOG.info("Got {}", message);
 
         switch (type) {
-            case RUN_TASK:
-                // todo deal with message
+            case RUN_COMMAND_RESPONSE:
+                RunAgentCommandResponse response = (RunAgentCommandResponse) message;
+                commandResponses.addCommandResponse(response.commandId, response);
                 break;
 
+            case RUN_COMMAND_LOG:
+                RunAgentCommandLog logMessage = (RunAgentCommandLog) message;
+                LOG.debug("{}: {}", logMessage.commandId, message);
             default:
                 LOG.error("Unsupported type : " + type);
         }

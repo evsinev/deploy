@@ -1,10 +1,9 @@
 package io.pne.deploy.agent.service.impl;
 
 import io.pne.deploy.agent.api.IAgentService;
-import io.pne.deploy.agent.api.exceptions.AgentCommandException;
 import io.pne.deploy.agent.api.command.AgentCommand;
-import io.pne.deploy.agent.api.command.AgentCommandId;
-import io.pne.deploy.agent.api.messages.RunAgentCommandMessage;
+import io.pne.deploy.agent.api.exceptions.AgentCommandException;
+import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.agent.service.log.IAgentLogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,48 +25,47 @@ public class AgentServiceImpl implements IAgentService {
     }
 
     @Override
-    public void runCommand(RunAgentCommandMessage aCommand) throws AgentCommandException {
+    public void runCommand(RunAgentCommandRequest aCommand) throws AgentCommandException {
 
-        AgentCommandId id = aCommand.command.id;
-        String logId = id.getId();
+        String logId = aCommand.commandId;
         LOG.debug("{}: Running command {}", logId, aCommand);
         Process process;
 
         try {
             process = new ProcessBuilder(createCommandWithArguments(aCommand.command)).start();
         } catch (IOException e) {
-            throw new AgentCommandException(id, "Can't start command", e);
+            throw new AgentCommandException("Can't start command", e);
         }
 
-        startListenProcessOutput(process.getInputStream(), logService, id);
-        startListenProcessOutput(process.getErrorStream(), logService, id);
+        startListenProcessOutput(process.getInputStream(), logService, logId);
+        startListenProcessOutput(process.getErrorStream(), logService, logId);
 
         try {
             LOG.debug("{}: Waiting for process exit ...", logId);
 
             int ret = process.waitFor();
             if(ret != 0) {
-                throw new AgentCommandException(id, "Command returned " + ret);
+                throw new AgentCommandException("Command returned " + ret);
             }
             LOG.debug("{}: exit value is {}", logId, ret);
         } catch (InterruptedException e) {
-            throw new AgentCommandException(id, "Can't run command", e);
+            throw new AgentCommandException("Can't run command", e);
         }
     }
 
-    private static void startListenProcessOutput(InputStream aInputStream, IAgentLogService aLogService, AgentCommandId aId) {
+    private static void startListenProcessOutput(InputStream aInputStream, IAgentLogService aLogService, String aId) {
         Thread thread = new Thread(() -> {
 
-            LOG.debug("{}: Scanning output from process ...", aId.getId());
+            LOG.debug("{}: Scanning output from process ...", aId);
             Scanner scanner = new Scanner(aInputStream, "UTF-8");
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                LOG.debug("{}: output is {}", aId.getId(), line);
+                LOG.debug("{}: output is {}", aId, line);
                 aLogService.logCommandOutput(aId, line);
             }
-            LOG.debug("{}: Finished scanning output from the process", aId.getId());
+            LOG.debug("{}: Finished scanning output from the process", aId);
         });
-        thread.setName("cmd-" + aId.getId());
+        thread.setName("cmd-" + aId);
         thread.start();
     }
 

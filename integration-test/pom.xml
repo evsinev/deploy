@@ -4,9 +4,9 @@
     <packaging>jar</packaging>
 
     <groupId>io.pne.deploy</groupId>
-    <artifactId>server-vertx</artifactId>
+    <artifactId>integration-test</artifactId>
 
-    <name>Server vertx implementation ${project.version}</name>
+    <name>Integration tests ${project.version}</name>
 
     <parent>
         <groupId>io.pne</groupId>
@@ -18,20 +18,16 @@
 
         <dependency>
             <groupId>io.pne.deploy</groupId>
-            <artifactId>server-api</artifactId>
+            <artifactId>agent-websocket</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.pne.deploy</groupId>
-            <artifactId>server</artifactId>
+            <artifactId>server-vertx</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>junit</groupId>
@@ -40,24 +36,34 @@
         </dependency>
 
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-core</artifactId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
-        
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-unit</artifactId>
-            <scope>test</scope>
+            <groupId>com.payneteasy.socket-nio</groupId>
+            <artifactId>client</artifactId>
         </dependency>
 
 
@@ -70,7 +76,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>io.pne.deploy.server.vertx.VertxServerApplication</mainClass>
+                            <mainClass>io.pne.deploy.agent.websocket.WebSocketAgentApplication</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

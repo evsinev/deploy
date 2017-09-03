@@ -8,14 +8,12 @@ import java.util.List;
 
 public class AgentCommand implements IAgentServerMessage {
 
-     @Nonnull public final AgentCommandId         id;
      @Nonnull public final AgentCommandParameters parameters;
      @Nonnull public final AgentCommandType       type;
      @Nonnull public final String                 name;
      @Nonnull public final List<String>           arguments;
 
-    public AgentCommand(@Nonnull AgentCommandId id, @Nonnull AgentCommandParameters parameters, @Nonnull AgentCommandType type, @Nonnull String name, @Nonnull List<String> arguments) {
-        this.id = id;
+    public AgentCommand(@Nonnull AgentCommandParameters parameters, @Nonnull AgentCommandType type, @Nonnull String name, @Nonnull List<String> arguments) {
         this.parameters = parameters;
         this.type = type;
         this.name = name;
@@ -25,8 +23,7 @@ public class AgentCommand implements IAgentServerMessage {
     @Override
     public String toString() {
         return "AgentCommand{" +
-                "id=" + id +
-                ", type=" + type +
+                "  type=" + type +
                 ", name='" + name + '\'' +
                 ", arguments=" + arguments +
                 ", parameters=" + parameters +

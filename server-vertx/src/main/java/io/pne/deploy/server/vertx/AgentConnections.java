@@ -13,16 +13,17 @@ public class AgentConnections {
     }
 
     public void addAgent(ServerWebSocket aSocket) {
-        String hostname = getHostname(aSocket);
-        map.put(hostname, aSocket);
+        String agentId = getAgentId(aSocket);
+        map.put(agentId, aSocket);
     }
 
     public void removeAgent(ServerWebSocket aSocket) {
-        map.remove(getHostname(aSocket));
+        map.remove(getAgentId(aSocket));
     }
 
-    private String getHostname(ServerWebSocket aSocket) {
-        return aSocket.remoteAddress().host();
+    private String getAgentId(ServerWebSocket aSocket) {
+        PathParameters pathParameters = new PathParameters(aSocket.path());
+        return pathParameters.getLast();
     }
 
     public ServerWebSocket getSocket(String aHostname) {

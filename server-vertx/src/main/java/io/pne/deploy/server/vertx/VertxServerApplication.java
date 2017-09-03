@@ -2,26 +2,33 @@ package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.service.impl.DeployServiceImpl;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
-public class ServerVertxApplication {
+public class VertxServerApplication {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ServerVertxApplication.class);
+    static {
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+    }
+    
+    private static final Logger LOG = LoggerFactory.getLogger(VertxServerApplication.class);
 
     private final Vertx             vertx;
     private final WebSocketVerticle verticle;
-    private final IServerListener   serverListener;
+    private final IServerApplicationListener serverListener;
     private final AgentConnections  agentConnections;
     private DeployServiceImpl       deployService;
 
     public static void main(String[] args) {
-        ServerListenerNoOp serverListenerNoOp   = new ServerListenerNoOp();
+        ServerApplicationListenerNoOp serverListenerNoOp   = new ServerApplicationListenerNoOp();
 
-        ServerVertxApplication application = new ServerVertxApplication(
+        VertxServerApplication application = new VertxServerApplication(
                  serverListenerNoOp
         );
 
@@ -40,13 +47,15 @@ public class ServerVertxApplication {
 
     }
 
-    public ServerVertxApplication(IServerListener serverListener) {
+    public VertxServerApplication(IServerApplicationListener serverListener) {
         Gson gson           = new GsonBuilder().setPrettyPrinting().create();
+        CommandResponses response = new CommandResponses();
         this.vertx          = Vertx.vertx();
+
         agentConnections    = new AgentConnections();
-        this.verticle       = new WebSocketVerticle(8080, serverListener, agentConnections, gson);
+        this.verticle       = new WebSocketVerticle(8080, serverListener, agentConnections, gson, response);
         this.serverListener = serverListener;
-        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson));
+        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response));
     }
 
     public void start() {

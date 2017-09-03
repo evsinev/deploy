@@ -5,7 +5,8 @@ import io.pne.deploy.agent.api.IAgentService;
 import io.pne.deploy.agent.api.exceptions.AgentCommandException;
 import io.pne.deploy.agent.api.messages.AgentMessageType;
 import io.pne.deploy.agent.api.messages.IAgentServerMessage;
-import io.pne.deploy.agent.api.messages.RunAgentCommandMessage;
+import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
+import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
 import org.slf4j.Logger;
@@ -19,23 +20,31 @@ public class VertxAgentServiceImpl implements IAgentService {
 
     private final AgentConnections connections;
     private final Gson             gson;
+    private final CommandResponses commandResponses;
 
-    public VertxAgentServiceImpl(AgentConnections aConnections, Gson aGson) {
+    public VertxAgentServiceImpl(AgentConnections aConnections, Gson aGson, CommandResponses aCommandResponses) {
         connections = aConnections;
         gson = aGson;
+        commandResponses = aCommandResponses;
     }
 
     @Override
-    public void runCommand(RunAgentCommandMessage aCommand) throws AgentCommandException {
+    public void runCommand(RunAgentCommandRequest aCommand) throws AgentCommandException {
         LOG.debug("Sending command {} ", aCommand);
         sendMessage(aCommand.agentId, aCommand);
+        // waiting for response
+        try {
+            RunAgentCommandResponse response = commandResponses.awaitForCommandResponse(aCommand.commandId);
+        } catch (InterruptedException e) {
+            throw new AgentCommandException("Interrupted");
+        }
     }
 
 
     private Buffer createBinaryFrame(IAgentServerMessage aServerMessage) {
         Buffer buffer = Buffer.buffer();
         buffer.appendByte((byte) 0x01);
-        buffer.appendByte((byte) AgentMessageType.findByClass(aServerMessage.getClass()).id);
+        buffer.appendByte( AgentMessageType.findByClass(aServerMessage.getClass()).id);
 
         buffer.appendBytes(createBytes(aServerMessage));
 

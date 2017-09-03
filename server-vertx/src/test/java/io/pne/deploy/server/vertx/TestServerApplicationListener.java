@@ -1,6 +1,7 @@
 package io.pne.deploy.server.vertx;
 
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
+import io.pne.deploy.server.IServerApplicationListener;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +10,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class TestServerListener implements IServerListener {
+public class TestServerApplicationListener implements IServerApplicationListener {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TestServerListener.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TestServerApplicationListener.class);
 
     ArrayBlockingQueue<IAgentClientMessage> messages     = new ArrayBlockingQueue<>(100);
     CountDownLatch                     startedLatch = new CountDownLatch(1);

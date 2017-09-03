@@ -1,6 +1,7 @@
 package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
+import io.pne.deploy.server.IServerApplicationListener;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
@@ -14,8 +15,13 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final int                         port;
     private       HttpServer                  httpServer;
 
-    public WebSocketVerticle(int aPort, IServerListener aServerListener, AgentConnections aConnections, Gson aGson) {
-        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson);
+    public WebSocketVerticle(int aPort
+            , IServerApplicationListener aServerListener
+            , AgentConnections aConnections
+            , Gson aGson
+            , CommandResponses aCommandResponses
+    ) {
+        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses);
         port = aPort;
         connections = aConnections;
     }
@@ -60,7 +66,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 
                 })
                 .requestHandler(new HttpHandler())
-                .listen(port, event -> {
+                .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());
                     } else {

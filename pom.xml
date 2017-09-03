@@ -19,12 +19,8 @@
         <module>agent</module>
         <module>server</module>
         <module>server-vertx</module>
-        <!--<module>deploy-api</module>-->
-        <!--<module>deploy-agent</module>-->
-        <!--<module>deploy-agent-api</module>-->
-        <!--<module>deploy-server</module>-->
-        <!--<module>deploy-client</module>-->
-        <!--<module>deploy-integration-test</module>-->
+        <module>agent-websocket</module>
+        <module>integration-test</module>
     </modules>
 
     <properties>

@@ -5,7 +5,9 @@ import io.pne.deploy.agent.api.command.AgentCommandParameters;
 import io.pne.deploy.server.agent.impl.AgentFinderServiceImpl;
 import io.pne.deploy.server.agent.impl.LocalAgentServiceImpl;
 import io.pne.deploy.server.api.IDeployService;
-import io.pne.deploy.server.api.task.*;
+import io.pne.deploy.server.api.task.Task;
+import io.pne.deploy.server.api.task.TaskCommand;
+import io.pne.deploy.server.api.task.TaskParameters;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 
 import static io.pne.deploy.agent.api.command.AgentCommandType.SHELL;
 import static io.pne.deploy.server.api.task.AgentFinder.agentByName;
-import static io.pne.deploy.agent.api.command.AgentCommandId.generateCommandId;
 import static io.pne.deploy.server.api.task.TaskId.generateTaskId;
 import static java.util.Collections.singletonList;
 
@@ -29,7 +30,7 @@ public class DeployServiceImplTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         LocalAgentServiceImpl localAgentService = new LocalAgentServiceImpl((aId, aText) -> {
-            System.out.println(aId.getId() + ": " + aText);
+            System.out.println(aId + ": " + aText);
             latch.countDown();
         });
         AgentFinderServiceImpl agentFinderService = new AgentFinderServiceImpl(localAgentService);
@@ -37,7 +38,7 @@ public class DeployServiceImplTest {
 
         service.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("localhost"), new AgentCommand(
-                        generateCommandId(), new AgentCommandParameters(), SHELL, "echo", singletonList("test")
+                        new AgentCommandParameters(), SHELL, "echo", singletonList("test")
                 ))))
         );
 
