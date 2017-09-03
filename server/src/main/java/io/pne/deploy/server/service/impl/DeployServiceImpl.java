@@ -8,17 +8,23 @@ import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.TaskCommand;
 import io.pne.deploy.server.api.task.Task;
+import io.pne.deploy.server.service.impl.alias.AliasParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
 
 public class DeployServiceImpl implements IDeployService {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeployServiceImpl.class);
 
     private final IAgentFinderService agentFinderService;
+    private final AliasParser aliasesParser;
 
-    public DeployServiceImpl(IAgentFinderService agentFinderService) {
+    public DeployServiceImpl(IAgentFinderService agentFinderService, File aAliasesDir) {
         this.agentFinderService = agentFinderService;
+        aliasesParser = new AliasParser(aAliasesDir);
     }
 
     @Override
@@ -36,7 +42,15 @@ public class DeployServiceImpl implements IDeployService {
                     throw new TaskException("Couldn't execute command: " + command);
                 }
             }
-            //agentService.
+        }
+    }
+
+    @Override
+    public Task parseAlias(String aText) throws TaskException {
+        try {
+            return aliasesParser.parseAlias(aText);
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot read alias file", e) ;
         }
     }
 }

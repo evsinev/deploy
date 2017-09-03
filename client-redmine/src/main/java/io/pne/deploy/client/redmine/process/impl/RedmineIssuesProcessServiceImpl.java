@@ -2,25 +2,17 @@ package io.pne.deploy.client.redmine.process.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.pne.deploy.agent.api.command.AgentCommand;
-import io.pne.deploy.agent.api.command.AgentCommandParameters;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import io.pne.deploy.server.api.IDeployService;
+import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
-import io.pne.deploy.server.api.task.TaskCommand;
-import io.pne.deploy.server.api.task.TaskParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Scanner;
-
-import static io.pne.deploy.agent.api.command.AgentCommandType.SHELL;
-import static io.pne.deploy.server.api.task.AgentFinder.agentByName;
-import static io.pne.deploy.server.api.task.TaskId.generateTaskId;
-import static java.util.Collections.singletonList;
 
 public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessService {
 
@@ -63,27 +55,20 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                 + "</code></pre>";
     }
 
-    private Exception processException(String aMessage, RedmineIssue aIssue, Exception aError) {
-        redmine.addComment(aIssue.issueId(), aMessage + " " + aError.getMessage());
-        return new Exception(aMessage, aError);
-    }
-
-    protected static Task parseTask(String aIssueDescription) {
+    protected Task parseTask(String aIssueDescription) throws TaskException {
         Scanner scanner = new Scanner(aIssueDescription);
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
-            if(line.startsWith("@deploy")) {
-                return createSimpleTask();
+            if(line.startsWith("> deploy")) {
+                return createSimpleTask(line);
             }
         }
 
-        throw new IllegalStateException("Can't find @deploy command");
+        throw new IllegalStateException("Can't find a line started with '> deploy' in the Description");
     }
 
-    private static Task createSimpleTask() {
-        return new Task(generateTaskId(), new TaskParameters(), singletonList(
-                new TaskCommand(agentByName("localhost"), new AgentCommand(
-                        new AgentCommandParameters(), SHELL, "echo", singletonList("test")
-                ))));
+    private Task createSimpleTask(String aLine) throws TaskException {
+        String text = aLine.replace("> deploy", "").trim();
+        return deployService.parseAlias(text);
     }
 }

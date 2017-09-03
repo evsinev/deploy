@@ -4,6 +4,8 @@ import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import org.junit.Test;
 
+import java.io.File;
+
 /**
  * Created by esinev on 02/09/17.
  */
@@ -11,7 +13,18 @@ public class VertxServerApplicationTest {
 
     @Test
     public void run() throws TaskException {
-        VertxServerApplication application = new VertxServerApplication(new TestServerApplicationListener());
+        VertxServerApplication application = new VertxServerApplication(new TestServerApplicationListener()
+                , new IVertxServerConfiguration() {
+            @Override
+            public int getPort() {
+                return 8080;
+            }
+
+            @Override
+            public File getAliasesDir() {
+                return new File("../server/src/test/resources/aliases");
+            }
+        });
         application.start();
         try {
             IDeployService deployService = application.getDeployService();

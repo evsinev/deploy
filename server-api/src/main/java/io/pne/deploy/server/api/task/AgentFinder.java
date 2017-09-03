@@ -2,6 +2,7 @@ package io.pne.deploy.server.api.task;
 
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
+import java.util.Arrays;
 
 @ParametersAreNonnullByDefault
 public class AgentFinder {
@@ -20,5 +21,12 @@ public class AgentFinder {
     @Nonnull
     public String[] getIds() {
         return ids;
+    }
+
+    @Override
+    public String toString() {
+        return "AgentFinder{" +
+                "ids=" + Arrays.toString(ids) +
+                '}';
     }
 }

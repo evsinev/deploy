@@ -7,11 +7,13 @@ import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
 import io.pne.deploy.server.api.task.TaskParameters;
+import io.pne.deploy.server.vertx.IVertxServerConfiguration;
 import io.pne.deploy.server.vertx.VertxServerApplication;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,7 +45,17 @@ public class VertxAndWebsocketTest {
 
     private void runTask(Task aTask) throws TaskException, InterruptedException {
         TestServerApplicationListener serverListener = new TestServerApplicationListener();
-        VertxServerApplication server = new VertxServerApplication(serverListener);
+        VertxServerApplication server = new VertxServerApplication(serverListener, new IVertxServerConfiguration() {
+            @Override
+            public int getPort() {
+                return 8080;
+            }
+
+            @Override
+            public File getAliasesDir() {
+                return new File("../server/src/test/resources/aliases");
+            }
+        });
         try {
             server.start();
             serverListener.waitUntilStarted(5, TimeUnit.SECONDS);

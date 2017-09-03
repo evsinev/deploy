@@ -19,17 +19,18 @@ public class VertxServerApplication {
     
     private static final Logger LOG = LoggerFactory.getLogger(VertxServerApplication.class);
 
-    private final Vertx             vertx;
-    private final WebSocketVerticle verticle;
+    private final Vertx                      vertx;
+    private final WebSocketVerticle          verticle;
     private final IServerApplicationListener serverListener;
-    private final AgentConnections  agentConnections;
-    private DeployServiceImpl       deployService;
+    private final AgentConnections           agentConnections;
+    private final DeployServiceImpl          deployService;
 
     public static void main(String[] args) {
         ServerApplicationListenerNoOp serverListenerNoOp   = new ServerApplicationListenerNoOp();
 
         VertxServerApplication application = new VertxServerApplication(
                  serverListenerNoOp
+                , new VertxServerConfigurationImpl()
         );
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -47,15 +48,15 @@ public class VertxServerApplication {
 
     }
 
-    public VertxServerApplication(IServerApplicationListener serverListener) {
+    public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig) {
         Gson gson           = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses response = new CommandResponses();
         this.vertx          = Vertx.vertx();
 
         agentConnections    = new AgentConnections();
-        this.verticle       = new WebSocketVerticle(8080, serverListener, agentConnections, gson, response);
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response);
         this.serverListener = serverListener;
-        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response));
+        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), aConfig.getAliasesDir());
     }
 
     public void start() {

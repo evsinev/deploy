@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.List;
 
 public class RemoteRedmineServiceImplTest {
@@ -39,7 +40,11 @@ public class RemoteRedmineServiceImplTest {
         IRedmineRemoteConfig config = new RedmineRemoveConfigBuilder().build();
         RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(config);
 
-        IDeployService deployService = new DeployServiceImpl(new AgentFinderServiceImpl(new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText))));
+        File aliasDir = new File("../server/src/test/resources/aliases");
+        IDeployService deployService = new DeployServiceImpl(
+                new AgentFinderServiceImpl(new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText)))
+                , aliasDir
+        );
         IRedmineIssuesProcessService processService = new RedmineIssuesProcessServiceImpl(redmine, deployService);
 
         processService.processRedmineIssues();

@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +35,8 @@ public class DeployServiceImplTest {
             latch.countDown();
         });
         AgentFinderServiceImpl agentFinderService = new AgentFinderServiceImpl(localAgentService);
-        IDeployService service = new DeployServiceImpl(agentFinderService);
+        File aliasesDir = new File("src/test/resources/aliases");
+        IDeployService service = new DeployServiceImpl(agentFinderService, aliasesDir);
 
         service.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("localhost"), new AgentCommand(

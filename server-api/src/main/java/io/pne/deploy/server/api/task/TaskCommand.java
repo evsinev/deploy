@@ -13,4 +13,12 @@ public class TaskCommand {
         this.agents = agents;
         this.command = command;
     }
+
+    @Override
+    public String toString() {
+        return "TaskCommand{" +
+                "agents=" + agents +
+                ", command=" + command +
+                '}';
+    }
 }

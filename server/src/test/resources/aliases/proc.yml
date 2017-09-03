@@ -1,0 +1,12 @@
+commands:
+- agents: localhost
+  name: echo
+  arguments:
+    - arg 1
+    - $1
+
+- agents: localhost
+  name: echo
+  arguments:
+    - parameter 2
+    - $1
