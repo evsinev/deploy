@@ -2,9 +2,14 @@ package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl;
+import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
+import io.pne.deploy.client.redmine.remote.impl.RedmineRemoveConfigBuilder;
+import io.pne.deploy.client.redmine.remote.impl.RemoteRedmineServiceImpl;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.service.impl.DeployServiceImpl;
+import io.pne.deploy.util.env.ShowStartupConfig;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +31,8 @@ public class VertxServerApplication {
     private final DeployServiceImpl          deployService;
 
     public static void main(String[] args) {
-        ServerApplicationListenerNoOp serverListenerNoOp   = new ServerApplicationListenerNoOp();
 
-        VertxServerApplication application = new VertxServerApplication(
-                 serverListenerNoOp
-                , new VertxServerConfigurationImpl()
-        );
+        VertxServerApplication application = new VertxServerApplication();
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             {
@@ -48,6 +49,17 @@ public class VertxServerApplication {
 
     }
 
+//    private static RedmineIssuesProcessServiceImpl configureRedmine(IVertxServerConfiguration aConfig) {
+//        IRedmineRemoteConfig config = new RedmineRemoveConfigBuilder().build();
+//        RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(config);
+//
+//        IDeployService deployService = new DeployServiceImpl(
+//                new AgentFinderServiceImpl(new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText)))
+//                , aConfig.getAliasesDir()
+//        );
+//        return new RedmineIssuesProcessServiceImpl(redmine, deployService);
+//    }
+
     public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig) {
         Gson gson           = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses response = new CommandResponses();
@@ -58,6 +70,27 @@ public class VertxServerApplication {
         this.serverListener = serverListener;
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), aConfig.getAliasesDir());
     }
+
+    public VertxServerApplication() {
+        Gson gson           = new GsonBuilder().setPrettyPrinting().create();
+        CommandResponses response = new CommandResponses();
+        agentConnections    = new AgentConnections();
+
+        IRedmineRemoteConfig redmineConfig      = new RedmineRemoveConfigBuilder().build();
+        RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(redmineConfig);
+
+        VertxServerConfigurationImpl config = new ShowStartupConfig<>(new VertxServerConfigurationImpl()).get();
+        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), config.getAliasesDir());
+        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService);
+        VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService);
+
+
+        this.vertx          = Vertx.vertx();
+
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response);
+        this.serverListener = serverListener;
+    }
+
 
     public void start() {
         vertx.deployVerticle(verticle, event -> {

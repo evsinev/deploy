@@ -66,6 +66,7 @@ public class RedmineRemoveConfigBuilder {
         if(value == null) {
             value = System.getProperty(aName, aDefault);
         }
+        LOG.info("    {} = {}", aName, aDefault);
         return value;
     }
 }

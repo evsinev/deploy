@@ -28,7 +28,7 @@ public class AgentServiceImpl implements IAgentService {
     public void runCommand(RunAgentCommandRequest aCommand) throws AgentCommandException {
 
         String logId = aCommand.commandId;
-        LOG.debug("{}: Running command {}", logId, aCommand);
+        LOG.info("{}: Running command {}", logId, aCommand);
         Process process;
 
         try {
@@ -47,7 +47,7 @@ public class AgentServiceImpl implements IAgentService {
             if(ret != 0) {
                 throw new AgentCommandException("Command returned " + ret);
             }
-            LOG.debug("{}: exit value is {}", logId, ret);
+            LOG.info("{}: exit value is {}", logId, ret);
         } catch (InterruptedException e) {
             throw new AgentCommandException("Can't run command", e);
         }
@@ -60,7 +60,7 @@ public class AgentServiceImpl implements IAgentService {
             Scanner scanner = new Scanner(aInputStream, "UTF-8");
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                LOG.debug("{}: output is {}", aId, line);
+                LOG.info("{}: {}", aId, line);
                 aLogService.logCommandOutput(aId, line);
             }
             LOG.debug("{}: Finished scanning output from the process", aId);

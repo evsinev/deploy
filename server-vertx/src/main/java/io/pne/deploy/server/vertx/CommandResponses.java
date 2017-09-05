@@ -7,6 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class CommandResponses {
 
+    public static final int WAIT_TIMEOUT_SECONDS = 60 * 10;
+    
     private Map<String, RunAgentCommandResponse> map;
 
     public CommandResponses() {
@@ -14,7 +16,7 @@ public class CommandResponses {
     }
 
     public RunAgentCommandResponse awaitForCommandResponse(String aCommandId) throws InterruptedException {
-        for(int i=0; i<60; i++) {
+        for(int i = 0; i< WAIT_TIMEOUT_SECONDS; i++) {
             RunAgentCommandResponse response = map.get(aCommandId);
             if(response != null) {
                 return response;

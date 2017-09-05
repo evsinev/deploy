@@ -15,4 +15,12 @@ public class RunAgentCommandResponse implements IAgentClientMessage {
         commandId = aCommandId;
 
     }
+
+    @Override
+    public String toString() {
+        return "RunAgentCommandResponse{" +
+                "commandId='" + commandId + '\'' +
+                ", error=" + error +
+                '}';
+    }
 }

@@ -70,6 +70,12 @@
             <artifactId>gson</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.payneteasy.logging-extensions</groupId>
+            <artifactId>logging-extensions</artifactId>
+            <version>1.0-3</version>
+        </dependency>
+
 
     </dependencies>
 
