@@ -1,6 +1,8 @@
 package io.pne.deploy.server.api.task;
 
 import javax.annotation.Nonnull;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.UUID;
 
 
@@ -13,7 +15,8 @@ public class TaskId {
     }
 
     public static TaskId generateTaskId() {
-        return new TaskId(UUID.randomUUID().toString());
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd-HHmmss-SSS");
+        return new TaskId(format.format(new Date()));
     }
 
     @Override @Nonnull

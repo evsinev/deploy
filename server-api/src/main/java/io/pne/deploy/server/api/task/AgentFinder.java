@@ -15,7 +15,7 @@ public class AgentFinder {
 
     @Nonnull
     public static AgentFinder agentByName(String aName) {
-        return new AgentFinder(new String[]{aName});
+        return new AgentFinder(aName.split(","));
     }
 
     @Nonnull

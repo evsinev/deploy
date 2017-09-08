@@ -16,7 +16,8 @@ import java.util.Scanner;
 
 public class AgentServiceImpl implements IAgentService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AgentServiceImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger("Agent");
+
 
     private final IAgentLogService logService;
 
@@ -49,7 +50,7 @@ public class AgentServiceImpl implements IAgentService {
             }
             LOG.info("{}: exit value is {}", logId, ret);
         } catch (InterruptedException e) {
-            throw new AgentCommandException("Can't run command", e);
+            throw new AgentCommandException("Can't runner command", e);
         }
     }
 

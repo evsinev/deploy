@@ -18,6 +18,7 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerWebSocketFrameHandler.class);
+    private static final Logger LOG_AGENT = LoggerFactory.getLogger("AgentLog");
 
     private final Gson                       gson;
     private final IServerApplicationListener serverListener;
@@ -46,7 +47,7 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
         IAgentClientMessage message = parseMessage(type, buffer);
 
         serverListener.didReceiveMessage(message);
-        LOG.info("Got {}", message);
+        LOG.debug("Got {}", message);
 
         switch (type) {
             case RUN_COMMAND_RESPONSE:
@@ -56,7 +57,9 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
             case RUN_COMMAND_LOG:
                 RunAgentCommandLog logMessage = (RunAgentCommandLog) message;
-                LOG.debug("{}: {}", logMessage.commandId, message);
+                LOG_AGENT.info("{}: {}", logMessage.commandId, logMessage.message);
+                break;
+
             default:
                 LOG.error("Unsupported type : " + type);
         }

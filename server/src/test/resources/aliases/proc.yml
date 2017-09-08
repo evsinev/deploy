@@ -1,5 +1,5 @@
 commands:
-- agents: localhost
+- agents: localhost,localhost
   name: echo
   arguments:
     - arg 1

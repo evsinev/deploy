@@ -48,7 +48,7 @@ public class VertxAndWebsocketTest {
         VertxServerApplication server = new VertxServerApplication(serverListener, new IVertxServerConfiguration() {
             @Override
             public int getPort() {
-                return 8080;
+                return 9090;
             }
 
             @Override
@@ -61,7 +61,7 @@ public class VertxAndWebsocketTest {
             serverListener.waitUntilStarted(5, TimeUnit.SECONDS);
 
             TestAgentApplicationListener agentListener = new TestAgentApplicationListener();
-            TestAgentStartupParameters agentParameters = new TestAgentStartupParameters("http://127.0.0.1:8080/", "test-host");
+            TestAgentStartupParameters agentParameters = new TestAgentStartupParameters("http://127.0.0.1:9090/", "test-host");
             WebSocketAgentApplication agent = new WebSocketAgentApplication(agentListener, agentParameters);
             try {
                 ExecutorService executor = Executors.newSingleThreadExecutor();

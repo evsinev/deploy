@@ -66,7 +66,14 @@ public class RedmineRemoveConfigBuilder {
         if(value == null) {
             value = System.getProperty(aName, aDefault);
         }
-        LOG.info("    {} = {}", aName, aDefault);
+        LOG.info("    {} = {}", aName, filterSensitiveData(aName, value));
         return value;
+    }
+
+    private Object filterSensitiveData(String aName, String aValue) {
+        if(aName.contains("ACCESS") || aName.contains("PASSW")) {
+            return "***";
+        }
+        return aValue;
     }
 }

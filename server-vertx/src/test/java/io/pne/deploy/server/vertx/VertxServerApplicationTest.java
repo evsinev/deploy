@@ -17,7 +17,7 @@ public class VertxServerApplicationTest {
                 , new IVertxServerConfiguration() {
             @Override
             public int getPort() {
-                return 8080;
+                return 9090;
             }
 
             @Override

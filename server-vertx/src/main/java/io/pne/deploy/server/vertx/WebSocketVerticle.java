@@ -2,9 +2,12 @@ package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
 import io.pne.deploy.server.IServerApplicationListener;
+import io.pne.deploy.server.api.IDeployService;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
+
+import java.util.concurrent.Executor;
 
 public class WebSocketVerticle extends AbstractVerticle {
 
@@ -14,16 +17,22 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final AgentConnections            connections;
     private final int                         port;
     private       HttpServer                  httpServer;
+    private final IDeployService              deployService;
+    private final Executor                    commandExecutor;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
             , AgentConnections aConnections
             , Gson aGson
             , CommandResponses aCommandResponses
+            , IDeployService   aDeploService
+            , Executor         aCommandExecutor
     ) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses);
         port = aPort;
         connections = aConnections;
+        deployService = aDeploService;
+        commandExecutor = aCommandExecutor;
     }
 
     @Override
@@ -65,15 +74,14 @@ public class WebSocketVerticle extends AbstractVerticle {
 //                    aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(new HttpHandler())
+                .requestHandler(new HttpHandler(connections, deployService, commandExecutor))
                 .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());
                     } else {
                         aStartFuture.complete();
                     }
-                })
-        ;
+                });
     }
 
     @Override

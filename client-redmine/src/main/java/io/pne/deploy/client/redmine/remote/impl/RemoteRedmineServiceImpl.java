@@ -67,7 +67,7 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
 
     @Override
     public void changeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage) throws IllegalStateException{
-        changeStatus(aRedmineIssueId, config.statusFailedId(), aMessage, oldStatus -> {
+        changeStatus(aRedmineIssueId, config.statusProcessingId(), aMessage, oldStatus -> {
             if(oldStatus != config.statusAcceptedId()) {
                 throw new IllegalStateException("Status must be ACCEPT (" + config.statusAcceptedId() +") but it was " + oldStatus );
             }

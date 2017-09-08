@@ -15,6 +15,7 @@
 
     <modules>
         <module>util</module>
+        <module>commands</module>
         <module>agent-api</module>
         <module>server-api</module>
         <module>agent</module>

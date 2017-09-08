@@ -27,6 +27,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.pne.deploy</groupId>
+            <artifactId>commands</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
 
         <dependency>
             <groupId>junit</groupId>

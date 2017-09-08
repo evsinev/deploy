@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import java.util.concurrent.Executors;
+
 public class VertxServerApplication {
 
     static {
@@ -66,9 +68,9 @@ public class VertxServerApplication {
         this.vertx          = Vertx.vertx();
 
         agentConnections    = new AgentConnections();
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response);
-        this.serverListener = serverListener;
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), aConfig.getAliasesDir());
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor());
+        this.serverListener = serverListener;
     }
 
     public VertxServerApplication() {
@@ -87,7 +89,7 @@ public class VertxServerApplication {
 
         this.vertx          = Vertx.vertx();
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response);
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor());
         this.serverListener = serverListener;
     }
 
