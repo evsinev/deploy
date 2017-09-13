@@ -23,7 +23,7 @@ public class CommandResponses {
             }
             Thread.sleep(1_000);
         }
-        throw new IllegalStateException("Wait time out");
+        throw new IllegalStateException("Could not get response for command within " + aCommandId + " within " + WAIT_TIMEOUT_SECONDS + " seconds");
     }
 
     public void addCommandResponse(String aCommandId, RunAgentCommandResponse aResponse) {

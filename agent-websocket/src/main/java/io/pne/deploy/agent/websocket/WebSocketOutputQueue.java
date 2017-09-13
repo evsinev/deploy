@@ -21,11 +21,13 @@ public class WebSocketOutputQueue implements IOutputQueue {
     private static final Logger LOG = LoggerFactory.getLogger(WebSocketOutputQueue.class);
 
     private final ArrayBlockingQueue<IAgentClientMessage> queue;
+    private final ArrayBlockingQueue<WebSocketFrame>      resendQueue;
     private final Gson gson;
 
     public WebSocketOutputQueue(Gson aGson) {
         gson = aGson;
         queue = new ArrayBlockingQueue<>(10_240);
+        resendQueue = new ArrayBlockingQueue<WebSocketFrame>(10_240);
     }
 
     @Override
@@ -36,12 +38,22 @@ public class WebSocketOutputQueue implements IOutputQueue {
 
     @Override
     public WebSocketFrame nextFrame(long aTimeout, TimeUnit aUnit) throws InterruptedException {
+        WebSocketFrame resentFrame = resendQueue.poll();
+        if (resentFrame != null) {
+            return resentFrame;
+        }
+
         IAgentClientMessage message = queue.poll(aTimeout, aUnit);
         if(message == null) {
             return null;
         }
 
         return createBinaryFrameWithMask(createPacket(message));
+    }
+
+    @Override
+    public void insertFrameAgain(WebSocketFrame aFrame) {
+        resendQueue.add(aFrame);
     }
 
     public void enqueue(IAgentClientMessage aMessage) {
