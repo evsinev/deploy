@@ -31,6 +31,13 @@ public class VertxServerApplicationListener implements IServerApplicationListene
                     redmineIssuesProcessService.processRedmineIssues();
                 } catch (Exception e) {
                     LOG.info("Error processing tickets", e);
+                    try {
+                        LOG.warn("Sleeping for 10 seconds while redmine will fill better.");
+                        Thread.sleep(600_00);
+                    } catch (InterruptedException e1) {
+                        LOG.info("Interrupted", e);
+                        break;
+                    }
                 }
 
                 try {
