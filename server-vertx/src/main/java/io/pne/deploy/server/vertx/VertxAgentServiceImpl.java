@@ -31,10 +31,18 @@ public class VertxAgentServiceImpl implements IAgentService {
     @Override
     public void runCommand(RunAgentCommandRequest aCommand) throws AgentCommandException {
         LOG.debug("Sending command {} ", aCommand);
-        sendMessage(aCommand.agentId, aCommand);
+        try {
+            sendMessage(aCommand.agentId, aCommand);
+        } catch (InterruptedException e) {
+            throw new AgentCommandException("Interrupted", e);
+        }
         // waiting for response
         try {
             RunAgentCommandResponse response = commandResponses.awaitForCommandResponse(aCommand.commandId);
+            LOG.info("Response for command {} is {}", aCommand, response);
+            if(response.error != null) {
+                throw new AgentCommandException("Agent " + aCommand.agentId + "return error: " + response.error, response.error);
+            }
         } catch (InterruptedException e) {
             throw new AgentCommandException("Interrupted");
         }
@@ -61,7 +69,7 @@ public class VertxAgentServiceImpl implements IAgentService {
         return json.getBytes(StandardCharsets.UTF_8);
     }
 
-    private void sendMessage(String aHostname, IAgentServerMessage aMessage) {
+    private void sendMessage(String aHostname, IAgentServerMessage aMessage) throws InterruptedException {
         ServerWebSocket socket = connections.getSocket(aHostname);
         Buffer buffer = createBinaryFrame(aMessage);
         socket.writeBinaryMessage(buffer);
