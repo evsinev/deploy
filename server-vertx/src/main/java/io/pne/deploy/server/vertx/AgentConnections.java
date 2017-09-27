@@ -33,12 +33,18 @@ public class AgentConnections {
         return pathParameters.getLast();
     }
 
-    public ServerWebSocket getSocket(String aHostname) {
-        ServerWebSocket socket = map.get(aHostname);
-        if(socket == null) {
-            throw new IllegalStateException("No server socket for host " + aHostname + " in map " + map.keySet());
+    public ServerWebSocket getSocket(String aHostname) throws InterruptedException {
+        ServerWebSocket socket;
+        for(int i=0; i<120; i++) {
+            socket = map.get(aHostname);
+            if(socket != null) {
+                return socket;
+            }
+            LOG.warn("Waiting for {}. Current hosts is {}", aHostname, map);
+            Thread.sleep(1_000);
         }
-        return socket;
+
+        throw new IllegalStateException("No server socket for host " + aHostname + " in map " + map.keySet());
     }
 
     public String getAgents() {
