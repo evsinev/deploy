@@ -19,4 +19,6 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     int statusDoneId();
     int statusFailedId();
 
+    int connectTimeoutSeconds();
+    int readTimeoutSeconds();
 }

@@ -1,16 +1,24 @@
 package io.pne.deploy.client.redmine.remote.impl;
 
-import com.taskadapter.redmineapi.*;
+import com.taskadapter.redmineapi.Include;
+import com.taskadapter.redmineapi.IssueManager;
+import com.taskadapter.redmineapi.RedmineException;
+import com.taskadapter.redmineapi.RedmineManager;
 import com.taskadapter.redmineapi.bean.Issue;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineComment;
 import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineIssue;
 import io.pne.deploy.client.redmine.remote.model.RedmineComment;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static com.taskadapter.redmineapi.RedmineManagerFactory.createWithApiKey;
 
 public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
 
@@ -18,9 +26,21 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
     private final IRedmineRemoteConfig config;
 
     public RemoteRedmineServiceImpl(IRedmineRemoteConfig aConfig) {
-        RedmineManager redmine = RedmineManagerFactory.createWithApiKey(aConfig.url(),  aConfig.apiAccessKey());
+        HttpClient     httpClient = createHttpClient(aConfig.connectTimeoutSeconds(), aConfig.readTimeoutSeconds());
+        RedmineManager redmine    = createWithApiKey(aConfig.url(),  aConfig.apiAccessKey(), httpClient);
+
         issueManager = redmine.getIssueManager();
-        config = aConfig;
+        config       = aConfig;
+    }
+
+    private HttpClient createHttpClient(int aConnectTimeout, int aReadTimeout) {
+
+        RequestConfig config = RequestConfig.custom()
+                .setConnectTimeout           ( aConnectTimeout * 1_000 )
+                .setConnectionRequestTimeout ( aConnectTimeout * 1_000 )
+                .setSocketTimeout            ( aReadTimeout    * 1_000 )
+                .build();
+        return HttpClientBuilder.create().setDefaultRequestConfig(config).build();
     }
 
     @Override

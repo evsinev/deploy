@@ -13,13 +13,15 @@ public class RedmineRemoveConfigBuilder {
 
     public IRedmineRemoteConfig build() {
         return ImmutableIRedmineRemoteConfig.builder()
-                .url                        ( getRequired          ("REDMINE_URL"))
-                .apiAccessKey               ( getRequired          ("REDMINE_API_ACCESS_KEY"))
-                .putAllIssuesQueryParameters( createParametersMap  ("REDMINE_QUERY_"))
-                .statusAcceptedId           ( getInt               ("REDMINE_STATUS_ACCEPT_ID"      , 1)) // new
-                .statusProcessingId         ( getInt               ("REDMINE_STATUS_PROCESSING_ID"  , 2)) // in progress
-                .statusDoneId               ( getInt               ("REDMINE_STATUS_DONE_ID"        , 3)) // resolved
-                .statusFailedId             ( getInt               ("REDMINE_STATUS_FAILED_ID"      , 6)) // rejected
+                .url                        ( getRequired          ("REDMINE_URL"                                  ))
+                .apiAccessKey               ( getRequired          ("REDMINE_API_ACCESS_KEY"                       ))
+                .putAllIssuesQueryParameters( createParametersMap  ("REDMINE_QUERY_"                               ))
+                .statusAcceptedId           ( getInt               ("REDMINE_STATUS_ACCEPT_ID"      , 1   )) // new
+                .statusProcessingId         ( getInt               ("REDMINE_STATUS_PROCESSING_ID"  , 2   )) // in progress
+                .statusDoneId               ( getInt               ("REDMINE_STATUS_DONE_ID"        , 3   )) // resolved
+                .statusFailedId             ( getInt               ("REDMINE_STATUS_FAILED_ID"      , 6   )) // rejected
+                .connectTimeoutSeconds      ( getInt               ("REDMINE_CONNECT_TIMEOUT"       , 120 )) // 2 minutes
+                .readTimeoutSeconds         ( getInt               ("REDMINE_READ_TIMEOUT"          , 120 )) // 2 minutes
                 .build()
                 ;
     }
