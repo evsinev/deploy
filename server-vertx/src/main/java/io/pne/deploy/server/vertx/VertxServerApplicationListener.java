@@ -6,15 +6,20 @@ import io.pne.deploy.server.IServerApplicationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
 public class VertxServerApplicationListener implements IServerApplicationListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(VertxServerApplicationListener.class);
 
     private final    IRedmineIssuesProcessService redmineIssuesProcessService;
     private volatile Thread                       thread;
+    private final   ArrayBlockingQueue<Long>      pendingIssues;
 
-    public VertxServerApplicationListener(IRedmineIssuesProcessService aRedmineProcessService) {
+    public VertxServerApplicationListener(IRedmineIssuesProcessService aRedmineProcessService, ArrayBlockingQueue<Long> aIssues) {
         redmineIssuesProcessService = aRedmineProcessService;
+        pendingIssues = aIssues;
     }
 
     @Override
@@ -26,29 +31,24 @@ public class VertxServerApplicationListener implements IServerApplicationListene
     public void didStarted() {
         thread = new Thread(() -> {
             while(!Thread.currentThread().isInterrupted()) {
-                LOG.info("Getting redmine tickets ...");
                 try {
-                    redmineIssuesProcessService.processRedmineIssues();
-                } catch (Exception e) {
-                    LOG.info("Error processing tickets", e);
-                    try {
-                        LOG.warn("Sleeping for 10 seconds while redmine will fill better.");
-                        Thread.sleep(600_00);
-                    } catch (InterruptedException e1) {
-                        LOG.info("Interrupted", e);
-                        break;
+                    Long issueId = pendingIssues.poll(60, TimeUnit.SECONDS);
+                    if(issueId == null) {
+                        continue;
                     }
-                }
 
-                try {
+                    redmineIssuesProcessService.processRedmineIssue(issueId);
+
                     Thread.sleep(60_000);
                 } catch (InterruptedException e) {
                     LOG.info("Interrupted", e);
                     break;
+                } catch (Exception e) {
+                    LOG.error("Error while getting issue", e);
                 }
             }
         });
-        thread.setName("redmine-fetcher");
+        thread.setName("redmine-processing");
         thread.start();
     }
 

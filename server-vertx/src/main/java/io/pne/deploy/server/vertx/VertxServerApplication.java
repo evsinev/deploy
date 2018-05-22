@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 
 public class VertxServerApplication {
@@ -62,34 +63,38 @@ public class VertxServerApplication {
 //        return new RedmineIssuesProcessServiceImpl(redmine, deployService);
 //    }
 
-    public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig) {
+    // for test only
+    public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig, IRedmineRemoteConfig redmineConfig) {
         Gson gson           = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses response = new CommandResponses();
         this.vertx          = Vertx.vertx();
 
         agentConnections    = new AgentConnections();
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), aConfig.getAliasesDir());
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor());
+
+        ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
+
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues);
         this.serverListener = serverListener;
     }
 
     public VertxServerApplication() {
-        Gson gson           = new GsonBuilder().setPrettyPrinting().create();
-        CommandResponses response = new CommandResponses();
         agentConnections    = new AgentConnections();
 
-        IRedmineRemoteConfig redmineConfig      = new RedmineRemoveConfigBuilder().build();
-        RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(redmineConfig);
+        Gson                         gson          = new GsonBuilder().setPrettyPrinting().create();
+        CommandResponses             response      = new CommandResponses();
+        ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
+        IRedmineRemoteConfig         redmineConfig = new RedmineRemoveConfigBuilder().build();
+        RemoteRedmineServiceImpl     redmine       = new RemoteRedmineServiceImpl(redmineConfig);
+        VertxServerConfigurationImpl config        = new ShowStartupConfig<>(new VertxServerConfigurationImpl()).get();
 
-        VertxServerConfigurationImpl config = new ShowStartupConfig<>(new VertxServerConfigurationImpl()).get();
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), config.getAliasesDir());
-        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService);
-        VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService);
-
+        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig);
+        VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues);
 
         this.vertx          = Vertx.vertx();
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor());
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues);
         this.serverListener = serverListener;
     }
 

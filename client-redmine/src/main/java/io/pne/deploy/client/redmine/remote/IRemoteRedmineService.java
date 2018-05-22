@@ -15,4 +15,6 @@ public interface IRemoteRedmineService {
     void changeStatusToFailed(int aRedmineIssueId, String aMessage);
 
     void addComment(int aIssueId, String aMessage);
+
+    RedmineIssue getIssue(long aIssueId);
 }

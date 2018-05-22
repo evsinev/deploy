@@ -22,6 +22,8 @@ public class RedmineRemoveConfigBuilder {
                 .statusFailedId             ( getInt               ("REDMINE_STATUS_FAILED_ID"      , 6   )) // rejected
                 .connectTimeoutSeconds      ( getInt               ("REDMINE_CONNECT_TIMEOUT"       , 120 )) // 2 minutes
                 .readTimeoutSeconds         ( getInt               ("REDMINE_READ_TIMEOUT"          , 120 )) // 2 minutes
+                .redmineCallbackUrl         ( getRequired          ("REDMINE_CALLBACK_URI"                         ))
+                .issueValidationScript      ( getRequired          ("ISSUE_VALIDATION_SCRIPT"                      ))
                 .build()
                 ;
     }

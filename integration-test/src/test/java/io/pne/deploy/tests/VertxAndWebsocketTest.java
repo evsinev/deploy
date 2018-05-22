@@ -3,6 +3,7 @@ package io.pne.deploy.tests;
 import io.pne.deploy.agent.api.command.AgentCommand;
 import io.pne.deploy.agent.api.command.AgentCommandParameters;
 import io.pne.deploy.agent.websocket.WebSocketAgentApplication;
+import io.pne.deploy.client.redmine.remote.impl.ImmutableIRedmineRemoteConfig;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +57,7 @@ public class VertxAndWebsocketTest {
             public File getAliasesDir() {
                 return new File("../server/src/test/resources/aliases");
             }
-        });
+        }, createTestConfig());
         try {
             server.start();
             serverListener.waitUntilStarted(5, TimeUnit.SECONDS);
@@ -79,4 +81,21 @@ public class VertxAndWebsocketTest {
             server.stop();
         }
     }
+
+    private ImmutableIRedmineRemoteConfig createTestConfig() {
+        return ImmutableIRedmineRemoteConfig.builder()
+                .url                        ( "")
+                .apiAccessKey               ( "")
+                .putAllIssuesQueryParameters( new HashMap<>())
+                .statusAcceptedId           ( 1) // new
+                .statusProcessingId         ( 2) // in progress
+                .statusDoneId               ( 2) // resolved
+                .statusFailedId             ( 3) // rejected
+                .connectTimeoutSeconds      ( 120) // 2 minutes
+                .readTimeoutSeconds         ( 120) // 2 minutes
+                .redmineCallbackUrl         ( "")
+                .issueValidationScript      ( "")
+                .build();
+    }
+
 }

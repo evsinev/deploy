@@ -2,7 +2,7 @@ package io.pne.deploy.client.redmine.remote.model;
 
 import org.immutables.value.Value;
 
-import java.util.List;
+import java.util.Map;
 
 @Value.Immutable
 public interface RedmineIssue {
@@ -17,5 +17,13 @@ public interface RedmineIssue {
     String description();
 
     int projectId();
+
+    Map<String, String> customFields();
+
+    String projectName();
+
+    String assigneeName();
+
+    String creatorName();
 
 }

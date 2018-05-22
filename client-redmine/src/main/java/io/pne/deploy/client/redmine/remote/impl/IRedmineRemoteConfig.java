@@ -2,6 +2,7 @@ package io.pne.deploy.client.redmine.remote.impl;
 
 import io.pne.deploy.util.env.IStartupConfig;
 import org.immutables.value.Value;
+import sun.font.CoreMetrics;
 
 import java.util.Map;
 
@@ -21,4 +22,8 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
 
     int connectTimeoutSeconds();
     int readTimeoutSeconds();
+
+    String redmineCallbackUrl();
+
+    String issueValidationScript();
 }

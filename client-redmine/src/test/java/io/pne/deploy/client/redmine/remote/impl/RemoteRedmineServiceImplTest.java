@@ -12,7 +12,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineFactory;
+import javax.script.ScriptEngineManager;
 import java.io.File;
+import java.io.FileReader;
 import java.util.List;
 
 public class RemoteRedmineServiceImplTest {
@@ -45,9 +49,32 @@ public class RemoteRedmineServiceImplTest {
                 new AgentFinderServiceImpl(new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText)))
                 , aliasDir
         );
-        IRedmineIssuesProcessService processService = new RedmineIssuesProcessServiceImpl(redmine, deployService);
+        IRedmineIssuesProcessService processService = new RedmineIssuesProcessServiceImpl(redmine, deployService, config);
 
         processService.processRedmineIssues();
     }
+
+    @Test
+    @Ignore
+    public void getIssue() throws Exception {
+        for (ScriptEngineFactory factory : new ScriptEngineManager().getEngineFactories()) {
+            System.out.println("factory = " + factory.getEngineName());
+        }
+        
+        IRedmineRemoteConfig     config  = new RedmineRemoveConfigBuilder().build();
+        RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(config);
+        RedmineIssue             issue   = redmine.getIssue(Long.getLong("REDMINE_ISSUE_ID"));
+        System.out.println("issue = " + issue);
+
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
+        engine.put("issue", issue);
+
+        try (FileReader in = new FileReader(config.issueValidationScript())) {
+            Object eval = engine.eval(in);
+            System.out.println("eval = " + eval.getClass());
+            System.out.println("eval = " + eval);
+        }
+    }
+
 
 }

@@ -4,6 +4,7 @@ import com.taskadapter.redmineapi.Include;
 import com.taskadapter.redmineapi.IssueManager;
 import com.taskadapter.redmineapi.RedmineException;
 import com.taskadapter.redmineapi.RedmineManager;
+import com.taskadapter.redmineapi.bean.CustomField;
 import com.taskadapter.redmineapi.bean.Issue;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineComment;
@@ -14,7 +15,10 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -46,16 +50,30 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
     @Override
     public List<RedmineIssue> listAssignedTickets() {
         return getRedmineIssues().stream()
-                .map(issue -> ImmutableRedmineIssue.builder()
-                        .issueId     ( issue.getId()              )
-                        .description ( issue.getDescription()     )
-                        .subject     ( issue.getSubject()         )
-                        .statusName  ( issue.getStatusName()      )
-                        .statusId    ( issue.getStatusId()        )
-                        .projectId   ( issue.getProject().getId() )
-//                        .comments    ( issue.getgetComments(issue.getId()) )
-                        .build())
+                .map(this::mapIssue)
                 .collect(Collectors.<RedmineIssue>toList());
+    }
+
+    private ImmutableRedmineIssue mapIssue(Issue issue) {
+
+        Map<String, String> customFields = new HashMap<>();
+        Collection<CustomField> redmineCustomFields = issue.getCustomFields();
+        for (CustomField redmineCustomField : redmineCustomFields) {
+            customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
+        }
+
+        return ImmutableRedmineIssue.builder()
+                .issueId      ( issue.getId()                     )
+                .description  ( issue.getDescription()            )
+                .subject      ( issue.getSubject()                )
+                .statusName   ( issue.getStatusName()             )
+                .statusId     ( issue.getStatusId()               )
+                .projectId    ( issue.getProject().getId()        )
+                .projectName  ( issue.getProject().getName()      )
+                .customFields ( customFields                      )
+                .assigneeName ( issue.getAssignee().getFullName() )
+                .creatorName  ( issue.getAuthor().getFullName()   )
+                .build();
     }
 
     public List<RedmineComment> getComments(int aIssueId) {
@@ -110,6 +128,16 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
             throw new IllegalStateException("Cannot add comment to  " + issue.getStatusId());
         }
 
+    }
+
+    @Override
+    public RedmineIssue getIssue(long aIssueId) {
+        try {
+            Issue issue = issueManager.getIssueById((int) aIssueId);
+            return mapIssue(issue);
+        } catch (RedmineException e) {
+            throw new IllegalStateException("Cannot convert Issue " + aIssueId + " to RedmineIssue", e);
+        }
     }
 
     private List<Issue> getRedmineIssues() {
