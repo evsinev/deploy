@@ -2,14 +2,13 @@ package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.payneteasy.startup.parameters.StartupParametersFactory;
 import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
-import io.pne.deploy.client.redmine.remote.impl.RedmineRemoveConfigBuilder;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmineServiceImpl;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.service.impl.DeployServiceImpl;
-import io.pne.deploy.util.env.ShowStartupConfig;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,17 +51,6 @@ public class VertxServerApplication {
 
     }
 
-//    private static RedmineIssuesProcessServiceImpl configureRedmine(IVertxServerConfiguration aConfig) {
-//        IRedmineRemoteConfig config = new RedmineRemoveConfigBuilder().build();
-//        RemoteRedmineServiceImpl redmine = new RemoteRedmineServiceImpl(config);
-//
-//        IDeployService deployService = new DeployServiceImpl(
-//                new AgentFinderServiceImpl(new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText)))
-//                , aConfig.getAliasesDir()
-//        );
-//        return new RedmineIssuesProcessServiceImpl(redmine, deployService);
-//    }
-
     // for test only
     public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig, IRedmineRemoteConfig redmineConfig) {
         Gson gson           = new GsonBuilder().setPrettyPrinting().create();
@@ -84,9 +72,9 @@ public class VertxServerApplication {
         Gson                         gson          = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses             response      = new CommandResponses();
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
-        IRedmineRemoteConfig         redmineConfig = new RedmineRemoveConfigBuilder().build();
+        IRedmineRemoteConfig         redmineConfig = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         RemoteRedmineServiceImpl     redmine       = new RemoteRedmineServiceImpl(redmineConfig);
-        VertxServerConfigurationImpl config        = new ShowStartupConfig<>(new VertxServerConfigurationImpl()).get();
+        IVertxServerConfiguration     config       = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
 
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response), config.getAliasesDir());
         RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig);

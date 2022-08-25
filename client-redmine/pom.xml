@@ -87,6 +87,11 @@
             <artifactId>gson</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.payneteasy</groupId>
+            <artifactId>startup-parameters</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>

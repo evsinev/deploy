@@ -36,19 +36,6 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     }
 
     @Override
-    public void processRedmineIssues() {
-        List<RedmineIssue> issues = redmine.listAssignedTickets();
-        for (RedmineIssue issue : issues) {
-            try {
-                processIssue(issue);
-            } catch (Exception e) {
-                LOG.error("Can't process issue " + issue.issueId(), e);
-                redmine.changeStatusToFailed(issue.issueId(), "Task is FAILED: " + e.getMessage());
-            }
-        }
-    }
-
-    @Override
     public void processRedmineIssue(long aIssueId) {
         RedmineIssue issue = redmine.getIssue(aIssueId);
         engine.put("issue", issue);

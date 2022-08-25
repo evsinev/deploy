@@ -55,6 +55,11 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+        <repository>
+            <id>pne</id>
+            <name>payneteasy repo</name>
+            <url>https://maven.pne.io</url>
+        </repository>
     </repositories>
 
     <dependencyManagement>
@@ -253,6 +258,11 @@
                 <version>2.9.5</version>
             </dependency>
 
+            <dependency>
+                <groupId>com.payneteasy</groupId>
+                <artifactId>startup-parameters</artifactId>
+                <version>1.0-10</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>

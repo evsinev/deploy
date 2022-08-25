@@ -47,13 +47,6 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
         return HttpClientBuilder.create().setDefaultRequestConfig(config).build();
     }
 
-    @Override
-    public List<RedmineIssue> listAssignedTickets() {
-        return getRedmineIssues().stream()
-                .map(this::mapIssue)
-                .collect(Collectors.<RedmineIssue>toList());
-    }
-
     private ImmutableRedmineIssue mapIssue(Issue issue) {
 
         Map<String, String> customFields = new HashMap<>();
@@ -137,14 +130,6 @@ public class RemoteRedmineServiceImpl implements IRemoteRedmineService {
             return mapIssue(issue);
         } catch (RedmineException e) {
             throw new IllegalStateException("Cannot convert Issue " + aIssueId + " to RedmineIssue", e);
-        }
-    }
-
-    private List<Issue> getRedmineIssues() {
-        try {
-            return issueManager.getIssues(config.issuesQueryParameters());
-        } catch (RedmineException e) {
-            throw new IllegalStateException("Could not get issues", e);
         }
     }
 

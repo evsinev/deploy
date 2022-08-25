@@ -24,6 +24,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final IRedmineRemoteConfig      redmineConfig;
     private final RedmineCallbackHttpHander redmineCallbackHttpHander;
     private final Collection<Long> issues;
+    private final StatusHttpHandler statusHttpHandler;
 
     public HttpHandler(AgentConnections connections, IDeployService deployService, Executor commandExecutor, IRedmineRemoteConfig aRedmineConfig, Collection<Long> aIssues) {
         this.connections = connections;
@@ -32,6 +33,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
         redmineConfig = aRedmineConfig;
         redmineCallbackHttpHander = new RedmineCallbackHttpHander(aIssues);
         issues = aIssues;
+        statusHttpHandler = new StatusHttpHandler();
     }
 
     @Override
@@ -48,7 +50,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             aRequest.response().setStatusCode(405).end("No command parameter\n");
             return;
         }
-        
+
         HttpServerResponse response = aRequest.response();
         response.setChunked(true);
 

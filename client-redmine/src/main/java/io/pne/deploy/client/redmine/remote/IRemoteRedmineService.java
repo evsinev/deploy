@@ -6,8 +6,6 @@ import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import java.util.List;
 
 public interface IRemoteRedmineService {
-    List<RedmineIssue> listAssignedTickets();
-
     List<RedmineComment> getComments(int aIssueId);
 
     void changeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage);
