@@ -3,8 +3,6 @@ package io.pne.deploy.client.redmine.remote.impl;
 import com.payneteasy.startup.parameters.AStartupParameter;
 import io.pne.deploy.util.env.IStartupConfig;
 
-import java.util.Map;
-
 public interface IRedmineRemoteConfig extends IStartupConfig {
 
     @AStartupParameter(name = "REDMINE_URL", value = "")
@@ -36,6 +34,10 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
 
     @AStartupParameter(name = "ISSUE_VALIDATION_SCRIPT", value = "")
     String issueValidationScript();
+
+    @AStartupParameter(name = "STATUS_PAGE_PATH", value = "/deploy/status")
+    String statusPageHtmlPath();
+
 
 
 }

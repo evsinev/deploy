@@ -5,6 +5,7 @@ import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.vertx.AgentConnections;
+import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -23,17 +24,24 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final Executor                  commandExecutor;
     private final IRedmineRemoteConfig      redmineConfig;
     private final RedmineCallbackHttpHander redmineCallbackHttpHander;
-    private final Collection<Long> issues;
+    private final Collection<Long>  issues;
     private final StatusHttpHandler statusHttpHandler;
 
-    public HttpHandler(AgentConnections connections, IDeployService deployService, Executor commandExecutor, IRedmineRemoteConfig aRedmineConfig, Collection<Long> aIssues) {
+    public HttpHandler(
+            AgentConnections connections
+            , IDeployService deployService
+            , Executor commandExecutor
+            , IRedmineRemoteConfig aRedmineConfig
+            , Collection<Long> aIssues
+            , StatusHttpHandler aStatusHandler
+    ) {
         this.connections = connections;
         this.deployService = deployService;
         this.commandExecutor = commandExecutor;
         redmineConfig = aRedmineConfig;
         redmineCallbackHttpHander = new RedmineCallbackHttpHander(aIssues);
         issues = aIssues;
-        statusHttpHandler = new StatusHttpHandler();
+        statusHttpHandler = aStatusHandler;
     }
 
     @Override
@@ -43,6 +51,11 @@ public class HttpHandler implements Handler<HttpServerRequest> {
 
         if(redmineConfig.redmineCallbackUrl().equals(aRequest.uri())) {
             redmineCallbackHttpHander.handle(aRequest);
+            return;
+        }
+
+        if(aRequest.uri().startsWith(redmineConfig.statusPageHtmlPath())) {
+            statusHttpHandler.handle(aRequest);
             return;
         }
 

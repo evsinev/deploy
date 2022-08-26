@@ -2,9 +2,14 @@ package io.pne.deploy.server.service.impl;
 
 import io.pne.deploy.agent.api.command.AgentCommand;
 import io.pne.deploy.agent.api.command.AgentCommandParameters;
+import io.pne.deploy.agent.api.exceptions.AgentCommandException;
+import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
+import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
+import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
 import io.pne.deploy.server.agent.impl.AgentFinderServiceImpl;
 import io.pne.deploy.server.agent.impl.LocalAgentServiceImpl;
 import io.pne.deploy.server.api.IDeployService;
+import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
 import io.pne.deploy.server.api.task.TaskParameters;
@@ -36,7 +41,7 @@ public class DeployServiceImplTest {
         });
         AgentFinderServiceImpl agentFinderService = new AgentFinderServiceImpl(localAgentService);
         File aliasesDir = new File("src/test/resources/aliases");
-        IDeployService service = new DeployServiceImpl(agentFinderService, aliasesDir);
+        IDeployService service = new DeployServiceImpl(agentFinderService, aliasesDir, new TaskExecutionListenerLogger());
 
         service.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("localhost"), new AgentCommand(

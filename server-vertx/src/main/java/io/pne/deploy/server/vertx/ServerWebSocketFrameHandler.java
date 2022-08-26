@@ -6,6 +6,7 @@ import io.pne.deploy.agent.api.messages.IAgentClientMessage;
 import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
 import io.pne.deploy.server.IServerApplicationListener;
+import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.WebSocketFrame;
@@ -23,12 +24,14 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
     private final Gson                       gson;
     private final IServerApplicationListener serverListener;
     private final CommandResponses           commandResponses;
+    private final ITaskExecutionListener     listener;
 
 
-    public ServerWebSocketFrameHandler(IServerApplicationListener aServerListener, Gson aGson, CommandResponses aResponses) {
+    public ServerWebSocketFrameHandler(IServerApplicationListener aServerListener, Gson aGson, CommandResponses aResponses, ITaskExecutionListener aListener) {
         gson = aGson;
         serverListener = aServerListener;
         commandResponses = aResponses;
+        listener = aListener;
     }
 
     @Override
@@ -53,11 +56,13 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
             case RUN_COMMAND_RESPONSE:
                 RunAgentCommandResponse response = (RunAgentCommandResponse) message;
                 commandResponses.addCommandResponse(response.commandId, response);
+                listener.onCommandResponse(response);
                 break;
 
             case RUN_COMMAND_LOG:
                 RunAgentCommandLog logMessage = (RunAgentCommandLog) message;
                 LOG_AGENT.info("{}: {}", logMessage.commandId, logMessage.message);
+                listener.onCommandLog(logMessage);
                 break;
 
             default:

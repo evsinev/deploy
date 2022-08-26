@@ -7,6 +7,7 @@ import io.pne.deploy.agent.api.messages.AgentMessageType;
 import io.pne.deploy.agent.api.messages.IAgentServerMessage;
 import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
+import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.ServerWebSocket;
 import org.slf4j.Logger;
@@ -21,16 +22,19 @@ public class VertxAgentServiceImpl implements IAgentService {
     private final AgentConnections connections;
     private final Gson             gson;
     private final CommandResponses commandResponses;
+    private final ITaskExecutionListener listener;
 
-    public VertxAgentServiceImpl(AgentConnections aConnections, Gson aGson, CommandResponses aCommandResponses) {
+    public VertxAgentServiceImpl(AgentConnections aConnections, Gson aGson, CommandResponses aCommandResponses, ITaskExecutionListener aListener) {
         connections = aConnections;
         gson = aGson;
         commandResponses = aCommandResponses;
+        listener = aListener;
     }
 
     @Override
     public void runCommand(RunAgentCommandRequest aCommand) throws AgentCommandException {
         LOG.debug("Sending command {} ", aCommand);
+        listener.onSendingCommand(aCommand);
         try {
             sendMessage(aCommand.agentId, aCommand);
         } catch (InterruptedException e) {
@@ -39,6 +43,7 @@ public class VertxAgentServiceImpl implements IAgentService {
         // waiting for response
         try {
             RunAgentCommandResponse response = commandResponses.awaitForCommandResponse(aCommand.commandId);
+            listener.onCommandResponse(response);
             LOG.info("Response for command {} is {}", aCommand, response);
             if(response.error != null) {
                 throw new AgentCommandException("Agent " + aCommand.agentId + "return error: " + response.error, response.error);

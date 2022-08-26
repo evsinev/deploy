@@ -4,7 +4,9 @@ import com.google.gson.Gson;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
+import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.vertx.http.HttpHandler;
+import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServer;
@@ -24,6 +26,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final Executor                    commandExecutor;
     private final IRedmineRemoteConfig        redmineConfig;
     private final Collection<Long>            issues;
+    private final ITaskExecutionListener      listener;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
@@ -34,14 +37,16 @@ public class WebSocketVerticle extends AbstractVerticle {
             , Executor         aCommandExecutor
             , IRedmineRemoteConfig aRedmineConfig
             , Collection<Long>  aIssues
+            , ITaskExecutionListener aListener
     ) {
-        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses);
+        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
         port = aPort;
         connections = aConnections;
         deployService = aDeploService;
         commandExecutor = aCommandExecutor;
         redmineConfig = aRedmineConfig;
         issues = aIssues;
+        listener = aListener;
     }
 
     @Override
@@ -83,7 +88,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 //                    aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues))
+                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, new StatusHttpHandler(connections, issues, listener)))
                 .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());

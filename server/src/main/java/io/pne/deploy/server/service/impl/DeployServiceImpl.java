@@ -5,6 +5,7 @@ import io.pne.deploy.agent.api.exceptions.AgentCommandException;
 import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.server.agent.IAgentFinderService;
 import io.pne.deploy.server.api.IDeployService;
+import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.TaskCommand;
 import io.pne.deploy.server.api.task.Task;
@@ -21,24 +22,31 @@ public class DeployServiceImpl implements IDeployService {
 
     private final IAgentFinderService agentFinderService;
     private final AliasParser aliasesParser;
+    private final ITaskExecutionListener taskExecutionListener;
 
-    public DeployServiceImpl(IAgentFinderService agentFinderService, File aAliasesDir) {
+    public DeployServiceImpl(IAgentFinderService agentFinderService, File aAliasesDir, ITaskExecutionListener aTaskListener) {
         this.agentFinderService = agentFinderService;
         aliasesParser = new AliasParser(aAliasesDir);
+        taskExecutionListener = aTaskListener;
     }
 
     @Override
     public void runTask(Task aTask) throws TaskException {
+        taskExecutionListener.onRunTask(aTask);
         int commandNumber = 0;
         LOG.debug("Starting task: {}", aTask);
         for (TaskCommand command : aTask.commands) {
+            taskExecutionListener.onCommand(command);
             for (String agentId : command.agents.getIds()) {
+                taskExecutionListener.onAgent(agentId);
                 try {
                     IAgentService agentServiceById = agentFinderService.findAgentServiceById(agentId);
                     commandNumber++;
-                    String commandId = aTask.id.toString() + "-" + commandNumber;
-                    agentServiceById.runCommand(new RunAgentCommandRequest(agentId, commandId, command.command));;
+                    String commandId = aTask.id + "-" + commandNumber;
+                    taskExecutionListener.onCommandId(commandId);
+                    agentServiceById.runCommand(new RunAgentCommandRequest(agentId, commandId, command.command));
                 } catch (AgentCommandException e) {
+                    taskExecutionListener.onCommandError(command, agentId, e);
                     throw new TaskException("Couldn't execute command: " + command);
                 }
             }
