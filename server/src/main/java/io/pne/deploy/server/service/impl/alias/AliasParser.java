@@ -25,14 +25,14 @@ public class AliasParser {
         loader = new AliasDescriptionLoader(aAliasesDir);
     }
 
-    public Task parseAlias(String aText) throws IOException {
+    public Task parseAlias(String aText, int aIssueId) throws IOException {
         checker.checkAlias(aText);
         AliasParameters aliasParameters = new AliasParameters(aText);
         AliasDescription description    = loader.loadAlias(aliasParameters);
-        return convertAliasDescriptionToTask(description);
+        return convertAliasDescriptionToTask(description, aText, aIssueId);
     }
 
-    private Task convertAliasDescriptionToTask(AliasDescription description) {
+    private Task convertAliasDescriptionToTask(AliasDescription description, String aText, int aIssueId) {
         List<TaskCommand> commands = new ArrayList<>();
         if(description.commands == null) {
             throw new IllegalArgumentException("description.commands is null");
@@ -47,6 +47,6 @@ public class AliasParser {
             );
             commands.add(new TaskCommand(agentByName(command.agents), agentCommand));
         }
-        return new Task(TaskId.generateTaskId(), new TaskParameters(), commands);
+        return new Task(TaskId.generateTaskId(), new TaskParameters(), commands, aText, aIssueId);
     }
 }

@@ -39,5 +39,13 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     String statusPageHtmlPath();
 
 
+    @AStartupParameter(name = "TELEGRAM_ENABLED", value = "false")
+    boolean isTelegramEnabled();
+
+    @AStartupParameter(name = "TELEGRAM_CHAT_ID", value = "0")
+    int getTelegramChatId();
+
+    @AStartupParameter(name = "TELEGRAM_TOKEN", value = "", maskVariable = true)
+    String getTelegramToken();
 
 }

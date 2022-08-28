@@ -12,10 +12,15 @@ public class Task {
     @Nonnull public final List<TaskCommand>     commands;
     @Nonnull public final TaskParameters    parameters;
 
-    public Task(@Nonnull TaskId aId, @Nonnull TaskParameters aParameters, @Nonnull List<TaskCommand> aCommands) {
+    @Nonnull public final String taskLine;
+    public final int    issueId;
+
+    public Task(@Nonnull TaskId aId, @Nonnull TaskParameters aParameters, @Nonnull List<TaskCommand> aCommands, @Nonnull String aTaskLine, int aIssueId) {
         id          = aId;
         commands    = aCommands;
         parameters  = aParameters;
+        taskLine    = aTaskLine;
+        issueId     = aIssueId;
     }
 
     @Override

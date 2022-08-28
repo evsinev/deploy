@@ -2,14 +2,9 @@ package io.pne.deploy.server.service.impl;
 
 import io.pne.deploy.agent.api.command.AgentCommand;
 import io.pne.deploy.agent.api.command.AgentCommandParameters;
-import io.pne.deploy.agent.api.exceptions.AgentCommandException;
-import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
-import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
-import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
 import io.pne.deploy.server.agent.impl.AgentFinderServiceImpl;
 import io.pne.deploy.server.agent.impl.LocalAgentServiceImpl;
 import io.pne.deploy.server.api.IDeployService;
-import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
 import io.pne.deploy.server.api.task.TaskParameters;
@@ -25,6 +20,8 @@ import static io.pne.deploy.agent.api.command.AgentCommandType.SHELL;
 import static io.pne.deploy.server.api.task.AgentFinder.agentByName;
 import static io.pne.deploy.server.api.task.TaskId.generateTaskId;
 import static java.util.Collections.singletonList;
+
+import io.pne.deploy.server.api.impl.TaskExecutionListenerLogger;
 
 public class DeployServiceImplTest {
 
@@ -46,7 +43,7 @@ public class DeployServiceImplTest {
         service.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("localhost"), new AgentCommand(
                         new AgentCommandParameters(), SHELL, "echo", singletonList("test")
-                ))))
+                ))), "test-task", 0)
         );
 
         System.out.println("Waiting for a text message from command ...");

@@ -5,15 +5,18 @@ import com.google.gson.GsonBuilder;
 import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.vertx.AgentConnections;
 import io.pne.deploy.server.vertx.status.model.DeployStatus;
+import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import org.slf4j.Logger;
 
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
-public class StatusHttpHandler implements Handler<HttpServerRequest> {
+public class StatusHttpHandler implements Handler<HttpServerRequest>, Consumer<TaskStatus> {
 
     private static final Logger LOG = getLogger(StatusHttpHandler.class);
 
@@ -22,12 +25,11 @@ public class StatusHttpHandler implements Handler<HttpServerRequest> {
     private final AgentConnections agentConnections;
     private final Collection<Long> issueQueue;
 
-    private final TaskExecutionListenerImpl listener;
+    private final AtomicReference<TaskStatus> deployStatusRef = new AtomicReference<>();
 
-    public StatusHttpHandler(AgentConnections aAgentConnections, Collection<Long> aIssueQueue, ITaskExecutionListener aListener) {
+    public StatusHttpHandler(AgentConnections aAgentConnections, Collection<Long> aIssueQueue) {
         agentConnections = aAgentConnections;
         issueQueue = aIssueQueue;
-        listener = (TaskExecutionListenerImpl) aListener;
     }
 
     @Override
@@ -35,11 +37,16 @@ public class StatusHttpHandler implements Handler<HttpServerRequest> {
         DeployStatus status = DeployStatus.builder()
                 .connectedAgents ( agentConnections.getAgentList() )
                 .issueQueue      ( issueQueue                      )
-                .taskStatus      ( listener.getTaskStatus()        )
+                .taskStatus      ( deployStatusRef.get()           )
                 .build();
 
         aEvent.response()
                 .putHeader("Content-Type", "application/json; charset=utf-8")
                 .end(gson.toJson(status));
+    }
+
+    @Override
+    public void accept(TaskStatus aTaskStatus) {
+         deployStatusRef.set(aTaskStatus);
     }
 }

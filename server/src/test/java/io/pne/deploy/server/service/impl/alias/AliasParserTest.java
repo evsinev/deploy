@@ -16,7 +16,7 @@ public class AliasParserTest {
     @Test
     public void parseAlias() throws Exception {
         AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
-        Task task = parser.parseAlias("proc 3.33-40");
+        Task task = parser.parseAlias("proc 3.33-40", -3);
         System.out.println("task = " + task);
         assertNotNull(task.commands);
         assertEquals(2, task.commands.size());

@@ -10,5 +10,5 @@ public interface IDeployService {
 
     void runTask(Task aTask) throws TaskException;
 
-    Task parseAlias(String aText) throws TaskException;
+    Task parseAlias(String aText, int aIssueId) throws TaskException;
 }

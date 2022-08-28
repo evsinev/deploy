@@ -9,7 +9,9 @@ import io.pne.deploy.server.vertx.http.HttpHandler;
 import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerRequest;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -26,7 +28,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final Executor                    commandExecutor;
     private final IRedmineRemoteConfig        redmineConfig;
     private final Collection<Long>            issues;
-    private final ITaskExecutionListener      listener;
+    private final Handler<HttpServerRequest>           statusHttpHandler;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
@@ -38,6 +40,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , IRedmineRemoteConfig aRedmineConfig
             , Collection<Long>  aIssues
             , ITaskExecutionListener aListener
+            , Handler<HttpServerRequest> aStatusHttpHandler
     ) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
         port = aPort;
@@ -46,7 +49,7 @@ public class WebSocketVerticle extends AbstractVerticle {
         commandExecutor = aCommandExecutor;
         redmineConfig = aRedmineConfig;
         issues = aIssues;
-        listener = aListener;
+        statusHttpHandler = aStatusHttpHandler;
     }
 
     @Override
@@ -88,7 +91,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 //                    aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, new StatusHttpHandler(connections, issues, listener)))
+                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, statusHttpHandler))
                 .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());

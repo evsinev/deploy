@@ -95,6 +95,11 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.payneteasy</groupId>
+            <artifactId>telegram-bot-client</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

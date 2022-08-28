@@ -9,8 +9,14 @@ import io.pne.deploy.client.redmine.remote.impl.RemoteRedmineServiceImpl;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
+import io.pne.deploy.server.api.impl.TaskExecutionListenerLogger;
 import io.pne.deploy.server.service.impl.DeployServiceImpl;
-import io.pne.deploy.server.vertx.status.TaskExecutionListenerImpl;
+import io.pne.deploy.server.vertx.status.StatusHttpHandler;
+import io.pne.deploy.server.vertx.status.TaskExecutionListenerCompound;
+import io.pne.deploy.server.vertx.status.TaskExecutionListenerQueue;
+import io.pne.deploy.server.vertx.status.TaskExecutionListenerStatus;
+import io.pne.deploy.server.vertx.status.TaskExecutionListenerTelegram;
+import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +24,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class VertxServerApplication {
 
@@ -57,7 +64,7 @@ public class VertxServerApplication {
     public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig, IRedmineRemoteConfig redmineConfig) {
         Gson                   gson         = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses       response     = new CommandResponses();
-        ITaskExecutionListener taskListener = new TaskExecutionListenerImpl();
+        ITaskExecutionListener taskListener = new TaskExecutionListenerLogger();
 
         this.vertx = Vertx.vertx();
 
@@ -66,20 +73,21 @@ public class VertxServerApplication {
 
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
 
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener);
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, event -> {});
         this.serverListener = serverListener;
     }
 
     public VertxServerApplication() {
         agentConnections    = new AgentConnections();
 
-        Gson                         gson          = new GsonBuilder().setPrettyPrinting().create();
-        CommandResponses             response      = new CommandResponses();
-        ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
-        IRedmineRemoteConfig         redmineConfig = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
-        RemoteRedmineServiceImpl     redmine       = new RemoteRedmineServiceImpl(redmineConfig);
-        IVertxServerConfiguration     config       = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
-        ITaskExecutionListener       taskListener  = new TaskExecutionListenerImpl();
+        Gson                      gson              = new GsonBuilder().setPrettyPrinting().create();
+        CommandResponses          response          = new CommandResponses();
+        ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
+        IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
+        RemoteRedmineServiceImpl  redmine           = new RemoteRedmineServiceImpl(redmineConfig);
+        IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
+        StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
+        ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig);
 
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), config.getAliasesDir(), taskListener);
 
@@ -88,8 +96,19 @@ public class VertxServerApplication {
 
         this.vertx          = Vertx.vertx();
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener);
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler);
         this.serverListener = serverListener;
+    }
+
+    private ITaskExecutionListener createTaskListener(Consumer<TaskStatus> aConsumer, IRedmineRemoteConfig aConfig) {
+
+        return new TaskExecutionListenerQueue(
+                new TaskExecutionListenerCompound(
+                        new TaskExecutionListenerLogger(),
+                        new TaskExecutionListenerStatus(aConsumer),
+                        aConfig.isTelegramEnabled() ? new TaskExecutionListenerTelegram(aConfig.getTelegramChatId(), aConfig.getTelegramToken()) : null
+                )
+        );
     }
 
 

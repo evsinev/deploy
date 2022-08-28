@@ -39,7 +39,7 @@ public class VertxAndWebsocketTest {
                 , new TaskCommand(agentByName("test-host"), new AgentCommand(
                          new AgentCommandParameters(), SHELL, "echo", singletonList("test1234")
                 ))
-        )
+        ), "test-task", 0
         );
         runTask(task);
 

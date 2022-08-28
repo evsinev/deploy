@@ -1,6 +1,5 @@
 package io.pne.deploy.server.api;
 
-import io.pne.deploy.agent.api.exceptions.AgentCommandException;
 import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
@@ -9,20 +8,36 @@ import io.pne.deploy.server.api.task.TaskCommand;
 
 public interface ITaskExecutionListener {
 
+    //region Task
+    void onTaskStart(Task aTask);
 
-    void onRunTask(Task aTask);
+    void onTaskSuccess(Task aTask);
 
-    void onCommand(TaskCommand aCommand);
+    void onTaskError(Task aTask, Exception aException);
+    //endregion Task
 
-    void onAgent(String aAgentId);
+    //region Command
+    void onCommandStart(Task aTask, TaskCommand aCommand);
 
-    void onCommandError(TaskCommand aCommand, String aAgentId, AgentCommandException aError);
+    void onCommandSuccess(Task aTask, TaskCommand aCommand);
 
-    void onCommandId(String aCommandId);
+    void onCommandError(Task aTask, TaskCommand aCommand, Exception e);
+    //endregion
 
+    //region Agent Command
+    void onAgentCommandStart(Task aTask, TaskCommand aCommand, RunAgentCommandRequest aCommandRequest);
+
+    void onAgentCommandSuccess(Task aTask, TaskCommand aCommand, RunAgentCommandRequest aAgentCommand);
+
+    void onAgentCommandError(Task aTask, TaskCommand aCommand, RunAgentCommandRequest aAgentCommand, Exception e);
+    //endregion
+
+    //region Low level communication
     void onSendingCommand(RunAgentCommandRequest aCommandRequest);
 
     void onCommandResponse(RunAgentCommandResponse aResponse);
 
     void onCommandLog(RunAgentCommandLog aMessage);
+    //endregion
+
 }

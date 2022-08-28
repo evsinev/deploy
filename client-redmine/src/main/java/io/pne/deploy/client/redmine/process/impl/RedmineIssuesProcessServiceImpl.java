@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.io.FileReader;
-import java.util.List;
 import java.util.Scanner;
 
 public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessService {
@@ -57,7 +56,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     }
 
     private void processIssue(RedmineIssue aIssue) throws Exception {
-        Task task = parseTask(aIssue.description());
+        Task task = parseTask(aIssue.issueId(), aIssue.description());
         redmine.changeStatusFromAcceptedToProcessing(aIssue.issueId(), "Starting task" + formatTask(task));
         deployService.runTask(task);
         redmine.changeStatusToDone(aIssue.issueId(), "Task is DONE");
@@ -71,20 +70,28 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                 + "</code></pre>";
     }
 
-    protected Task parseTask(String aIssueDescription) throws TaskException {
+    protected Task parseTask(int aIssueId, String aIssueDescription) throws TaskException {
         Scanner scanner = new Scanner(aIssueDescription);
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
             if(line.startsWith("> deploy")) {
-                return createSimpleTask(line);
+                return createSimpleTask(aIssueId, line);
             }
         }
 
         throw new IllegalStateException("Can't find a line started with '> deploy' in the Description");
     }
 
-    private Task createSimpleTask(String aLine) throws TaskException {
+    private Task createSimpleTask(int aIssueId, String aLine) throws TaskException {
         String text = aLine.replace("> deploy", "").trim();
-        return deployService.parseAlias(text);
+        Task   stub = deployService.parseAlias(text, aIssueId);
+
+        return new Task(
+                  stub.id.addRedmineIssueId(aIssueId)
+                , stub.parameters
+                , stub.commands
+                , text
+                , aIssueId
+        );
     }
 }

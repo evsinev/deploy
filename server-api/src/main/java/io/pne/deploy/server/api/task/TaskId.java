@@ -19,6 +19,10 @@ public class TaskId {
         return new TaskId(format.format(new Date()));
     }
 
+    public TaskId addRedmineIssueId(int aIssueId) {
+        return new TaskId(id + "-" + aIssueId);
+    }
+
     @Override @Nonnull
     public String toString() {
         return id;

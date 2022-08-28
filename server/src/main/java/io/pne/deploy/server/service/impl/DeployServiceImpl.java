@@ -32,31 +32,47 @@ public class DeployServiceImpl implements IDeployService {
 
     @Override
     public void runTask(Task aTask) throws TaskException {
-        taskExecutionListener.onRunTask(aTask);
-        int commandNumber = 0;
-        LOG.debug("Starting task: {}", aTask);
-        for (TaskCommand command : aTask.commands) {
-            taskExecutionListener.onCommand(command);
-            for (String agentId : command.agents.getIds()) {
-                taskExecutionListener.onAgent(agentId);
+        taskExecutionListener.onTaskStart(aTask);
+
+        try {
+            int commandNumber = 0;
+            LOG.debug("Starting task: {}", aTask);
+            for (TaskCommand command : aTask.commands) {
+                taskExecutionListener.onCommandStart(aTask, command);
                 try {
-                    IAgentService agentServiceById = agentFinderService.findAgentServiceById(agentId);
-                    commandNumber++;
-                    String commandId = aTask.id + "-" + commandNumber;
-                    taskExecutionListener.onCommandId(commandId);
-                    agentServiceById.runCommand(new RunAgentCommandRequest(agentId, commandId, command.command));
-                } catch (AgentCommandException e) {
-                    taskExecutionListener.onCommandError(command, agentId, e);
-                    throw new TaskException("Couldn't execute command: " + command);
+                    for (String agentId : command.agents.getIds()) {
+
+                        IAgentService agentServiceById = agentFinderService.findAgentServiceById(agentId);
+                        commandNumber++;
+                        String commandId = aTask.id + "-" + commandNumber;
+
+                        RunAgentCommandRequest agentCommand = new RunAgentCommandRequest(agentId, commandId, command.command);
+                        taskExecutionListener.onAgentCommandStart(aTask, command, agentCommand);
+                        try {
+                            agentServiceById.runCommand(agentCommand);
+                            taskExecutionListener.onAgentCommandSuccess(aTask, command, agentCommand);
+                        } catch (Exception e) {
+                            taskExecutionListener.onAgentCommandError(aTask, command, agentCommand, e);
+                            throw new TaskException("Couldn't execute command: " + command, e);
+                        }
+                    }
+                    taskExecutionListener.onCommandSuccess(aTask, command);
+                } catch (Exception e) {
+                    taskExecutionListener.onCommandError(aTask, command, e);
+                    throw e;
                 }
             }
+            taskExecutionListener.onTaskSuccess(aTask);
+        } catch (Exception e) {
+            taskExecutionListener.onTaskError(aTask, e);
+            throw e;
         }
     }
 
     @Override
-    public Task parseAlias(String aText) throws TaskException {
+    public Task parseAlias(String aText, int aIssueId) throws TaskException {
         try {
-            return aliasesParser.parseAlias(aText);
+            return aliasesParser.parseAlias(aText, aIssueId);
         } catch (IOException e) {
             throw new IllegalStateException("Cannot read alias file", e) ;
         }

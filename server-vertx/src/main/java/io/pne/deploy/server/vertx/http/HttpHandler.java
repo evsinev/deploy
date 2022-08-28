@@ -5,7 +5,6 @@ import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.vertx.AgentConnections;
-import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -25,7 +24,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final IRedmineRemoteConfig      redmineConfig;
     private final RedmineCallbackHttpHander redmineCallbackHttpHander;
     private final Collection<Long>  issues;
-    private final StatusHttpHandler statusHttpHandler;
+    private final Handler<HttpServerRequest> statusHttpHandler;
 
     public HttpHandler(
             AgentConnections connections
@@ -33,7 +32,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             , Executor commandExecutor
             , IRedmineRemoteConfig aRedmineConfig
             , Collection<Long> aIssues
-            , StatusHttpHandler aStatusHandler
+            , Handler<HttpServerRequest> aStatusHandler
     ) {
         this.connections = connections;
         this.deployService = deployService;
@@ -99,7 +98,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
         StringBuilder sb = new StringBuilder();
         sb.append("alias: ").append(aAlias).append("\n");
         try {
-            Task task = deployService.parseAlias(aAlias);
+            Task task = deployService.parseAlias(aAlias, -2);
             sb.append("task: ").append(task).append("\n");
             commandExecutor.execute(new Runnable() {
                 @Override
