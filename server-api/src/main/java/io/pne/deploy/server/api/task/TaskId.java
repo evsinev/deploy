@@ -3,7 +3,7 @@ package io.pne.deploy.server.api.task;
 import javax.annotation.Nonnull;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.UUID;
+import java.util.Objects;
 
 
 public class TaskId {
@@ -28,5 +28,16 @@ public class TaskId {
         return id;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TaskId taskId = (TaskId) o;
+        return Objects.equals(id, taskId.id);
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }
