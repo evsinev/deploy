@@ -5,7 +5,7 @@
 
     <artifactId>deploy</artifactId>
     <groupId>io.pne</groupId>
-    <version>1.0-1-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version>
 
     <name>Deploy ${project.version}</name>
 
