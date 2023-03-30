@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.UUID;
 
 public class RedmineCallbackHttpHander implements Handler<HttpServerRequest> {
 
@@ -28,8 +29,9 @@ public class RedmineCallbackHttpHander implements Handler<HttpServerRequest> {
                 aEvent.response().end("The callback is received\n");
                 issues.add(issueId);
             } catch (Exception e) {
-                LOG.error("Cannot process request", e);
-                aEvent.response().setStatusCode(500).end(e.getMessage());
+                String errorId = UUID.randomUUID().toString();
+                LOG.error("Cannot process request: {}", errorId, e);
+                aEvent.response().setStatusCode(500).end("Error id is " + errorId);
             }
         });
     }
