@@ -5,18 +5,13 @@ import lombok.Data;
 
 @Data
 public class UpdateIssue {
-    private Integer id;
-    @SerializedName("project_id")
-    private Integer projectId;
-    @SerializedName("tracker_id")
-    private Integer trackerId;
-    @SerializedName("status_id")
-    private Integer statusId;
-    private String hash;
-    private String notes;
-    private String subject;
-    @SerializedName("private_notes")
-    private Boolean privateNotes;
-    @SerializedName("priority_id")
-    private Integer priorityId;
+                                     Integer id;
+    @SerializedName("project_id")    Integer projectId;
+    @SerializedName("tracker_id")    Integer trackerId;
+    @SerializedName("status_id")     Integer statusId;
+                                     String  hash;
+                                     String  notes;
+                                     String  subject;
+    @SerializedName("private_notes") Boolean privateNotes;
+    @SerializedName("priority_id")   Integer priorityId;
 }

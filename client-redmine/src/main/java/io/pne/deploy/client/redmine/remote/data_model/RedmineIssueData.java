@@ -1,68 +1,79 @@
 package io.pne.deploy.client.redmine.remote.data_model;
 
 import com.google.gson.annotations.SerializedName;
+import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.FieldDefaults;
 
 import java.util.List;
 
+import static lombok.AccessLevel.PRIVATE;
+
 @Data
+@FieldDefaults(makeFinal = true, level = PRIVATE)
+@Builder
 public class RedmineIssueData {
-    private int id;
-    private Project project;
-    private Tracker tracker;
-    private Status status;
-    private Priority priority;
-    private User author;
-    private User assigned_to;
-    private String subject;
-    private String description;
-    @SerializedName("start_date")
-    private String startDate;
-    @SerializedName("due_date")
-    private String dueDate;
-    @SerializedName("is_private")
-    private Boolean isPrivate;
-    @SerializedName("custom_fields")
-    private List<CustomFields> customFields;
-    @SerializedName("created_on")
-    private String createdOn;
-    @SerializedName("updated_on")
-    private String updatedOn;
-    @SerializedName("closed_on")
-    private String closeOn;
-    private List<ChangeSet> changesets;
-    private List<Journal> journals;
+    int      id;
+    Project  project;
+    Tracker  tracker;
+    Status   status;
+    Priority priority;
+    User     author;
+    User     assigned_to;
+    String   subject;
+    String   description;
+
+    @SerializedName("start_date")    String             startDate;
+    @SerializedName("due_date")      String             dueDate;
+    @SerializedName("is_private")    Boolean            isPrivate;
+    @SerializedName("custom_fields") List<CustomFields> customFields;
+    @SerializedName("created_on")    String             createdOn;
+    @SerializedName("updated_on")    String             updatedOn;
+    @SerializedName("closed_on")     String             closeOn;
+
+    List<ChangeSet> changesets;
+    List<Journal>   journals;
 
     @Data
+    @FieldDefaults(makeFinal = true, level = PRIVATE)
+    @Builder
     public static class Tracker {
-        private int id;
-        private String name;
+        int    id;
+        String name;
     }
 
     @Data
+    @FieldDefaults(makeFinal = true, level = PRIVATE)
+    @Builder
     public static class Priority {
-        private int id;
-        private String name;
+        int    id;
+        String name;
     }
 
     @Data
+    @FieldDefaults(makeFinal = true, level = PRIVATE)
+    @Builder
     public static class ChangeSet {
-        private String revision;
-        private User user;
-        private String comments;
+        String revision;
+        User   user;
+        String comments;
         @SerializedName("committed_on")
-        private String committedOn;
+        String committedOn;
     }
 
     @Data
+    @FieldDefaults(makeFinal = true, level = PRIVATE)
+    @Builder
     public static class User {
-        private int id;
-        private String name;
+        int    id;
+        String name;
     }
 
     @Data
+    @FieldDefaults(makeFinal = true, level = PRIVATE)
+    @Builder
     public static class Project {
-        private int id;
-        private String name;
+        int    id;
+        String name;
     }
 }

@@ -3,18 +3,27 @@ package io.pne.deploy.client.redmine.remote.data_model;
 import com.google.gson.annotations.SerializedName;
 import com.taskadapter.redmineapi.bean.JournalDetail;
 import com.taskadapter.redmineapi.bean.User;
+import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.FieldDefaults;
 
 import java.util.List;
 
+import static lombok.AccessLevel.PRIVATE;
+
 @Data
+@FieldDefaults(makeFinal = true, level = PRIVATE)
+@Builder
 public class Journal {
-    private int id;
-    private User user;
-    private String notes;
+    int    id;
+    User   user;
+    String notes;
+
     @SerializedName("created_on")
-    private String createdOn;
+    String  createdOn;
+
     @SerializedName("private_notes")
-    private boolean privateNotes;
-    private List<JournalDetail> details;
+    boolean privateNotes;
+
+    List<JournalDetail> details;
 }

@@ -18,9 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
-    private final IRedmineRemoteConfig config;
-    private final OkHttpClient client;
-    private final Gson gson;
+
     private static final String X_REDMINE_API_KEY = "X-Redmine-API-Key";
     private static final String CANT_GET_ISSUE_EXCEPTION = "Can't get issue. Bad URL: ";
     private static final String CANT_PASE_ISSUE_FROM_EXCEPTION = "Can't parse issue from ";
@@ -32,6 +30,10 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String APPLICATION_JSON = "application/json";
 
+    private final IRedmineRemoteConfig config;
+    private final OkHttpClient         client;
+    private final Gson                 gson;
+
     public RemoteRedmine4_2_10ServiceImpl(IRedmineRemoteConfig aConfig) {
         client = new OkHttpClient().newBuilder().build();
         config = aConfig;
@@ -42,10 +44,16 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     public List<RedmineComment> getComments(int aIssueId) {
         String requestURL = config.url() + ISSUES + aIssueId + ".json?include=journals";
         try {
-            Request request = new Request.Builder().url(new URL(requestURL)).addHeader(X_REDMINE_API_KEY, config.apiAccessKey()).get().build();
-            Response response = client.newCall(request).execute();
-            RedmineIssueData redmineIssueData = gson.fromJson(response.body().string(), RootIssueData.class).getIssue();
-            return redmineIssueData.getJournals().stream().map(journal -> ImmutableRedmineComment.builder().userId(journal.getUser().getId()).text(journal.getNotes()).commentId(journal.getId()).build()).collect(Collectors.<RedmineComment>toList());
+            Request request = new Request.Builder()
+                    .url(new URL(requestURL))
+                    .addHeader(X_REDMINE_API_KEY, config.apiAccessKey())
+                    .get()
+                    .build();
+
+            try (Response response = client.newCall(request).execute()) {
+                RedmineIssueData redmineIssueData = gson.fromJson(response.body().string(), RootIssueData.class).getIssue();
+                return redmineIssueData.getJournals().stream().map(journal -> ImmutableRedmineComment.builder().userId(journal.getUser().getId()).text(journal.getNotes()).commentId(journal.getId()).build()).collect(Collectors.<RedmineComment>toList());
+            }
         } catch (IllegalStateException | JsonSyntaxException | NullPointerException e) {
             throw new IllegalStateException(CANT_PASE_ISSUE_FROM_EXCEPTION + requestURL);
         } catch (MalformedURLException e) {
@@ -64,12 +72,19 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         issue.setStatusId(aNewStatus);
         issue.setNotes(aMessage);
         String requestURL = config.url() + ISSUES + aRedmineIssueId + ".json";
-        RequestBody requestBody = RequestBody.create(gson.toJson(new RootUpdateIssue(issue)), MediaType.parse(APPLICATION_JSON + "; charset=utf-8"));
+        RequestBody requestBody = RequestBody
+                .create(gson.toJson(new RootUpdateIssue(issue)), MediaType.parse(APPLICATION_JSON + "; charset=utf-8"));
         try {
-            Request request = new Request.Builder().url(new URL(requestURL)).addHeader(X_REDMINE_API_KEY, config.apiAccessKey()).addHeader(CONTENT_TYPE, APPLICATION_JSON).get().put(requestBody).build();
-            Response response = client.newCall(request).execute();
-            if (!String.valueOf(response.code()).startsWith("20")) {
-                throw new IllegalStateException(CANT_UPDATE_ISSUE_EXCEPTION + "(" + requestURL + ")\nStatus: " + response.code() + PARAMETERS + issue.getId());
+            Request request = new Request.Builder()
+                    .url(new URL(requestURL))
+                    .addHeader(X_REDMINE_API_KEY, config.apiAccessKey())
+                    .addHeader(CONTENT_TYPE, APPLICATION_JSON)
+                    .put(requestBody)
+                    .build();
+            try(Response response = client.newCall(request).execute()) {
+                if (!String.valueOf(response.code()).startsWith("20")) {
+                    throw new IllegalStateException(CANT_UPDATE_ISSUE_EXCEPTION + "(" + requestURL + ")\nStatus: " + response.code() + PARAMETERS + issue.getId());
+                }
             }
         } catch (MalformedURLException e) {
             throw new IllegalStateException(CANT_GET_ISSUE_EXCEPTION + requestURL);
@@ -104,17 +119,34 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         for (CustomFields redmineCustomField : issue.getCustomFields()) {
             customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
         }
-        return ImmutableRedmineIssue.builder().issueId(issue.getId()).description(issue.getDescription()).subject(issue.getSubject()).statusName(issue.getStatus().getName()).statusId(issue.getStatus().getId()).projectId(issue.getProject().getId()).projectName(issue.getProject().getName()).customFields(customFields).assigneeName(issue.getAssigned_to().getName()).creatorName(issue.getAuthor().getName()).build();
+        return ImmutableRedmineIssue.builder()
+                .issueId        ( issue.getId())
+                .description    ( issue.getDescription())
+                .subject        ( issue.getSubject())
+                .statusName     ( issue.getStatus().getName())
+                .statusId       ( issue.getStatus().getId())
+                .projectId      ( issue.getProject().getId())
+                .projectName    ( issue.getProject().getName())
+                .customFields   ( customFields)
+                .assigneeName   ( issue.getAssigned_to().getName())
+                .creatorName    ( issue.getAuthor().getName())
+                .build();
     }
 
     @Override
     public RedmineIssue getIssue(long aIssueId) {
         String requestURL = config.url() + ISSUES + aIssueId + ".json";
         try {
-            Request request = new Request.Builder().url(new URL(requestURL)).addHeader(X_REDMINE_API_KEY, config.apiAccessKey()).get().build();
-            Response response = client.newCall(request).execute();
-            RedmineIssueData redmineIssueData = gson.fromJson(response.body().string(), RootIssueData.class).getIssue();
-            return mapIssue(redmineIssueData);
+            Request request = new Request.Builder()
+                    .url(new URL(requestURL))
+                    .addHeader(X_REDMINE_API_KEY, config.apiAccessKey())
+                    .get()
+                    .build();
+
+            try(Response response = client.newCall(request).execute()) {
+                RedmineIssueData redmineIssueData = gson.fromJson(response.body().string(), RootIssueData.class).getIssue();
+                return mapIssue(redmineIssueData);
+            }
         } catch (IllegalStateException | JsonSyntaxException | NullPointerException e) {
             throw new IllegalStateException(CANT_PASE_ISSUE_FROM_EXCEPTION + requestURL);
         } catch (MalformedURLException e) {
