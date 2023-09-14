@@ -28,7 +28,7 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     private static final String CANT_CREATE_ISSUE_EXCEPTION = "Can't create issue at ";
     private static final String CANT_UPDATE_ISSUE_EXCEPTION = "Can't update issue ";
     private static final String PARAMETERS = "\nIssue ID: ";
-    private static final String ISSUES = "issues/";
+    private static final String ISSUES = "/issues/";
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String APPLICATION_JSON = "application/json";
 
