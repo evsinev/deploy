@@ -28,7 +28,7 @@ public class AliasParser {
     public Task parseAlias(String aText, int aIssueId) throws IOException {
         checker.checkAlias(aText);
         AliasParameters aliasParameters = new AliasParameters(aText);
-        AliasDescription description    = loader.loadAlias(aliasParameters);
+        AliasDescription description    = loader.loadAlias(aliasParameters, aIssueId);
         return convertAliasDescriptionToTask(description, aText, aIssueId);
     }
 

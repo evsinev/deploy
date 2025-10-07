@@ -21,7 +21,7 @@ public class AliasDescriptionLoader {
     }
 
     @Nonnull
-    public AliasDescription loadAlias(AliasParameters aliasParameters) throws IOException {
+    public AliasDescription loadAlias(AliasParameters aliasParameters, int aIssueId) throws IOException {
         File file = new File(aliasDir, aliasParameters.name + ".yml");
         if (!file.exists()) {
             throw new IllegalArgumentException("Alias " + aliasParameters.name + " not found. Available aliases are: "
@@ -30,7 +30,7 @@ public class AliasDescriptionLoader {
         }
 
         String yamlText = loadYaml(file);
-        String withParameters = processParameters(yamlText, aliasParameters.parameters);
+        String withParameters = processParameters(yamlText, aliasParameters.parameters, aIssueId);
 
         AliasDescription description = yaml.loadAs(withParameters, AliasDescription.class);
         if(description == null) {
@@ -53,12 +53,15 @@ public class AliasDescriptionLoader {
         return array != null ? array : new String[]{};
     }
 
-    private String processParameters(String aText, List<String> aParameters) {
+    private String processParameters(String aText, List<String> aParameters, int aIssueId) {
         String ret = aText;
         for (int i = 0; i < aParameters.size(); i++) {
             int index = i + 1;
             ret = ret.replace("$" + index, aParameters.get(i));
         }
+
+        ret = ret.replace("$ISSUE_ID", String.valueOf(aIssueId));
+
         return ret;
     }
 

@@ -147,7 +147,7 @@
                 <artifactId>annotations</artifactId>
                 <version>15.0</version>
             </dependency>
-            
+
             <!-- VERTX -->
             <dependency>
                 <groupId>io.vertx</groupId>
@@ -198,7 +198,7 @@
                 <artifactId>gson</artifactId>
                 <version>2.10.1</version>
             </dependency>
-            
+
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
@@ -275,6 +275,12 @@
                 <groupId>com.payneteasy</groupId>
                 <artifactId>telegram-bot-client</artifactId>
                 <version>1.0-7</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.payneteasy.http-client</groupId>
+                <artifactId>http-client-impl</artifactId>
+                <version>1.0-8</version>
             </dependency>
 
         </dependencies>

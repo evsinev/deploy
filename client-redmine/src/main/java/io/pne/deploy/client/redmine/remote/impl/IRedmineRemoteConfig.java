@@ -8,7 +8,7 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     @AStartupParameter(name = "REDMINE_URL", value = "")
     String url();
 
-    @AStartupParameter(name = "REDMINE_API_ACCESS_KEY", value = "")
+    @AStartupParameter(name = "REDMINE_API_ACCESS_KEY", value = "", maskVariable = true)
     String apiAccessKey();
 
     @AStartupParameter(name = "REDMINE_STATUS_ACCEPT_ID", value = "1") // new

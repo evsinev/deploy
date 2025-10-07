@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.payneteasy.startup.parameters.StartupParametersFactory;
 import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl;
+import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
+import io.pne.deploy.client.redmine.remote.impl.RemoteRedmineServiceImpl;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
@@ -32,7 +34,7 @@ public class VertxServerApplication {
         SLF4JBridgeHandler.removeHandlersForRootLogger();
         SLF4JBridgeHandler.install();
     }
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(VertxServerApplication.class);
 
     private final Vertx                      vertx;
@@ -84,7 +86,7 @@ public class VertxServerApplication {
         CommandResponses          response          = new CommandResponses();
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
-        RemoteRedmine4_2_10ServiceImpl  redmine     = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
+        IRemoteRedmineService     redmine           = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
         IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig);

@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.io.FileReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Scanner;
 
 public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessService {
@@ -50,9 +52,31 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
             }
 
         } catch (Exception e) {
-            LOG.error("Can't process issue " + issue.issueId(), e);
-            redmine.changeStatusToFailed(issue.issueId(), "Task is FAILED: " + e.getMessage());
+            LOG.error("Can't process issue {}", issue.issueId(), e);
+            redmine.changeStatusToFailed(
+                    issue.issueId()
+                    , "Task is FAILED: " + e.getMessage()
+                       + "\n<pre>"
+                       + stackTraceToString(e)
+                       + "\n</pre>"
+            );
         }
+    }
+
+    private String stackTraceToString(Exception e) {
+        if (e == null) {
+            return "exception is null";
+        }
+
+        if (e.getStackTrace() == null) {
+            return "stacktrace is null";
+        }
+
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        pw.close();
+        return sw.toString();
     }
 
     private void processIssue(RedmineIssue aIssue) throws Exception {

@@ -12,10 +12,10 @@
         </encoder>
     </appender>
 
-    <logger name="io.pne" level="DEBUG" />
+    <logger name="io.pne" level="info" />
 
 
-    <root level="INFO">
+    <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

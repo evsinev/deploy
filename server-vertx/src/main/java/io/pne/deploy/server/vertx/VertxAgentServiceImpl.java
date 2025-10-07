@@ -46,7 +46,7 @@ public class VertxAgentServiceImpl implements IAgentService {
             listener.onCommandResponse(response);
             LOG.info("Response for command {} is {}", aCommand, response);
             if(response.error != null) {
-                throw new AgentCommandException("Agent " + aCommand.agentId + "return error: " + response.error, response.error);
+                throw new AgentCommandException("Agent " + aCommand.agentId + ": return error: " + response.error, response.error);
             }
         } catch (InterruptedException e) {
             throw new AgentCommandException("Interrupted");
