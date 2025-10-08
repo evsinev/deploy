@@ -4,7 +4,7 @@ import java.util.regex.Pattern;
 
 public class InputTextChecker {
 
-    private final Pattern aliasPattern = Pattern.compile("^[A-Za-z0-9\\s.\\-_]+$");
+    private final Pattern aliasPattern = Pattern.compile("^[A-Za-z0-9\\s.\\-_,;]+$");
 
     public void checkAlias(String aAlias) {
         if(!aliasPattern.matcher(aAlias).matches()) {

@@ -10,6 +10,8 @@ public class InputTextCheckerTest {
         checker.checkAlias("proc");
         checker.checkAlias("proc 3.33-40");
         checker.checkAlias("proc 3.33-40");
+        checker.checkAlias("proc 3.33-40 123,456,789");
+        checker.checkAlias("proc 3.33-40 123;456;789");
 
         try {
             checker.checkAlias("proc $");
