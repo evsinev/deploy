@@ -2,6 +2,7 @@ package io.pne.deploy.server.vertx;
 
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
+import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
 import io.pne.deploy.server.IServerApplicationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +38,12 @@ public class VertxServerApplicationListener implements IServerApplicationListene
                         continue;
                     }
 
-                    redmineIssuesProcessService.processRedmineIssue(issueId);
+                    ProcessRedmineIssueResult result = redmineIssuesProcessService.processRedmineIssue(issueId);
 
-                    Thread.sleep(60_000);
+                    long millis = sleepForResult(result);
+                    LOG.info("Sleeping for {}ms after issue {} with result {}, queue size is {}", millis, issueId, result, pendingIssues.size());
+                    Thread.sleep(millis);
+
                 } catch (InterruptedException e) {
                     LOG.info("Interrupted", e);
                     break;
@@ -50,6 +54,17 @@ public class VertxServerApplicationListener implements IServerApplicationListene
         });
         thread.setName("redmine-processing");
         thread.start();
+    }
+
+    private long sleepForResult(ProcessRedmineIssueResult result) {
+        switch (result.getType()) {
+            case SUCCESS      : return 60_000;
+            case NO_VALIDATED : return  1_000;
+            case FAILURE      : return 10_000;
+            default:
+                LOG.warn("Unhandled redmine issue result: {}", result);
+                return 2_000;
+        }
     }
 
     @Override

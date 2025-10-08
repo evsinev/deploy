@@ -3,6 +3,7 @@ package io.pne.deploy.client.redmine.process.impl;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
+import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
@@ -37,7 +38,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     }
 
     @Override
-    public void processRedmineIssue(long aIssueId) {
+    public ProcessRedmineIssueResult processRedmineIssue(long aIssueId) {
         RedmineIssue issue = redmine.getIssue(aIssueId);
         engine.put("issue", issue);
         try {
@@ -48,6 +49,9 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                 Boolean validated = (Boolean) eval;
                 if(validated) {
                     processIssue(issue);
+                    return ProcessRedmineIssueResult.success();
+                } else {
+                    return ProcessRedmineIssueResult.notValidated();
                 }
             }
 
@@ -60,6 +64,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                        + stackTraceToString(e)
                        + "\n</pre>"
             );
+            return ProcessRedmineIssueResult.failure(e.getMessage());
         }
     }
 
