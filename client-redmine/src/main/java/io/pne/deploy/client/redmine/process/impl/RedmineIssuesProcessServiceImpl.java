@@ -2,8 +2,10 @@ package io.pne.deploy.client.redmine.process.impl;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.pne.deploy.client.redmine.process.DiffService;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
 import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
+import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
@@ -15,25 +17,25 @@ import org.slf4j.LoggerFactory;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import java.io.FileReader;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Scanner;
+import java.io.*;
+import java.util.*;
 
 public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessService {
 
     private static final Logger LOG = LoggerFactory.getLogger(RedmineIssuesProcessServiceImpl.class);
 
     private final IRemoteRedmineService redmine;
-    private final IDeployService        deployService;
-    private final Gson                  gson   = new GsonBuilder().setPrettyPrinting().create();
-    private final ScriptEngine          engine = new ScriptEngineManager().getEngineByName("nashorn");
-    private final String                issueValidationScript;
+    private final IDeployService deployService;
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private final ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
+    private final String issueValidationScript;
+    private final DiffService diffService;
 
 
     public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig) {
         this.redmine = redmine;
         this.deployService = deployService;
+        this.diffService = new DiffServiceImpl(aConfig);
         issueValidationScript = aConfig.issueValidationScript();
     }
 
@@ -47,7 +49,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                 Object eval = engine.eval(in);
                 LOG.info("Check result is {} {}", eval, eval.getClass());
                 Boolean validated = (Boolean) eval;
-                if(validated) {
+                if (validated) {
                     processIssue(issue);
                     return ProcessRedmineIssueResult.success();
                 } else {
@@ -60,9 +62,9 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
             redmine.changeStatusToFailed(
                     issue.issueId()
                     , "Task is FAILED: " + e.getMessage()
-                       + "\n<pre>"
-                       + stackTraceToString(e)
-                       + "\n</pre>"
+                            + "\n<pre>"
+                            + stackTraceToString(e)
+                            + "\n</pre>"
             );
             return ProcessRedmineIssueResult.failure(e.getMessage());
         }
@@ -86,6 +88,15 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
 
     private void processIssue(RedmineIssue aIssue) throws Exception {
         Task task = parseTask(aIssue.issueId(), aIssue.description());
+        List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
+        int issueId = aIssue.issueId();
+        new Thread(() -> {
+            try {
+                diffService.processDiff(diffTasks, issueId);
+            } catch (Exception e) {
+                LOG.error("processDiff failed", e);
+            }
+        }, "diff-" + aIssue.issueId()).start();
         redmine.changeStatusFromAcceptedToProcessing(aIssue.issueId(), "Starting task" + formatTask(task));
         deployService.runTask(task);
         redmine.changeStatusToDone(aIssue.issueId(), "Task is DONE");
@@ -103,7 +114,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
         Scanner scanner = new Scanner(aIssueDescription);
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine().trim();
-            if(line.startsWith("> deploy")) {
+            if (line.startsWith("> deploy")) {
                 return createSimpleTask(aIssueId, line);
             }
         }
@@ -113,10 +124,10 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
 
     private Task createSimpleTask(int aIssueId, String aLine) throws TaskException {
         String text = aLine.replace("> deploy", "").trim();
-        Task   stub = deployService.parseAlias(text, aIssueId);
+        Task stub = deployService.parseAlias(text, aIssueId);
 
         return new Task(
-                  stub.id.addRedmineIssueId(aIssueId)
+                stub.id.addRedmineIssueId(aIssueId)
                 , stub.parameters
                 , stub.commands
                 , text
