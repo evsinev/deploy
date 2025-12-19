@@ -38,12 +38,20 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     @AStartupParameter(name = "STATUS_PAGE_PATH", value = "/deploy/status")
     String statusPageHtmlPath();
 
+    @AStartupParameter(name = "GITLAB_URL", value = "")
+    String gitlabUrl();
+
+    @AStartupParameter(name = "GITLAB_API_KEY", value = "")
+    String gitlabApiKey();
 
     @AStartupParameter(name = "TELEGRAM_ENABLED", value = "false")
     boolean isTelegramEnabled();
 
     @AStartupParameter(name = "TELEGRAM_CHAT_ID", value = "0")
     int getTelegramChatId();
+
+    @AStartupParameter(name = "TELEGRAM_CHAT_ID_LONG", value = "")
+    long getTelegramChatIdLong();
 
     @AStartupParameter(name = "TELEGRAM_TOKEN", value = "", maskVariable = true)
     String getTelegramToken();
