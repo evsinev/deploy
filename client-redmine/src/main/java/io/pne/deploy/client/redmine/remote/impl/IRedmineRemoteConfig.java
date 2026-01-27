@@ -43,7 +43,7 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     boolean isTelegramEnabled();
 
     @AStartupParameter(name = "TELEGRAM_CHAT_ID", value = "0")
-    int getTelegramChatId();
+    long getTelegramChatId();
 
     @AStartupParameter(name = "TELEGRAM_TOKEN", value = "", maskVariable = true)
     String getTelegramToken();

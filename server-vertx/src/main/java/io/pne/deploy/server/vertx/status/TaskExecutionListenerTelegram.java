@@ -16,10 +16,10 @@ import io.pne.deploy.server.vertx.status.telegram.TelegramMessagesStore;
 public class TaskExecutionListenerTelegram implements ITaskExecutionListener {
 
     private final ITelegramService      telegramService;
-    private final int                   chatId;
+    private final long                  chatId;
     private final TelegramMessagesStore store;
 
-    public TaskExecutionListenerTelegram(int aChatId, String aToken) {
+    public TaskExecutionListenerTelegram(long aChatId, String aToken) {
         chatId = aChatId;
         telegramService = new TelegramServiceImpl(
                 new TelegramHttpClientImpl(
