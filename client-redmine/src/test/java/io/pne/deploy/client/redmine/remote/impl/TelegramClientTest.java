@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
@@ -104,6 +105,25 @@ public class TelegramClientTest {
         // successfully sent -> spool file removed
         Thread.sleep(200);
         assertEquals(0, dir.listFiles((d, n) -> n.endsWith(".json")).length);
+    }
+
+    @Test
+    public void deadLettersSendAfterMaxAttempts() throws Exception {
+        File dir = tmp.newFolder("dead-letter");
+        // always 429 with retry_after=0 -> retries are immediate (no real backoff), fast test
+        when(service.sendMessage(any())).thenThrow(new TelegramCommandException("Too Many Requests", "1", 429, 0));
+
+        TelegramClient failing = new TelegramClient(service, 0L, dir);
+        try {
+            failing.sendMessage(1L, "boom", null);
+            fail("expected failure after max attempts");
+        } catch (RuntimeException expected) {
+            // ok — gave up after MAX_ATTEMPTS
+        }
+
+        verify(service, times(10)).sendMessage(any()); // Backoff.MAX_ATTEMPTS
+        assertEquals(0, dir.listFiles((d, n) -> n.endsWith(".json")).length);       // removed from active spool
+        assertEquals(1, new File(dir, "dead").listFiles((d, n) -> n.endsWith(".json")).length); // moved to dead-letter
     }
 
     private static TelegramMessage message(long aId) {

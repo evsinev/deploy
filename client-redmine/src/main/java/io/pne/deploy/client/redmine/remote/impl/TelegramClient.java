@@ -9,6 +9,7 @@ import com.payneteasy.telegram.bot.client.impl.TelegramServiceImpl;
 import com.payneteasy.telegram.bot.client.messages.EditMessageTextRequest;
 import com.payneteasy.telegram.bot.client.messages.TelegramMessageRequest;
 import com.payneteasy.telegram.bot.client.model.ParseMode;
+import io.pne.deploy.client.redmine.remote.queue.Backoff;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,6 @@ public class TelegramClient {
     private static final Logger LOG = LoggerFactory.getLogger(TelegramClient.class);
 
     private static final long DEFAULT_MIN_INTERVAL_MS = 1100;
-    private static final int  MAX_RETRIES             = 5;
 
     private final ITelegramService telegram;
     private final long             minIntervalMs;
@@ -108,11 +108,11 @@ public class TelegramClient {
                 aFuture.complete(id);
             }
         } catch (RuntimeException e) {
-            // keep the spool file — the message will be retried on the next restart
+            spool.deadLetter(aFile);
             if (aFuture != null) {
                 aFuture.completeExceptionally(e);
             } else {
-                LOG.error("telegram send failed (kept for retry on restart)", e);
+                LOG.error("telegram send dead-lettered after {} attempts", Backoff.MAX_ATTEMPTS, e);
             }
         }
     }
@@ -137,7 +137,8 @@ public class TelegramClient {
             });
             spool.remove(edit.fileName);
         } catch (RuntimeException e) {
-            LOG.error("telegram edit failed (kept for retry on restart)", e);
+            spool.deadLetter(edit.fileName);
+            LOG.error("telegram edit dead-lettered after {} attempts", Backoff.MAX_ATTEMPTS, e);
         }
     }
 
@@ -175,23 +176,32 @@ public class TelegramClient {
     }
 
     private <T> T callWithRetry(Supplier<T> aCall) {
-        for (int attempt = 1; ; attempt++) {
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= Backoff.MAX_ATTEMPTS; attempt++) {
             awaitRateLimit();
             try {
                 return aCall.get();
-            } catch (TelegramCommandException e) {
-                Integer code = e.getErrorCode();
-                if (code != null && code == 429 && attempt <= MAX_RETRIES) {
-                    long waitMs = e.getRetryAfter() != null ? e.getRetryAfter() * 1000L : minIntervalMs;
-                    LOG.warn("Telegram 429, retry #{} after {}ms", attempt, waitMs);
-                    sleep(waitMs);
-                    continue;
+            } catch (RuntimeException e) {
+                last = e;
+                LOG.warn("Telegram call failed (attempt {}/{})", attempt, Backoff.MAX_ATTEMPTS, e);
+                if (attempt < Backoff.MAX_ATTEMPTS) {
+                    sleep(backoffMs(e, attempt));
                 }
-                throw e;
             } finally {
                 lastCallAt = System.currentTimeMillis();
             }
         }
+        throw last;
+    }
+
+    private static long backoffMs(RuntimeException e, int aAttempt) {
+        if (e instanceof TelegramCommandException) {
+            TelegramCommandException tce = (TelegramCommandException) e;
+            if (tce.getErrorCode() != null && tce.getErrorCode() == 429 && tce.getRetryAfter() != null) {
+                return tce.getRetryAfter() * 1000L;
+            }
+        }
+        return Backoff.delayMs(aAttempt);
     }
 
     private void awaitRateLimit() {

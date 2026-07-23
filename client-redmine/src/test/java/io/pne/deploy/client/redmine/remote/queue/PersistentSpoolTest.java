@@ -5,9 +5,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class PersistentSpoolTest {
 
@@ -38,6 +40,17 @@ public class PersistentSpoolTest {
         List<Stored> all = spool.loadAll();
         assertEquals(1, all.size());
         assertEquals("{\"t\":\"b\"}", all.get(0).getJson());
+    }
+
+    @Test
+    public void deadLetterMovesFileToDeadSubdir() {
+        PersistentSpool spool = new PersistentSpool(tmp.getRoot());
+        String file = spool.append("{\"a\":1}");
+
+        spool.deadLetter(file);
+
+        assertEquals(0, spool.loadAll().size());
+        assertTrue(new File(new File(tmp.getRoot(), "dead"), file).exists());
     }
 
     @Test

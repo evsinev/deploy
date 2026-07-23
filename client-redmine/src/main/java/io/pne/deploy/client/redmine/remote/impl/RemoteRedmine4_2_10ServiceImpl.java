@@ -10,6 +10,7 @@ import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineComment;
 import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineIssue;
 import io.pne.deploy.client.redmine.remote.model.RedmineComment;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import io.pne.deploy.client.redmine.remote.queue.Backoff;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,11 +186,30 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     }
 
     private void runOp(String aFile, RedmineOp aOp) {
+        for (int attempt = 1; attempt <= Backoff.MAX_ATTEMPTS; attempt++) {
+            try {
+                execute(aOp);
+                spool.remove(aFile);
+                return;
+            } catch (Exception e) {
+                LOG.warn("redmine {} for issue {} failed (attempt {}/{})", aOp.kind, aOp.issueId, attempt, Backoff.MAX_ATTEMPTS, e);
+                if (attempt < Backoff.MAX_ATTEMPTS) {
+                    sleep(Backoff.delayMs(attempt));
+                }
+            }
+        }
+        LOG.error("redmine {} for issue {} dead-lettered after {} attempts", aOp.kind, aOp.issueId, Backoff.MAX_ATTEMPTS);
+        spool.deadLetter(aFile);
+    }
+
+    private static void sleep(long aMs) {
+        if (aMs <= 0) {
+            return;
+        }
         try {
-            execute(aOp);
-            spool.remove(aFile);
-        } catch (Exception e) {
-            LOG.error("redmine {} for issue {} failed (kept for retry on restart)", aOp.kind, aOp.issueId, e);
+            Thread.sleep(aMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

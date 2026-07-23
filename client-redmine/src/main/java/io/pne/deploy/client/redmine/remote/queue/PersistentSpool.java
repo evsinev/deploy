@@ -23,8 +23,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PersistentSpool {
 
-    private static final Logger LOG    = LoggerFactory.getLogger(PersistentSpool.class);
-    private static final String SUFFIX = ".json";
+    private static final Logger LOG         = LoggerFactory.getLogger(PersistentSpool.class);
+    private static final String SUFFIX      = ".json";
+    private static final String DEAD_SUBDIR = "dead";
 
     private final File       dir;
     private final AtomicLong sequence;
@@ -56,6 +57,22 @@ public class PersistentSpool {
             Files.deleteIfExists(new File(dir, aFileName).toPath());
         } catch (IOException e) {
             LOG.warn("Cannot remove spool file {}", aFileName, e);
+        }
+    }
+
+    /** Move a give-up operation into the {@code dead/} sub-directory so it stops being retried but is kept. */
+    public synchronized void deadLetter(String aFileName) {
+        File deadDir = new File(dir, DEAD_SUBDIR);
+        if (!deadDir.exists() && !deadDir.mkdirs()) {
+            LOG.warn("Cannot create dead-letter dir {}", deadDir);
+            return;
+        }
+        try {
+            Files.move(new File(dir, aFileName).toPath(), new File(deadDir, aFileName).toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
+            LOG.warn("Moved {} to dead-letter dir {}", aFileName, deadDir);
+        } catch (IOException e) {
+            LOG.warn("Cannot dead-letter spool file {}", aFileName, e);
         }
     }
 
