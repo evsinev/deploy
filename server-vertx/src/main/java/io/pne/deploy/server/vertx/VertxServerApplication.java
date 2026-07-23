@@ -7,7 +7,6 @@ import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
-import io.pne.deploy.client.redmine.remote.impl.RemoteRedmineServiceImpl;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
