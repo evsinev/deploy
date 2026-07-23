@@ -27,7 +27,7 @@ public class RemoteRedmine4_2_10ServiceImplTest {
     public void changeStatusFromAcceptedToProcessingTest() {
         IRedmineRemoteConfig config = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         IRemoteRedmineService redmineService = new RemoteRedmine4_2_10ServiceImpl(config);
-        redmineService.changeStatusFromAcceptedToProcessing(124528, "changeStatusFromAcceptedToProcessingTest");
+        redmineService.enqueueChangeStatusFromAcceptedToProcessing(124528, "changeStatusFromAcceptedToProcessingTest");
     }
 
     @Test
@@ -35,7 +35,7 @@ public class RemoteRedmine4_2_10ServiceImplTest {
     public void changeStatusToDoneTest() {
         IRedmineRemoteConfig config = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         IRemoteRedmineService redmineService = new RemoteRedmine4_2_10ServiceImpl(config);
-        redmineService.changeStatusToDone(124528, "changeStatusToDoneTest");
+        redmineService.enqueueChangeStatusToDone(124528, "changeStatusToDoneTest");
     }
 
     @Test
@@ -43,7 +43,7 @@ public class RemoteRedmine4_2_10ServiceImplTest {
     public void changeStatusToFailedTest() {
         IRedmineRemoteConfig config = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         IRemoteRedmineService redmineService = new RemoteRedmine4_2_10ServiceImpl(config);
-        redmineService.changeStatusToFailed(124528, "changeStatusToFailed");
+        redmineService.enqueueChangeStatusToFailed(124528, "changeStatusToFailed");
     }
 
     @Test
@@ -51,6 +51,6 @@ public class RemoteRedmine4_2_10ServiceImplTest {
     public void addCommentTest() {
         IRedmineRemoteConfig config = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         IRemoteRedmineService redmineService = new RemoteRedmine4_2_10ServiceImpl(config);
-        redmineService.changeStatusToFailed(124528, "addCommentTest");
+        redmineService.enqueueChangeStatusToFailed(124528, "addCommentTest");
     }
 }

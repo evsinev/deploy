@@ -20,6 +20,8 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessService {
 
@@ -31,6 +33,13 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     private final ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
     private final String issueValidationScript;
     private final DiffService diffService;
+
+    /** Diff processing (GitLab compare + Redmine comment + Telegram) runs off the deploy thread on this queue. */
+    private final ExecutorService diffExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "redmine-diff");
+        thread.setDaemon(true);
+        return thread;
+    });
 
 
     public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram) {
@@ -60,7 +69,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
 
         } catch (Exception e) {
             LOG.error("Can't process issue {}", issue.issueId(), e);
-            redmine.changeStatusToFailed(
+            redmine.enqueueChangeStatusToFailed(
                     issue.issueId()
                     , "Task is FAILED: " + e.getMessage()
                             + "\n<pre>"
@@ -91,16 +100,16 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
         Task task = parseTask(aIssue.issueId(), aIssue.description());
         List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
         int issueId = aIssue.issueId();
-        new Thread(() -> {
+        diffExecutor.submit(() -> {
             try {
                 diffService.processDiff(diffTasks, issueId);
             } catch (Exception e) {
-                LOG.error("processDiff failed", e);
+                LOG.error("processDiff failed for issue {}", issueId, e);
             }
-        }, "diff-" + aIssue.issueId()).start();
-        redmine.changeStatusFromAcceptedToProcessing(aIssue.issueId(), "Starting task" + formatTask(task));
+        });
+        redmine.enqueueChangeStatusFromAcceptedToProcessing(aIssue.issueId(), "Starting task" + formatTask(task));
         deployService.runTask(task);
-        redmine.changeStatusToDone(aIssue.issueId(), "Task is DONE");
+        redmine.enqueueChangeStatusToDone(aIssue.issueId(), "Task is DONE");
     }
 
     private String formatTask(Task aTask) {

@@ -17,6 +17,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static com.payneteasy.http.client.api.HttpHeaders.singleHeader;
@@ -35,6 +37,13 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     private final IHttpClient           client;
     private final Gson                  gson;
     private final HttpRequestParameters requestParameters = HttpRequestParameters.builder().timeouts(new HttpTimeouts(20_000, 20_000)).build();
+
+    /** All ticket mutations (status changes, comments) are serialized off the caller thread through this queue. */
+    private final ExecutorService writer = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "redmine-sender");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public RemoteRedmine4_2_10ServiceImpl(IRedmineRemoteConfig aConfig) {
         client = new HttpClientImpl();
@@ -137,28 +146,40 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     }
 
     @Override
-    public void changeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage) {
-        LOG.info("changeStatusFromAcceptedToProcessing({}, {})", aRedmineIssueId, aMessage);
-        changeStatus(aRedmineIssueId, config.statusProcessingId(), aMessage);
+    public void enqueueChangeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage) {
+        LOG.info("enqueueChangeStatusFromAcceptedToProcessing({}, {})", aRedmineIssueId, aMessage);
+        submit("changeStatusFromAcceptedToProcessing", () -> changeStatus(aRedmineIssueId, config.statusProcessingId(), aMessage));
     }
 
     @Override
-    public void changeStatusToDone(int aRedmineIssueId, String aMessage) {
-        LOG.info("changeStatusToDone({}, {})", aRedmineIssueId, aMessage);
-        changeStatus(aRedmineIssueId, config.statusDoneId(), aMessage);
+    public void enqueueChangeStatusToDone(int aRedmineIssueId, String aMessage) {
+        LOG.info("enqueueChangeStatusToDone({}, {})", aRedmineIssueId, aMessage);
+        submit("changeStatusToDone", () -> changeStatus(aRedmineIssueId, config.statusDoneId(), aMessage));
     }
 
     @Override
-    public void changeStatusToFailed(int aRedmineIssueId, String aMessage) {
-        LOG.info("changeStatusToFailed({}, {})", aRedmineIssueId, aMessage);
-        changeStatus(aRedmineIssueId, config.statusFailedId(), aMessage);
+    public void enqueueChangeStatusToFailed(int aRedmineIssueId, String aMessage) {
+        LOG.info("enqueueChangeStatusToFailed({}, {})", aRedmineIssueId, aMessage);
+        submit("changeStatusToFailed", () -> changeStatus(aRedmineIssueId, config.statusFailedId(), aMessage));
     }
 
     @Override
-    public void addComment(int aIssueId, String aMessage) {
-        LOG.info("addComment({}, {})", aIssueId, aMessage);
-        RedmineIssue redmineIssue = getIssue(aIssueId);
-        changeStatus(aIssueId, redmineIssue.statusId(), aMessage);
+    public void enqueueAddComment(int aIssueId, String aMessage) {
+        LOG.info("enqueueAddComment({}, {})", aIssueId, aMessage);
+        submit("addComment", () -> {
+            RedmineIssue redmineIssue = getIssue(aIssueId);
+            changeStatus(aIssueId, redmineIssue.statusId(), aMessage);
+        });
+    }
+
+    private void submit(String aName, Runnable aAction) {
+        writer.submit(() -> {
+            try {
+                aAction.run();
+            } catch (Exception e) {
+                LOG.error("redmine {} failed", aName, e);
+            }
+        });
     }
 
     private ImmutableRedmineIssue mapIssue(RedmineIssueData issue) {

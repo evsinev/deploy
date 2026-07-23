@@ -8,11 +8,11 @@ import java.util.List;
 public interface IRemoteRedmineService {
     List<RedmineComment> getComments(int aIssueId);
 
-    void changeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage);
-    void changeStatusToDone(int aRedmineIssueId, String aMessage);
-    void changeStatusToFailed(int aRedmineIssueId, String aMessage);
+    void enqueueChangeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage);
+    void enqueueChangeStatusToDone(int aRedmineIssueId, String aMessage);
+    void enqueueChangeStatusToFailed(int aRedmineIssueId, String aMessage);
 
-    void addComment(int aIssueId, String aMessage);
+    void enqueueAddComment(int aIssueId, String aMessage);
 
     RedmineIssue getIssue(long aIssueId);
 }
