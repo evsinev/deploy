@@ -109,6 +109,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.payneteasy</groupId>
+            <artifactId>telegram-bot-client</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.openjdk.nashorn</groupId>
             <artifactId>nashorn-core</artifactId>
             <scope>runtime</scope>
