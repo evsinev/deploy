@@ -8,7 +8,7 @@ import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.vertx.http.HttpHandler;
 import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
@@ -53,11 +53,11 @@ public class WebSocketVerticle extends AbstractVerticle {
     }
 
     @Override
-    public void start(Future<Void> aStartFuture) throws Exception {
+    public void start(Promise<Void> aStartFuture) throws Exception {
         LOG.info("Starting http server on port {}...", port);
 
         httpServer = vertx.createHttpServer()
-                .websocketHandler(aSocket -> {
+                .webSocketHandler(aSocket -> {
                     LOG.debug("URI              : {}", aSocket.uri());
                     LOG.debug("query            : {}", aSocket.query());
                     LOG.debug("path             : {}", aSocket.path());
@@ -102,7 +102,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     }
 
     @Override
-    public void stop(Future<Void> aStopFuture) throws Exception {
+    public void stop(Promise<Void> aStopFuture) throws Exception {
         httpServer.close(event -> {
             if(event.failed()) {
                 aStopFuture.fail(event.cause());
