@@ -10,9 +10,11 @@ import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineComment;
 import io.pne.deploy.client.redmine.remote.model.ImmutableRedmineIssue;
 import io.pne.deploy.client.redmine.remote.model.RedmineComment;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -45,10 +47,18 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         return thread;
     });
 
+    private final PersistentSpool spool;
+
     public RemoteRedmine4_2_10ServiceImpl(IRedmineRemoteConfig aConfig) {
         client = new HttpClientImpl();
         config = aConfig;
         gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+        spool = new PersistentSpool(new File(aConfig.queueDir(), "redmine"));
+        // resend operations that survived a restart (were persisted but not confirmed sent)
+        for (PersistentSpool.Stored stored : spool.loadAll()) {
+            RedmineOp op = gson.fromJson(stored.getJson(), RedmineOp.class);
+            writer.submit(() -> runOp(stored.getFileName(), op));
+        }
     }
 
     @Override
@@ -148,38 +158,70 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     @Override
     public void enqueueChangeStatusFromAcceptedToProcessing(int aRedmineIssueId, String aMessage) {
         LOG.info("enqueueChangeStatusFromAcceptedToProcessing({}, {})", aRedmineIssueId, aMessage);
-        submit("changeStatusFromAcceptedToProcessing", () -> changeStatus(aRedmineIssueId, config.statusProcessingId(), aMessage));
+        enqueue(new RedmineOp(RedmineOp.STATUS, aRedmineIssueId, config.statusProcessingId(), aMessage));
     }
 
     @Override
     public void enqueueChangeStatusToDone(int aRedmineIssueId, String aMessage) {
         LOG.info("enqueueChangeStatusToDone({}, {})", aRedmineIssueId, aMessage);
-        submit("changeStatusToDone", () -> changeStatus(aRedmineIssueId, config.statusDoneId(), aMessage));
+        enqueue(new RedmineOp(RedmineOp.STATUS, aRedmineIssueId, config.statusDoneId(), aMessage));
     }
 
     @Override
     public void enqueueChangeStatusToFailed(int aRedmineIssueId, String aMessage) {
         LOG.info("enqueueChangeStatusToFailed({}, {})", aRedmineIssueId, aMessage);
-        submit("changeStatusToFailed", () -> changeStatus(aRedmineIssueId, config.statusFailedId(), aMessage));
+        enqueue(new RedmineOp(RedmineOp.STATUS, aRedmineIssueId, config.statusFailedId(), aMessage));
     }
 
     @Override
     public void enqueueAddComment(int aIssueId, String aMessage) {
         LOG.info("enqueueAddComment({}, {})", aIssueId, aMessage);
-        submit("addComment", () -> {
-            RedmineIssue redmineIssue = getIssue(aIssueId);
-            changeStatus(aIssueId, redmineIssue.statusId(), aMessage);
-        });
+        enqueue(new RedmineOp(RedmineOp.COMMENT, aIssueId, null, aMessage));
     }
 
-    private void submit(String aName, Runnable aAction) {
-        writer.submit(() -> {
-            try {
-                aAction.run();
-            } catch (Exception e) {
-                LOG.error("redmine {} failed", aName, e);
-            }
-        });
+    private void enqueue(RedmineOp aOp) {
+        String file = spool.append(gson.toJson(aOp));
+        writer.submit(() -> runOp(file, aOp));
+    }
+
+    private void runOp(String aFile, RedmineOp aOp) {
+        try {
+            execute(aOp);
+            spool.remove(aFile);
+        } catch (Exception e) {
+            LOG.error("redmine {} for issue {} failed (kept for retry on restart)", aOp.kind, aOp.issueId, e);
+        }
+    }
+
+    private void execute(RedmineOp aOp) {
+        if (RedmineOp.COMMENT.equals(aOp.kind)) {
+            RedmineIssue redmineIssue = getIssue(aOp.issueId);
+            changeStatus(aOp.issueId, redmineIssue.statusId(), aOp.message);
+        } else {
+            changeStatus(aOp.issueId, aOp.statusId, aOp.message);
+        }
+    }
+
+    /** Persisted, replayable Redmine mutation. */
+    private static final class RedmineOp {
+        static final String STATUS  = "STATUS";
+        static final String COMMENT = "COMMENT";
+
+        String  kind;
+        int     issueId;
+        Integer statusId;
+        String  message;
+
+        RedmineOp() {
+            // for gson
+        }
+
+        RedmineOp(String aKind, int aIssueId, Integer aStatusId, String aMessage) {
+            this.kind     = aKind;
+            this.issueId  = aIssueId;
+            this.statusId = aStatusId;
+            this.message  = aMessage;
+        }
     }
 
     private ImmutableRedmineIssue mapIssue(RedmineIssueData issue) {
