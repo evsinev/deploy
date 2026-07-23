@@ -6,12 +6,18 @@ import com.payneteasy.telegram.bot.client.messages.EditMessageTextRequest;
 import com.payneteasy.telegram.bot.client.model.Message;
 import com.payneteasy.telegram.bot.client.model.ParseMode;
 import com.payneteasy.telegram.bot.client.model.TelegramMessage;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -25,8 +31,16 @@ import static org.mockito.Mockito.when;
 
 public class TelegramClientTest {
 
+    @Rule
+    public TemporaryFolder tmp = new TemporaryFolder();
+
     private final ITelegramService service = mock(ITelegramService.class);
-    private final TelegramClient   client  = new TelegramClient(service, 0L); // no pacing delay in tests
+    private TelegramClient         client;
+
+    @Before
+    public void setUp() throws Exception {
+        client = new TelegramClient(service, 0L, tmp.newFolder("main")); // no pacing delay in tests
+    }
 
     @Test
     public void sendMessageReturnsMessageId() {
@@ -54,24 +68,42 @@ public class TelegramClientTest {
         when(service.editMessageText(any())).thenAnswer(invocation -> {
             if (calls.getAndIncrement() == 0) {
                 entered.countDown();
-                release.await(); // hold the worker inside the first edit
+                release.await();
             }
             return null;
         });
 
-        client.editMessage(1L, 10L, "t0", null);       // schedules the first flush
-        assertTrue(entered.await(2, SECONDS));           // worker is now blocked in the first editMessageText
+        client.editMessage(1L, 10L, "t0", null);
+        assertTrue(entered.await(2, SECONDS));
 
         for (int i = 1; i <= 20; i++) {
-            client.editMessage(1L, 10L, "t" + i, null);  // coalesce into a single follow-up flush
+            client.editMessage(1L, 10L, "t" + i, null);
         }
         release.countDown();
 
-        // exactly 2 calls: the in-flight one + one coalesced carrying the latest text
         ArgumentCaptor<EditMessageTextRequest> captor = ArgumentCaptor.forClass(EditMessageTextRequest.class);
         verify(service, timeout(2000).times(2)).editMessageText(captor.capture());
         verify(service, after(300).times(2)).editMessageText(any());
         assertEquals("t20", captor.getAllValues().get(1).getText());
+    }
+
+    @Test
+    public void resendsPersistedOperationsOnStartup() throws Exception {
+        File dir = tmp.newFolder("replay");
+        // a SEND that was persisted but not confirmed sent before a restart
+        Files.write(new File(dir, "00000000000000000001.json").toPath(),
+                "{\"kind\":\"SEND\",\"chatId\":42,\"text\":\"pending\",\"parseMode\":\"HTML\"}".getBytes(UTF_8));
+
+        TelegramMessage sent = message(999L);
+        when(service.sendMessage(any())).thenReturn(sent);
+
+        // constructing the client replays the spool and resends
+        new TelegramClient(service, 0L, dir);
+
+        verify(service, timeout(2000)).sendMessage(any());
+        // successfully sent -> spool file removed
+        Thread.sleep(200);
+        assertEquals(0, dir.listFiles((d, n) -> n.endsWith(".json")).length);
     }
 
     private static TelegramMessage message(long aId) {

@@ -3,6 +3,7 @@ package io.pne.deploy.client.redmine.remote.impl;
 import com.payneteasy.telegram.bot.client.model.ParseMode;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 
+import java.io.File;
 import java.util.List;
 
 public class RemoteTelegramServiceImpl implements IRemoteTelegramService {
@@ -12,7 +13,7 @@ public class RemoteTelegramServiceImpl implements IRemoteTelegramService {
     private final TelegramClient telegram;
 
     public RemoteTelegramServiceImpl(IRedmineRemoteConfig aConfig) {
-        this(new TelegramClient(aConfig.getTelegramToken()), aConfig);
+        this(new TelegramClient(aConfig.getTelegramToken(), new File(aConfig.queueDir(), "telegram")), aConfig);
     }
 
     public RemoteTelegramServiceImpl(TelegramClient aTelegram, IRedmineRemoteConfig aConfig) {
