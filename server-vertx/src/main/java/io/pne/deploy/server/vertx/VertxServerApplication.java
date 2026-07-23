@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
+import java.io.File;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -93,7 +94,7 @@ public class VertxServerApplication {
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         // Single Telegram client shared by both the live-status listener and the diff notifications,
         // so all traffic goes through one rate-limited queue (one limit per chat).
-        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken());
+        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken(), new File(redmineConfig.queueDir(), "telegram"));
         IRemoteTelegramService    diffTelegram      = new RemoteTelegramServiceImpl(telegramClient, redmineConfig);
         ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig, telegramClient);
 
