@@ -5,8 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.payneteasy.startup.parameters.StartupParametersFactory;
 import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
+import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
+import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
+import io.pne.deploy.client.redmine.remote.impl.TelegramClient;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
@@ -88,11 +91,15 @@ public class VertxServerApplication {
         IRemoteRedmineService     redmine           = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
         IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
-        ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig);
+        // Single Telegram client shared by both the live-status listener and the diff notifications,
+        // so all traffic goes through one rate-limited queue (one limit per chat).
+        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken());
+        IRemoteTelegramService    diffTelegram      = new RemoteTelegramServiceImpl(telegramClient, redmineConfig);
+        ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig, telegramClient);
 
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), config.getAliasesDir(), taskListener);
 
-        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig);
+        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram);
         VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues);
 
         this.vertx          = Vertx.vertx();
@@ -101,13 +108,13 @@ public class VertxServerApplication {
         this.serverListener = serverListener;
     }
 
-    private ITaskExecutionListener createTaskListener(Consumer<TaskStatus> aConsumer, IRedmineRemoteConfig aConfig) {
+    private ITaskExecutionListener createTaskListener(Consumer<TaskStatus> aConsumer, IRedmineRemoteConfig aConfig, TelegramClient aTelegramClient) {
 
         return new TaskExecutionListenerQueue(
                 new TaskExecutionListenerCompound(
                         new TaskExecutionListenerLogger(),
                         new TaskExecutionListenerStatus(aConsumer),
-                        aConfig.isTelegramEnabled() ? new TaskExecutionListenerTelegram(aConfig.getTelegramChatId(), aConfig.getTelegramToken()) : null
+                        aConfig.isTelegramEnabled() ? new TaskExecutionListenerTelegram(aConfig.getTelegramChatId(), aTelegramClient) : null
                 )
         );
     }

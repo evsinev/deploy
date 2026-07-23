@@ -12,9 +12,13 @@ public class RemoteTelegramServiceImpl implements IRemoteTelegramService {
     private final TelegramClient telegram;
 
     public RemoteTelegramServiceImpl(IRedmineRemoteConfig aConfig) {
+        this(new TelegramClient(aConfig.getTelegramToken()), aConfig);
+    }
+
+    public RemoteTelegramServiceImpl(TelegramClient aTelegram, IRedmineRemoteConfig aConfig) {
         telegramEnabled = aConfig.isTelegramEnabled();
         telegramChatId  = aConfig.getTelegramChatId();
-        telegram        = new TelegramClient(aConfig.getTelegramToken());
+        telegram        = aTelegram;
     }
 
     @Override

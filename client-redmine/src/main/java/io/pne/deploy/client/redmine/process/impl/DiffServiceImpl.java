@@ -40,6 +40,10 @@ public class DiffServiceImpl implements DiffService {
         this(aRedmine, new RemoteGitlabServiceImpl(aConfig), new RemoteTelegramServiceImpl(aConfig), aConfig.url());
     }
 
+    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRemoteTelegramService aTelegram, IRedmineRemoteConfig aConfig) {
+        this(aRedmine, new RemoteGitlabServiceImpl(aConfig), aTelegram, aConfig.url());
+    }
+
     public DiffServiceImpl(IRemoteRedmineService aRedmine, IRemoteGitlabService aGitlab,
                            IRemoteTelegramService aTelegram, String aRedmineUrl) {
         this.redmine = aRedmine;

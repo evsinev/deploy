@@ -7,6 +7,7 @@ import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
 import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
+import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import io.pne.deploy.server.api.IDeployService;
@@ -32,10 +33,10 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     private final DiffService diffService;
 
 
-    public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig) {
+    public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram) {
         this.redmine = redmine;
         this.deployService = deployService;
-        this.diffService = new DiffServiceImpl(redmine, aConfig);
+        this.diffService = new DiffServiceImpl(redmine, telegram, aConfig);
         issueValidationScript = aConfig.issueValidationScript();
     }
 

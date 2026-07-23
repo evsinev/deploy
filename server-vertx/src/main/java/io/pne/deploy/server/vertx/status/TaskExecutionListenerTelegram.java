@@ -15,10 +15,10 @@ public class TaskExecutionListenerTelegram implements ITaskExecutionListener {
     private final long                  chatId;
     private final TelegramMessagesStore store;
 
-    public TaskExecutionListenerTelegram(long aChatId, String aToken) {
+    public TaskExecutionListenerTelegram(long aChatId, TelegramClient aTelegram) {
         chatId   = aChatId;
-        telegram = new TelegramClient(aToken);
-        store    = new TelegramMessagesStore(telegram, aChatId);
+        telegram = aTelegram;
+        store    = new TelegramMessagesStore(aTelegram, aChatId);
     }
 
     @Override
