@@ -3,123 +3,154 @@ package io.pne.deploy.client.redmine.process.impl;
 import io.pne.deploy.client.redmine.process.data_model.DiffKey;
 import io.pne.deploy.client.redmine.process.data_model.DiffLink;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
+import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
-import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
-import io.pne.deploy.server.api.task.*;
-import org.junit.Assert;
-import org.junit.Ignore;
+import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import org.junit.Test;
 
 import java.util.*;
 
 import static com.payneteasy.startup.parameters.StartupParametersFactory.getStartupParameters;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 public class DiffServiceImplTest {
-    private final IRedmineRemoteConfig config = getStartupParameters(IRedmineRemoteConfig.class);
+
+    private final IRemoteRedmineService redmine = mock(IRemoteRedmineService.class);
     private final DiffServiceImpl diffService =
-            new DiffServiceImpl(new RemoteRedmine4_2_10ServiceImpl(config), config);
+            new DiffServiceImpl(redmine, getStartupParameters(IRedmineRemoteConfig.class));
+
+    // --- aggregate ---
 
     @Test
-    @Ignore
-    public void getCurrentVersionTestNull() {
-        List<DiffTask> diffTasks = diffService.getCurrentVersion(null);
-        Assert.assertEquals(0, diffTasks.size());
-    }
+    public void aggregateMergesSameKeyAndUnionsIds() {
+        List<DiffTask> tasks = Arrays.asList(
+                task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0"),
+                task(new String[]{"host-2"}, 1, "svc", "1.0.0", "1.1.0"));
 
-    @Test
-    @Ignore
-    public void aggregateTest1() {
-        List<DiffTask> tasks = new ArrayList<>();
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-1"}, "1", "3"));
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-2"}, "2", "3"));
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-3"}, "1", "3"));
         Map<DiffKey, DiffTask> aggregated = diffService.aggregate(tasks);
-        Assert.assertEquals(2, aggregated.size());
+
+        assertEquals(1, aggregated.size());
+        DiffTask merged = aggregated.values().iterator().next();
+        assertEquals(new HashSet<>(Arrays.asList("host-1", "host-2")), merged.getIds());
     }
 
     @Test
-    @Ignore
-    public void aggregateTest2() {
-        List<DiffTask> tasks = new ArrayList<>();
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-1"}, "1", "2"));
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-3"}, "1", "2"));
-        Map<DiffKey, DiffTask> aggregated = diffService.aggregate(tasks);
-        Assert.assertEquals(1, aggregated.size());
+    public void aggregateKeepsTasksWithDifferentVersions() {
+        List<DiffTask> tasks = Arrays.asList(
+                task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0"),
+                task(new String[]{"host-2"}, 1, "svc", "1.0.0", "1.2.0"));
+
+        assertEquals(2, diffService.aggregate(tasks).size());
     }
 
     @Test
-    @Ignore
-    public void aggregateTest3() {
-        List<DiffTask> tasks = new ArrayList<>();
-        tasks.add(getDiffTaskProdLike(new String[]{"cool-1"}, "1", "2"));
-        Map<DiffKey, DiffTask> aggregated = diffService.aggregate(tasks);
-        Assert.assertEquals(1, aggregated.size());
+    public void aggregateNullIsEmpty() {
+        assertTrue(diffService.aggregate(null).isEmpty());
+    }
+
+    // --- mapDiffIssues ---
+
+    @Test
+    public void mapDiffIssuesResolvesSubjectForIssueRef() {
+        RedmineIssue issue = mock(RedmineIssue.class);
+        when(issue.subject()).thenReturn("Fix the thing");
+        when(redmine.getIssue(119126L)).thenReturn(issue);
+
+        List<DiffLink> links = diffService.mapDiffIssues(
+                Arrays.asList("#119126 did stuff", "no issue here"), new HashMap<>());
+
+        assertEquals(2, links.size());
+
+        DiffLink withIssue = links.get(0);
+        assertEquals(Integer.valueOf(119126), withIssue.getRedmineIssueId());
+        assertEquals("Fix the thing", withIssue.getRedmineIssueSubject());
+        assertTrue(withIssue.getRedmineUrl().endsWith("/issues/119126"));
+
+        DiffLink noIssue = links.get(1);
+        assertNull(noIssue.getRedmineIssueId());
+        assertNull(noIssue.getRedmineIssueSubject());
     }
 
     @Test
-    @Ignore
-    public void aggregateTestEmpty() {
-        List<DiffTask> tasks = new ArrayList<>();
-        Map<DiffKey, DiffTask> aggregated = diffService.aggregate(tasks);
-        Assert.assertEquals(0, aggregated.size());
+    public void mapDiffIssuesNullDiffsIsEmptyAndTouchesNoRedmine() {
+        assertTrue(diffService.mapDiffIssues(null, new HashMap<>()).isEmpty());
+        verifyNoInteractions(redmine);
+    }
+
+    // --- constructRedmineMessage ---
+
+    @Test
+    public void constructRedmineMessageDedupsIssueAndRendersHeader() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
+
+        String msg = diffService.constructRedmineMessage(t, Arrays.asList(
+                issueLink(119126, "Subj A"),
+                issueLink(119126, "Subj A"),          // same id -> rendered once
+                noIssueLink("chore: bump deps")));
+
+        assertTrue(msg.contains("(1.0.0 → 1.1.0)"));
+        assertEquals(1, countOccurrences(msg, "#119126 - "));
+        assertTrue(msg.contains("No Issue - chore: bump deps"));
+    }
+
+    // --- constructTelegramMessage (normal path) ---
+
+    @Test
+    public void constructTelegramMessageBuildsSingleChunkWithLink() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
+        DiffLink l = issueLink(119126, "Fix");
+        l.setRedmineUrl("https://redmine.example/issues/119126");
+
+        List<String> chunks = diffService.constructTelegramMessage(t, Collections.singletonList(l));
+
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).contains("<a href=\"https://redmine.example/issues/119126\">"));
+        assertTrue(chunks.get(0).contains("#119126 - Fix"));
+    }
+
+    // --- DiffTask helpers ---
+
+    @Test
+    public void diffTaskIdsStringJoinsAndFiltersNull() {
+        DiffTask t = task(new String[]{"a", null, "b"}, 1, "svc", "1", "2");
+        String ids = t.getIdsString();
+        assertTrue(ids.contains("a"));
+        assertTrue(ids.contains("b"));
+        assertFalse(ids.contains("null"));
     }
 
     @Test
-    @Ignore
-    public void aggregateTestNull() {
-        List<DiffTask> tasks = new ArrayList<>();
-        Map<DiffKey, DiffTask> aggregated = diffService.aggregate(tasks);
-        Assert.assertEquals(0, aggregated.size());
+    public void diffTaskAddIdsUnionsSets() {
+        DiffTask t = task(new String[]{"a"}, 1, "svc", "1", "2");
+        t.addIds(new HashSet<>(Arrays.asList("b", "c")));
+        assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), t.getIds());
     }
 
-    @Test
-    @Ignore
-    public void mapDiffIssues() {
-        Map<Integer, String> subjectCache = new HashMap<>();
-        List<String> diffs = getDiffList();
-        List<DiffLink> diffLinks = diffService.mapDiffIssues(diffs, subjectCache);
-        Assert.assertNotNull(diffLinks);
-        Assert.assertNotNull(subjectCache);
+    // --- helpers ---
+
+    private static DiffTask task(String[] ids, int project, String name, String oldV, String newV) {
+        return new DiffTask(ids, project, name, oldV, newV);
     }
 
-    @Test
-    @Ignore
-    public void mapDiffIssuesNull() {
-        List<DiffLink> diffLinks = diffService.mapDiffIssues(null, new HashMap<>());
-        Assert.assertNotNull(diffLinks);
-        Assert.assertEquals(0, diffLinks.size());
+    private static DiffLink issueLink(Integer issueId, String subject) {
+        DiffLink l = new DiffLink();
+        l.setRedmineIssueId(issueId);
+        l.setRedmineIssueSubject(subject);
+        return l;
     }
 
-    @Test
-    @Ignore
-    public void constructRedmineMessage() {
-        Map<Integer, String> subjectCache = new HashMap<>();
-        List<String> diffs = getDiffList();
-        List<DiffLink> diffLinks = diffService.mapDiffIssues(diffs, subjectCache);
-        String redmineMessage = diffService.constructRedmineMessage(getDiffTaskProdLike(new String[]{"cool-1", "cool-2", "cool-3"}, "1", "2"), diffLinks);
-        System.out.println(redmineMessage);
+    private static DiffLink noIssueLink(String commitMessage) {
+        DiffLink l = new DiffLink();
+        l.setCommitMessage(commitMessage);
+        return l;
     }
 
-    @Test
-    @Ignore
-    public void constructTelegramMessage() {
-        Map<Integer, String> subjectCache = new HashMap<>();
-        List<String> diffs = getDiffList();
-        List<DiffLink> diffLinks = diffService.mapDiffIssues(diffs, subjectCache);
-        List<String> telegramMessage = diffService.constructTelegramMessage(getDiffTaskProdLike(new String[]{"cool-1", "cool-2", "cool-3"}, "1", "2"), diffLinks);
-        System.out.println(telegramMessage);
-    }
-
-    private List<String> getDiffList() {
-        String diffStr = ""; //Fill this string for tests
-        return Arrays.asList(diffStr.split("\\\\=,\\\\="));
-    }
-
-    private DiffTask getDiffTaskProdLike(String[] ids, String oldVersion, String newVersion) {
-        return new DiffTask(ids,
-                1,
-                "cool 2",
-                oldVersion,
-                newVersion);
+    private static int countOccurrences(String haystack, String needle) {
+        int count = 0;
+        for (int i = haystack.indexOf(needle); i != -1; i = haystack.indexOf(needle, i + needle.length())) {
+            count++;
+        }
+        return count;
     }
 }
