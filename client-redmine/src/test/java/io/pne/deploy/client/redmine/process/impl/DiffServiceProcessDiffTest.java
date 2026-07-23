@@ -47,7 +47,7 @@ public class DiffServiceProcessDiffTest {
         diffService.processDiff(singletonList(task), 42);
 
         ArgumentCaptor<String> comment = ArgumentCaptor.forClass(String.class);
-        verify(redmine).addComment(eq(42), comment.capture());
+        verify(redmine).enqueueAddComment(eq(42), comment.capture());
         assertTrue("redmine comment: " + comment.getValue(),
                 comment.getValue().contains("#119126 - Fix the bug"));
         assertTrue(comment.getValue().contains("No Issue - chore: cleanup"));

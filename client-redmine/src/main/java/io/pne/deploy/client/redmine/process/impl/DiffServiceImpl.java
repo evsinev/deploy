@@ -69,7 +69,7 @@ public class DiffServiceImpl implements DiffService {
             fullTelegramMessage.addAll(constructTelegramMessage(diffTask, diffLinks));
         }
 
-        redmine.addComment(issueId, fullRedmineMessage.toString());
+        redmine.enqueueAddComment(issueId, fullRedmineMessage.toString());
         telegram.sendMessages(fullTelegramMessage);
     }
 
