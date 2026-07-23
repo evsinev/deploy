@@ -10,7 +10,6 @@ import static lombok.AccessLevel.PRIVATE;
 @Data
 @FieldDefaults(makeFinal = true, level = PRIVATE)
 public class TelegramMessageHolder {
-    long chatId;
-    long messageId;
+    long   messageId;
     String text;
 }

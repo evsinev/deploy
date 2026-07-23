@@ -1,13 +1,9 @@
 package io.pne.deploy.server.vertx.status;
 
-import com.payneteasy.telegram.bot.client.ITelegramService;
-import com.payneteasy.telegram.bot.client.http.TelegramHttpClientImpl;
-import com.payneteasy.telegram.bot.client.impl.TelegramServiceImpl;
-import com.payneteasy.telegram.bot.client.messages.TelegramMessageRequest;
-import com.payneteasy.telegram.bot.client.model.TelegramMessage;
 import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
+import io.pne.deploy.client.redmine.remote.impl.TelegramClient;
 import io.pne.deploy.server.api.ITaskExecutionListener;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
@@ -15,36 +11,32 @@ import io.pne.deploy.server.vertx.status.telegram.TelegramMessagesStore;
 
 public class TaskExecutionListenerTelegram implements ITaskExecutionListener {
 
-    private final ITelegramService      telegramService;
+    private final TelegramClient        telegram;
     private final long                  chatId;
     private final TelegramMessagesStore store;
 
     public TaskExecutionListenerTelegram(long aChatId, String aToken) {
-        chatId = aChatId;
-        telegramService = new TelegramServiceImpl(
-                new TelegramHttpClientImpl(
-                        aToken
-                )
-        );
-        store = new TelegramMessagesStore(telegramService);
+        chatId   = aChatId;
+        telegram = new TelegramClient(aToken);
+        store    = new TelegramMessagesStore(telegram, aChatId);
     }
 
     @Override
     public void onTaskStart(Task aTask) {
-        String text = "\uD83D\uDEEB " + aTask.taskLine; // 🛫
-        TelegramMessage telegramMessage = sendMessage(text);
-        store.addTask(aTask, telegramMessage,  text);
+        String text = "🛫 " + aTask.taskLine; // 🛫
+        long messageId = sendMessage(text);
+        store.addTask(aTask, messageId, text);
     }
 
     @Override
     public void onTaskSuccess(Task aTask) {
-        sendMessage("\uD83D\uDC4C " + aTask.taskLine); // 👌
+        sendMessage("👌 " + aTask.taskLine); // 👌
         store.removeTask(aTask);
     }
 
     @Override
     public void onTaskError(Task aTask, Exception aException) {
-        sendMessage("\uD83D\uDD25 " + aTask.taskLine); // 🔥
+        sendMessage("🔥 " + aTask.taskLine); // 🔥
         store.removeTask(aTask);
     }
 
@@ -93,11 +85,7 @@ public class TaskExecutionListenerTelegram implements ITaskExecutionListener {
 
     }
 
-    private TelegramMessage sendMessage(String aMessage) {
-        return telegramService.sendMessage(TelegramMessageRequest.builder()
-                .chatId(chatId)
-                .text(aMessage)
-                .build());
+    private long sendMessage(String aMessage) {
+        return telegram.sendMessage(chatId, aMessage, null);
     }
 }
-
