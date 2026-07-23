@@ -9,7 +9,6 @@ import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteGitlabServiceImpl;
-import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskCommand;
@@ -37,8 +36,8 @@ public class DiffServiceImpl implements DiffService {
     private final IRemoteTelegramService telegram;
     private final String redmineUrl;
 
-    public DiffServiceImpl(IRedmineRemoteConfig aConfig) {
-        this.redmine = new RemoteRedmine4_2_10ServiceImpl(aConfig);
+    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRedmineRemoteConfig aConfig) {
+        this.redmine = aRedmine;
         this.gitlab = new RemoteGitlabServiceImpl(aConfig);
         this.telegram = new RemoteTelegramServiceImpl(aConfig);
         this.redmineUrl = aConfig.url();

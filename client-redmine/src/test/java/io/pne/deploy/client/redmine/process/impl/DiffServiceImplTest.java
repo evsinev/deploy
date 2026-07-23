@@ -4,6 +4,7 @@ import io.pne.deploy.client.redmine.process.data_model.DiffKey;
 import io.pne.deploy.client.redmine.process.data_model.DiffLink;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
+import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
 import io.pne.deploy.server.api.task.*;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -14,7 +15,9 @@ import java.util.*;
 import static com.payneteasy.startup.parameters.StartupParametersFactory.getStartupParameters;
 
 public class DiffServiceImplTest {
-    private final DiffServiceImpl diffService = new DiffServiceImpl(getStartupParameters(IRedmineRemoteConfig.class));
+    private final IRedmineRemoteConfig config = getStartupParameters(IRedmineRemoteConfig.class);
+    private final DiffServiceImpl diffService =
+            new DiffServiceImpl(new RemoteRedmine4_2_10ServiceImpl(config), config);
 
     @Test
     @Ignore

@@ -35,7 +35,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig) {
         this.redmine = redmine;
         this.deployService = deployService;
-        this.diffService = new DiffServiceImpl(aConfig);
+        this.diffService = new DiffServiceImpl(redmine, aConfig);
         issueValidationScript = aConfig.issueValidationScript();
     }
 
