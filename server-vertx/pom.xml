@@ -111,6 +111,10 @@
                         <manifest>
                             <mainClass>io.pne.deploy.server.vertx.VertxServerApplication</mainClass>
                         </manifest>
+                        <manifestEntries>
+                            <!-- Let Gson (de)serialize Throwable-bearing messages under JDK 17+ -->
+                            <Add-Opens>java.base/java.lang</Add-Opens>
+                        </manifestEntries>
                     </archive>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>

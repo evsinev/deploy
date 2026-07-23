@@ -307,6 +307,17 @@
             </plugin>
 
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Gson reflects into java.lang.Throwable when (de)serializing messages
+                         with an Exception field (e.g. RunAgentCommandResponse.error); JDK 17+
+                         module encapsulation blocks that without opening java.base/java.lang. -->
+                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <version>1.4.2</version>
