@@ -28,7 +28,7 @@ public class DiffServiceImpl implements DiffService {
     private static final Pattern LINK_LIKE = Pattern.compile("^(https?://|http:).+");
     private static final Pattern VERSION_LIKE = Pattern.compile("^\\d+(?:\\.\\d+){2}(?:-\\d+)?$");
     private static final Pattern GITLAB_PROJECT_LIKE = Pattern.compile("^gitlab=(\\d+)$");
-    private static final Pattern REDMINE_ISSUE_LIKE = Pattern.compile("#(\\d{4,6})");
+    private static final Pattern REDMINE_ISSUE_LIKE = Pattern.compile("#(\\d+)");
     private static final int TG_SAFE_MAX = 4000;
 
     private final IRemoteRedmineService redmine;
@@ -207,10 +207,10 @@ public class DiffServiceImpl implements DiffService {
             if (current.length() + line.length() > TG_SAFE_MAX) {
                 result.add(current.toString());
                 current = new StringBuilder(header).append(changesContTitle);
-
-                if (line.length() > TG_SAFE_MAX) {
-                    line = line.substring(0, TG_SAFE_MAX - 1 - current.length()) + "\n";
-                }
+            }
+            if (current.length() + line.length() > TG_SAFE_MAX) {
+                int budget = TG_SAFE_MAX - current.length();
+                line = budget > 1 ? line.substring(0, budget - 1) + "\n" : "\n";
             }
             current.append(line);
         }
@@ -251,7 +251,7 @@ public class DiffServiceImpl implements DiffService {
                 .replace("\"", "&quot;");
     }
 
-    private Integer parseRedmineIssueIdFromCommitMessage(String message) {
+    Integer parseRedmineIssueIdFromCommitMessage(String message) {
         if (message == null) return null;
         Matcher m = REDMINE_ISSUE_LIKE.matcher(message);
         if (m.find()) {

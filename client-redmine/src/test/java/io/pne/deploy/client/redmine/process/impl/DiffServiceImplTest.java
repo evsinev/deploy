@@ -127,6 +127,52 @@ public class DiffServiceImplTest {
         assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), t.getIds());
     }
 
+    // --- parseRedmineIssueIdFromCommitMessage (regex fix) ---
+
+    @Test
+    public void parsesFullSevenDigitIssueId() {
+        assertEquals(Integer.valueOf(1234567),
+                diffService.parseRedmineIssueIdFromCommitMessage("#1234567 fix"));
+    }
+
+    @Test
+    public void parsesThreeDigitIssueId() {
+        assertEquals(Integer.valueOf(123),
+                diffService.parseRedmineIssueIdFromCommitMessage("fix #123"));
+    }
+
+    @Test
+    public void parsesIssueIdEmbeddedInText() {
+        assertEquals(Integer.valueOf(12345),
+                diffService.parseRedmineIssueIdFromCommitMessage("abc#12345def"));
+    }
+
+    @Test
+    public void returnsNullWhenNoIssueRef() {
+        assertNull(diffService.parseRedmineIssueIdFromCommitMessage("no issue here"));
+    }
+
+    // --- constructTelegramMessage (splitting robustness) ---
+
+    @Test
+    public void telegramLongHeaderAndLongLineDoesNotThrow() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "x".repeat(4100), "1.0.0", "1.1.0");
+        List<String> chunks = diffService.constructTelegramMessage(
+                t, Collections.singletonList(noIssueLink("y".repeat(5000))));
+        assertFalse(chunks.isEmpty());
+    }
+
+    @Test
+    public void telegramOversizedLineStaysWithinLimitForNormalHeader() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
+        List<String> chunks = diffService.constructTelegramMessage(
+                t, Collections.singletonList(noIssueLink("y".repeat(5000))));
+        assertFalse(chunks.isEmpty());
+        for (String chunk : chunks) {
+            assertTrue("chunk length " + chunk.length() + " exceeds limit", chunk.length() <= 4000);
+        }
+    }
+
     // --- helpers ---
 
     private static DiffTask task(String[] ids, int project, String name, String oldV, String newV) {
