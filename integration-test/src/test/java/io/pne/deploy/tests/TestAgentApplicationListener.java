@@ -26,12 +26,14 @@ public class TestAgentApplicationListener implements IAgentApplicationListener {
         LOG.debug("didReceiveMessage: {}", aMessage);
     }
 
-    public void waitUntilConnected(long aTimeout, TimeUnit aUnit) throws InterruptedException {
+    /** @return true if the agent connected before the timeout. */
+    public boolean waitUntilConnected(long aTimeout, TimeUnit aUnit) throws InterruptedException {
         LOG.debug("Waiting for connection ...");
-        startedLatch.await(aTimeout, aUnit);
+        boolean reached = startedLatch.await(aTimeout, aUnit);
         if(startedError != null) {
             throw new IllegalStateException("Couldn't connect ", startedError);
         }
         LOG.debug("Connected");
+        return reached;
     }
 }
