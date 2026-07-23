@@ -89,7 +89,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
 
             }
             response.write(result);
-            response.write("\n").end();
+            response.end("\n");
         });
 
     }
