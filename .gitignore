@@ -11,3 +11,4 @@ gen/
 classes/
 gen-external-apklibs/
 .vertx
+/queue/
