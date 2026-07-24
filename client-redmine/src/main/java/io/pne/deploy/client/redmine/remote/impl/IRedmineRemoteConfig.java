@@ -56,4 +56,7 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     @AStartupParameter(name = "TELEGRAM_TOKEN", value = "", maskVariable = true)
     String getTelegramToken();
 
+    @AStartupParameter(name = "TELEGRAM_URL", value = "https://api.telegram.org/bot")
+    String telegramUrl();
+
 }

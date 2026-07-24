@@ -127,6 +127,7 @@ environment variables (defaults in parentheses):
 | `TELEGRAM_ENABLED` | `false` | Enable Telegram notifications. |
 | `TELEGRAM_CHAT_ID` | `0` | Target Telegram chat id. |
 | `TELEGRAM_TOKEN` | `""` | Telegram bot token (**secret**). |
+| `TELEGRAM_URL` | `https://api.telegram.org/bot` | Telegram Bot API base URL (override for a proxy or a mock). |
 
 ## Running an agent
 
