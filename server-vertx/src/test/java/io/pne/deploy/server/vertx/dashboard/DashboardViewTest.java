@@ -61,8 +61,44 @@ public class DashboardViewTest {
     }
 
     @Test
+    public void queuesRendersDepthBars() throws Exception {
+        PersistentSpool spool = new PersistentSpool(tmp.newFolder("redmine"));
+        spool.append("{\"x\":1}");
+        Map<String, PersistentSpool> queues = new LinkedHashMap<>();
+        queues.put("redmine", spool);
+
+        String html = DashboardView.queues(queues);
+        assertTrue(html, html.contains("barfill"));
+        assertTrue(html, html.contains("style=\"width:"));
+    }
+
+    @Test
     public void queuesEmptyShowsPlaceholder() {
         assertTrue(DashboardView.queues(new LinkedHashMap<>()).contains("no queues"));
+    }
+
+    @Test
+    public void latencyRendersPercentileBars() {
+        Map<String, LatencyStat> stats = new LinkedHashMap<>();
+        stats.put("telegram", new LatencyStat(1043, 45.0, 12.0, 180.0, 240.0, 310.0));
+
+        String html = DashboardView.latency(stats);
+        assertTrue(html, html.contains("telegram"));
+        assertTrue(html, html.contains("p95"));
+        assertTrue(html, html.contains("style=\"width:"));
+        assertTrue(html, html.contains("n=1043"));
+        assertTrue(html, html.contains("180 ms"));
+    }
+
+    @Test
+    public void latencyEmptyShowsNoData() {
+        assertTrue(DashboardView.latency(new LinkedHashMap<>()).contains("no data"));
+    }
+
+    @Test
+    public void barRowClampsFractionAndFormatsWidth() {
+        assertTrue(DashboardView.barRow("p99", "9 ms", 2.0).contains("width:100%"));
+        assertTrue(DashboardView.barRow("p50", "0 ms", -1.0).contains("width:0%"));
     }
 
     @Test

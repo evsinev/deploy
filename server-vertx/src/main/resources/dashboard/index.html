@@ -4,17 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Deploy dashboard</title>
-    <script src="/deploy/dashboard/htmx.min.js"></script>
-    <script src="/deploy/dashboard/sse.js"></script>
+    <script src="{{BASE}}/htmx.min.js"></script>
+    <script src="{{BASE}}/sse.js"></script>
     <style>
         :root {
             --bg: #f4f5f7; --card: #ffffff; --fg: #1c1e21; --muted: #6b7280;
             --border: #e2e4e8; --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+            --track: #eceef1; --fill: #2563eb;
         }
         @media (prefers-color-scheme: dark) {
             :root {
                 --bg: #16181d; --card: #1f232b; --fg: #e6e8eb; --muted: #9aa1ab;
                 --border: #2c313b; --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+                --track: #2c313b; --fill: #60a5fa;
             }
         }
         * { box-sizing: border-box; }
@@ -38,17 +40,45 @@
         .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
         .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
         code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+        /* horizontal bars (queue depth, latency percentiles) */
+        .bars { margin-top: 8px; }
+        .lat + .lat { margin-top: 12px; }
+        .barrow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+        .barlabel { flex: 0 0 44px; color: var(--muted); font-size: 12px; }
+        .bartrack { flex: 1 1 auto; height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; }
+        .barfill { display: block; height: 100%; background: var(--fill); border-radius: 999px; }
+        .barval { flex: 0 0 auto; min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+
+        /* add-issue form */
+        .issue-form { display: flex; gap: 8px; margin-bottom: 12px; }
+        .issue-form input {
+            flex: 1 1 auto; min-width: 0; padding: 6px 8px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+        }
+        .issue-form button {
+            padding: 6px 14px; border: 0; border-radius: 8px; cursor: pointer;
+            background: var(--accent); color: #fff; font-weight: 600;
+        }
     </style>
 </head>
-<body hx-ext="sse" sse-connect="/deploy/dashboard/events">
+<body hx-ext="sse" sse-connect="{{BASE}}/events">
     <h1>Deploy server</h1>
     <p class="sub">Live status &middot; updates automatically over SSE</p>
     <div class="grid">
         <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
         <section class="card"><h2>Connected agents</h2> <div sse-swap="agents"><span class="muted">connecting&hellip;</span></div></section>
         <section class="card"><h2>Current task</h2>     <div sse-swap="status"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card"><h2>Issues queue</h2>     <div sse-swap="issues"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card">
+            <h2>Issues queue</h2>
+            <form class="issue-form" hx-post="{{BASE}}/issue" hx-target="#issues-list" hx-swap="innerHTML">
+                <input type="number" name="issue_id" min="1" placeholder="issue id" required>
+                <button type="submit">Add</button>
+            </form>
+            <div id="issues-list" sse-swap="issues"><span class="muted">connecting&hellip;</span></div>
+        </section>
         <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
     </div>
 </body>
 </html>

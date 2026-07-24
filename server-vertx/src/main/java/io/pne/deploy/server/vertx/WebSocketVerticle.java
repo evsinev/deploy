@@ -5,6 +5,7 @@ import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
+import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.pne.deploy.server.vertx.http.HttpHandler;
 import io.pne.deploy.server.vertx.status.StatusHttpHandler;
 import io.vertx.core.AbstractVerticle;
@@ -30,7 +31,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final Collection<Long>            issues;
     private final Handler<HttpServerRequest>           statusHttpHandler;
     private final Handler<HttpServerRequest>           metricsHttpHandler;
-    private final Handler<HttpServerRequest>           dashboardHttpHandler;
+    private final DashboardHttpHandler                 dashboardHttpHandler;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
@@ -44,7 +45,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , ITaskExecutionListener aListener
             , Handler<HttpServerRequest> aStatusHttpHandler
             , Handler<HttpServerRequest> aMetricsHttpHandler
-            , Handler<HttpServerRequest> aDashboardHttpHandler
+            , DashboardHttpHandler aDashboardHttpHandler
     ) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
         port = aPort;

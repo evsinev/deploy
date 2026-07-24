@@ -77,8 +77,10 @@ public final class DashboardView {
         sb.append("<table><thead><tr><th>queue</th>")
           .append("<th class=\"num\">pending</th><th class=\"num\">dead</th>")
           .append("<th class=\"num\">sent</th><th class=\"num\">dead-lettered</th></tr></thead><tbody>");
+        int maxPending = 0;
         for (Map.Entry<String, PersistentSpool> entry : aQueues.entrySet()) {
             PersistentSpool spool = entry.getValue();
+            maxPending = Math.max(maxPending, spool.size());
             sb.append("<tr><td>").append(esc(entry.getKey())).append("</td>")
               .append("<td class=\"num\">").append(spool.size()).append("</td>")
               .append("<td class=\"num\">").append(spool.deadSize()).append("</td>")
@@ -86,7 +88,58 @@ public final class DashboardView {
               .append("<td class=\"num\">").append(spool.deadLetterCount()).append("</td></tr>");
         }
         sb.append("</tbody></table>");
+
+        // depth bars (pending), scaled to the busiest queue
+        sb.append("<div class=\"bars\">");
+        for (Map.Entry<String, PersistentSpool> entry : aQueues.entrySet()) {
+            int pending = entry.getValue().size();
+            double fraction = maxPending == 0 ? 0.0 : (double) pending / maxPending;
+            sb.append(barRow(esc(entry.getKey()), Integer.toString(pending), fraction));
+        }
+        sb.append("</div>");
         return sb.toString();
+    }
+
+    /** Per-queue send-latency percentiles as horizontal bars scaled to each queue's max. */
+    public static String latency(Map<String, LatencyStat> aStats) {
+        if (aStats.isEmpty()) {
+            return "<p class=\"muted\">no data</p>";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, LatencyStat> entry : aStats.entrySet()) {
+            LatencyStat stat = entry.getValue();
+            sb.append("<div class=\"lat\"><div class=\"kv\"><span><b>").append(esc(entry.getKey())).append("</b></span>")
+              .append("<span class=\"muted\">n=").append(stat.count())
+              .append(", mean ").append(formatMs(stat.meanMs())).append("</span></div>");
+            double scale = stat.maxMs() <= 0 ? 1.0 : stat.maxMs();
+            sb.append("<div class=\"bars\">");
+            sb.append(barRow("p50", formatMs(stat.p50Ms()), stat.p50Ms() / scale));
+            sb.append(barRow("p95", formatMs(stat.p95Ms()), stat.p95Ms() / scale));
+            sb.append(barRow("p99", formatMs(stat.p99Ms()), stat.p99Ms() / scale));
+            sb.append(barRow("max", formatMs(stat.maxMs()), 1.0));
+            sb.append("</div></div>");
+        }
+        return sb.toString();
+    }
+
+    /** One horizontal bar: label, a filled track (fraction clamped to [0,1]) and a value caption. */
+    static String barRow(String aLabel, String aValueText, double aFraction) {
+        long pct = Math.round(Math.max(0.0, Math.min(1.0, aFraction)) * 100);
+        return "<div class=\"barrow\">"
+                + "<span class=\"barlabel\">" + aLabel + "</span>"
+                + "<span class=\"bartrack\"><span class=\"barfill\" style=\"width:" + pct + "%\"></span></span>"
+                + "<span class=\"barval\">" + aValueText + "</span>"
+                + "</div>";
+    }
+
+    static String formatMs(double aMs) {
+        if (aMs < 1.0) {
+            return String.format("%.1f ms", aMs);
+        }
+        if (aMs < 1000.0) {
+            return Math.round(aMs) + " ms";
+        }
+        return String.format("%.1f s", aMs / 1000.0);
     }
 
     /** Coarse JVM/service vitals; values are passed in so the method stays deterministic. */

@@ -51,12 +51,23 @@ public class DashboardHttpTest {
             assertTrue(htmx.headers().firstValue("content-type").orElse("").contains("javascript"));
             assertTrue(htmx.body().contains("htmx"));
 
-            // 3. the live SSE stream — first snapshot must arrive immediately
+            // 3. the issue action enqueues and returns the refreshed list
+            HttpResponse<String> added = client.send(
+                    HttpRequest.newBuilder(URI.create(BASE + "/deploy/dashboard/issue"))
+                            .header("Content-Type", "application/x-www-form-urlencoded")
+                            .POST(HttpRequest.BodyPublishers.ofString("issue_id=777"))
+                            .build(),
+                    ofString());
+            assertEquals(200, added.statusCode());
+            assertTrue("issue list should show the added id, got: " + added.body(), added.body().contains("#777"));
+
+            // 4. the live SSE stream — first snapshot (all cards) must arrive immediately
             HttpResponse<InputStream> events = client.send(get("/deploy/dashboard/events"), ofInputStream());
             assertEquals(200, events.statusCode());
             assertTrue(events.headers().firstValue("content-type").orElse("").startsWith("text/event-stream"));
-            String frames = readUntil(events.body(), "event: agents");
+            String frames = readUntil(events.body(), "event: latency"); // last event in a snapshot
             assertTrue("SSE should push an 'agents' event, got: " + frames, frames.contains("event: agents"));
+            assertTrue("SSE should push a 'latency' event, got: " + frames, frames.contains("event: latency"));
             assertTrue("SSE frames should carry data lines", frames.contains("data:"));
         } finally {
             server.stop();
