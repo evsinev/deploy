@@ -81,31 +81,77 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
             white-space: pre-wrap; word-break: break-word; padding: 1px 0;
         }
+
+        /* top menu + screens */
+        .tabs { display: flex; gap: 8px; margin: 0 0 16px; flex: 0 0 auto; }
+        .tab { padding: 6px 14px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600;
+               color: var(--muted); background: transparent; border: 1px solid var(--border); }
+        .tab.active { color: var(--fg); background: var(--card); border-color: var(--accent); }
+        .screen { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+        .screen[hidden] { display: none; }
+        #screen-config, #screen-aliases { overflow-y: auto; }
+
+        /* config screen */
+        .cfg-group { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 8px; }
+        .cfg-group:first-child { margin-top: 0; }
+
+        /* aliases screen */
+        .aliases-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+        .aliases-list-pane { flex: 0 0 200px; }
+        #alias-detail { flex: 1 1 320px; }
+        .alias-list { display: flex; flex-direction: column; gap: 6px; }
+        .alias-item { text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit;
+                      color: var(--fg); background: var(--card); border: 1px solid var(--border); }
+        .alias-item:hover { border-color: var(--accent); }
+        .alias-cmd { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        .chip { display: inline-block; padding: 1px 8px; margin: 0 4px 4px 0; border-radius: 999px; font-size: 12px; background: var(--track); }
+        .raw { margin-top: 8px; }
+        pre { overflow-x: auto; background: var(--track); padding: 10px; border-radius: 8px; font-size: 12px; }
     </style>
 </head>
 <body hx-ext="sse" sse-connect="{{BASE}}/events">
     <h1>Deploy server</h1>
     <div id="sse-status" class="banner" hidden>&#9888; Not connected to backend (SSE) &mdash; retrying&hellip;</div>
-    <p class="sub">Live status &middot; updates automatically over SSE</p>
-    <div class="grid">
-        <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card"><h2>Connected agents</h2> <div sse-swap="agents"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card"><h2>Current task</h2>     <div sse-swap="status"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card">
-            <h2>Issues queue</h2>
-            <form class="issue-form" hx-post="{{BASE}}/issue" hx-target="#issues-list" hx-swap="innerHTML">
-                <input type="number" name="issue_id" min="1" placeholder="issue id" required>
-                <button type="submit">Add</button>
-            </form>
-            <div id="issues-list" sse-swap="issues"><span class="muted">connecting&hellip;</span></div>
+    <nav class="tabs">
+        <button class="tab active" data-screen="live">Live</button>
+        <button class="tab" data-screen="config">Config</button>
+        <button class="tab" data-screen="aliases">Aliases</button>
+    </nav>
+
+    <section id="screen-live" class="screen">
+        <p class="sub">Live status &middot; updates automatically over SSE</p>
+        <div class="grid">
+            <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
+            <section class="card"><h2>Connected agents</h2> <div sse-swap="agents"><span class="muted">connecting&hellip;</span></div></section>
+            <section class="card"><h2>Current task</h2>     <div sse-swap="status"><span class="muted">connecting&hellip;</span></div></section>
+            <section class="card">
+                <h2>Issues queue</h2>
+                <form class="issue-form" hx-post="{{BASE}}/issue" hx-target="#issues-list" hx-swap="innerHTML">
+                    <input type="number" name="issue_id" min="1" placeholder="issue id" required>
+                    <button type="submit">Add</button>
+                </form>
+                <div id="issues-list" sse-swap="issues"><span class="muted">connecting&hellip;</span></div>
+            </section>
+            <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
+            <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
+        </div>
+        <section class="card logs-card">
+            <h2>Agent logs</h2>
+            <div class="logs-body" sse-swap="logs"><span class="muted">connecting&hellip;</span></div>
         </section>
-        <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
-    </div>
-    <section class="card logs-card">
-        <h2>Agent logs</h2>
-        <div class="logs-body" sse-swap="logs"><span class="muted">connecting&hellip;</span></div>
     </section>
+
+    <section id="screen-config" class="screen" hidden>
+        <div hx-get="{{BASE}}/config" hx-trigger="load"><span class="muted">loading&hellip;</span></div>
+    </section>
+
+    <section id="screen-aliases" class="screen" hidden>
+        <div class="aliases-layout">
+            <div class="aliases-list-pane" hx-get="{{BASE}}/aliases" hx-trigger="load"><span class="muted">loading&hellip;</span></div>
+            <div id="alias-detail" class="card"><span class="muted">select an alias&hellip;</span></div>
+        </div>
+    </section>
+
     <script>
         (function () {
             var banner = document.getElementById('sse-status');
@@ -115,6 +161,21 @@
             body.addEventListener('htmx:sseOpen', hide);
             body.addEventListener('htmx:sseError', show);
             body.addEventListener('htmx:sseClose', show);
+        })();
+
+        (function () {
+            var tabs    = document.querySelectorAll('.tab');
+            var screens = { live: 'screen-live', config: 'screen-config', aliases: 'screen-aliases' };
+            tabs.forEach(function (tab) {
+                tab.addEventListener('click', function () {
+                    tabs.forEach(function (t) { t.classList.remove('active'); });
+                    tab.classList.add('active');
+                    var want = tab.getAttribute('data-screen');
+                    Object.keys(screens).forEach(function (key) {
+                        document.getElementById(screens[key]).hidden = (key !== want);
+                    });
+                });
+            });
         })();
     </script>
 </body>

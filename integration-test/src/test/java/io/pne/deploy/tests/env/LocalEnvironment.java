@@ -262,6 +262,15 @@ public class LocalEnvironment implements AutoCloseable {
         }
     }
 
+    /** Simple blocking GET of a dashboard path; returns the response body. */
+    public String httpGet(String aPath) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<String> response = client.send(
+                HttpRequest.newBuilder(URI.create(baseUrl() + aPath)).timeout(Duration.ofSeconds(5)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        return response.body();
+    }
+
     public String baseUrl() {
         return "http://127.0.0.1:" + serverPort;
     }

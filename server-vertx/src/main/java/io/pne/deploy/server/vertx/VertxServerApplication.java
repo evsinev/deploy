@@ -31,6 +31,7 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.pne.deploy.server.vertx.dashboard.AgentLogBuffer;
 import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.pne.deploy.server.vertx.dashboard.IDashboardConfig;
+import io.pne.deploy.server.vertx.dashboard.StartupConfigReport;
 import io.pne.deploy.server.vertx.metrics.MetricsHttpHandler;
 import io.pne.deploy.server.vertx.metrics.QueueMetrics;
 import io.vertx.core.Vertx;
@@ -40,6 +41,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
@@ -97,7 +99,9 @@ public class VertxServerApplication {
         IDashboardConfig     dashboardConfig      = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
-                null, new AgentLogBuffer(200), dashboardConfig.path(), dashboardConfig.refreshMs());
+                null, new AgentLogBuffer(200),
+                buildConfigReport(redmineConfig, aConfig, dashboardConfig), aConfig.getAliasesDir(),
+                dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
@@ -150,10 +154,20 @@ public class VertxServerApplication {
         IDashboardConfig dashboardConfig = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
-                metrics, agentLogBuffer, dashboardConfig.path(), dashboardConfig.refreshMs());
+                metrics, agentLogBuffer,
+                buildConfigReport(redmineConfig, config, dashboardConfig), config.getAliasesDir(),
+                dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
+    }
+
+    private static List<StartupConfigReport.Entry> buildConfigReport(
+            IRedmineRemoteConfig aRedmine, IVertxServerConfiguration aVertx, IDashboardConfig aDashboard) {
+        return StartupConfigReport.of(List.of(
+                new StartupConfigReport.Group("Redmine / GitLab / Telegram", IRedmineRemoteConfig.class, aRedmine),
+                new StartupConfigReport.Group("Server", IVertxServerConfiguration.class, aVertx),
+                new StartupConfigReport.Group("Dashboard", IDashboardConfig.class, aDashboard)));
     }
 
     private ITaskExecutionListener createTaskListener(Consumer<TaskStatus> aConsumer, IRedmineRemoteConfig aConfig, TelegramClient aTelegramClient) {

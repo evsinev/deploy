@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.distribution.HistogramSnapshot;
 import io.micrometer.core.instrument.distribution.ValueAtPercentile;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
+import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.AgentConnections;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import io.vertx.core.Handler;
@@ -15,18 +16,23 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -41,6 +47,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private static final Logger LOG = LoggerFactory.getLogger(DashboardHttpHandler.class);
 
     private static final String LATENCY_METER = "deploy_queue_send_latency";
+    private static final Pattern ALIAS_NAME   = Pattern.compile("^[A-Za-z0-9._-]+$");
 
     private final Vertx                        vertx;
     private final AgentConnections             agents;
@@ -49,6 +56,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final Supplier<TaskStatus>         taskStatusSupplier;
     private final MeterRegistry                registry; // nullable: no latency card without it
     private final AgentLogBuffer               logBuffer;
+    private final List<StartupConfigReport.Entry> configEntries;
+    private final File                         aliasesDir;
     private final long                         refreshMs;
 
     private final String basePath;
@@ -56,6 +65,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final String htmxPath;
     private final String sseJsPath;
     private final String issuePath;
+    private final String configPath;
+    private final String aliasesPath;
 
     private final Buffer indexHtml;
     private final Buffer htmxJs = readResource("/dashboard/htmx.min.js");
@@ -69,6 +80,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             , Supplier<TaskStatus> aTaskStatusSupplier
             , MeterRegistry aRegistry
             , AgentLogBuffer aLogBuffer
+            , List<StartupConfigReport.Entry> aConfigEntries
+            , File aAliasesDir
             , String aBasePath
             , long aRefreshMs
     ) {
@@ -79,13 +92,17 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.taskStatusSupplier = aTaskStatusSupplier;
         this.registry           = aRegistry;
         this.logBuffer          = aLogBuffer;
+        this.configEntries      = aConfigEntries;
+        this.aliasesDir         = aAliasesDir;
         this.refreshMs          = aRefreshMs;
 
-        this.basePath   = normalize(aBasePath);
-        this.eventsPath = basePath + "/events";
-        this.htmxPath   = basePath + "/htmx.min.js";
-        this.sseJsPath  = basePath + "/sse.js";
-        this.issuePath  = basePath + "/issue";
+        this.basePath    = normalize(aBasePath);
+        this.eventsPath  = basePath + "/events";
+        this.htmxPath    = basePath + "/htmx.min.js";
+        this.sseJsPath   = basePath + "/sse.js";
+        this.issuePath   = basePath + "/issue";
+        this.configPath  = basePath + "/config";
+        this.aliasesPath = basePath + "/aliases";
 
         this.indexHtml = Buffer.buffer(readResourceString("/dashboard/index.html").replace("{{BASE}}", basePath));
     }
@@ -106,10 +123,53 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             serve(aRequest, "application/javascript; charset=utf-8", htmxJs);
         } else if (sseJsPath.equals(path)) {
             serve(aRequest, "application/javascript; charset=utf-8", sseJs);
+        } else if (configPath.equals(path)) {
+            serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.config(configEntries)));
+        } else if (aliasesPath.equals(path)) {
+            handleAliasList(aRequest);
+        } else if (path.startsWith(aliasesPath + "/")) {
+            handleAliasDetail(aRequest, path.substring(aliasesPath.length() + 1));
         } else if (basePath.equals(path) || (basePath + "/").equals(path)) {
             serve(aRequest, "text/html; charset=utf-8", indexHtml);
         } else {
             aRequest.response().setStatusCode(404).end("Not found\n");
+        }
+    }
+
+    private void handleAliasList(HttpServerRequest aRequest) {
+        List<String> names = new ArrayList<>();
+        String[] files = aliasesDir == null ? null : aliasesDir.list((dir, name) -> name.endsWith(".yml"));
+        if (files != null) {
+            for (String file : files) {
+                names.add(file.substring(0, file.length() - ".yml".length()));
+            }
+            names.sort(String::compareTo);
+        }
+        serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.aliasList(names, basePath)));
+    }
+
+    private void handleAliasDetail(HttpServerRequest aRequest, String aName) {
+        if (aliasesDir == null || !ALIAS_NAME.matcher(aName).matches()) {
+            aRequest.response().setStatusCode(400).end("bad alias name\n");
+            return;
+        }
+        try {
+            File file = new File(aliasesDir, aName + ".yml");
+            // defence-in-depth against traversal, even though ALIAS_NAME already forbids separators
+            if (!file.getCanonicalPath().startsWith(aliasesDir.getCanonicalPath() + File.separator)) {
+                aRequest.response().setStatusCode(400).end("bad alias name\n");
+                return;
+            }
+            if (!file.isFile()) {
+                serve(aRequest, "text/html; charset=utf-8", Buffer.buffer("<p class=\"muted\">alias not found</p>"));
+                return;
+            }
+            String raw = Files.readString(file.toPath());
+            AliasDescription description = new Yaml().loadAs(raw, AliasDescription.class);
+            serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.aliasDetail(aName, description, raw)));
+        } catch (IOException | RuntimeException e) {
+            LOG.warn("cannot read alias {}", aName, e);
+            serve(aRequest, "text/html; charset=utf-8", Buffer.buffer("<p class=\"pill bad\">cannot read alias</p>"));
         }
     }
 

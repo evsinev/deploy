@@ -1,6 +1,8 @@
 package io.pne.deploy.server.vertx.dashboard;
 
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
+import io.pne.deploy.server.service.impl.alias.AliasCommand;
+import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.status.model.TaskState;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 
@@ -151,6 +153,84 @@ public final class DashboardView {
             return "?";
         }
         return aCommandId.length() > 8 ? aCommandId.substring(0, 8) : aCommandId;
+    }
+
+    /** Grouped table of startup config parameters (secrets already masked in the entries). */
+    public static String config(List<StartupConfigReport.Entry> aEntries) {
+        if (aEntries.isEmpty()) {
+            return "<p class=\"muted\">no config</p>";
+        }
+        StringBuilder sb = new StringBuilder();
+        String currentGroup = null;
+        for (StartupConfigReport.Entry entry : aEntries) {
+            if (!entry.group().equals(currentGroup)) {
+                if (currentGroup != null) {
+                    sb.append("</tbody></table></div>");
+                }
+                currentGroup = entry.group();
+                sb.append("<h3 class=\"cfg-group\">").append(esc(currentGroup)).append("</h3>");
+                sb.append("<div class=\"tablewrap\"><table><thead><tr>")
+                  .append("<th>variable</th><th>value</th><th>default</th></tr></thead><tbody>");
+            }
+            sb.append("<tr><td><code>").append(esc(entry.name())).append("</code></td>")
+              .append("<td>").append(esc(entry.value()));
+            if (!entry.isDefault()) {
+                sb.append(" <span class=\"pill warn\">overridden</span>");
+            }
+            sb.append("</td><td class=\"muted\"><code>").append(esc(entry.def())).append("</code></td></tr>");
+        }
+        sb.append("</tbody></table></div>");
+        return sb.toString();
+    }
+
+    /** Clickable list of alias names; each loads its detail into {@code #alias-detail} via htmx. */
+    public static String aliasList(List<String> aNames, String aBasePath) {
+        if (aNames.isEmpty()) {
+            return "<p class=\"muted\">no aliases</p>";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"alias-list\">");
+        for (String name : aNames) {
+            sb.append("<button class=\"alias-item\" hx-get=\"").append(esc(aBasePath)).append("/aliases/").append(esc(name))
+              .append("\" hx-target=\"#alias-detail\" hx-swap=\"innerHTML\"><code>").append(esc(name)).append("</code></button>");
+        }
+        sb.append("</div>");
+        return sb.toString();
+    }
+
+    /** Rendered alias definition: each command's agents/command/arguments, plus the raw YAML. */
+    public static String aliasDetail(String aName, AliasDescription aDescription, String aRawYaml) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<h3 class=\"cfg-group\">").append(esc(aName)).append("</h3>");
+        if (aDescription == null || aDescription.commands == null || aDescription.commands.isEmpty()) {
+            sb.append("<p class=\"muted\">no commands / could not parse</p>");
+        } else {
+            int index = 1;
+            for (AliasCommand command : aDescription.commands) {
+                sb.append("<div class=\"alias-cmd\">");
+                sb.append("<div class=\"kv\"><span>#").append(index++).append(" command</span><b><code>")
+                  .append(esc(command.name)).append("</code></b></div>");
+                sb.append("<div class=\"kv\"><span>agents</span><span>");
+                if (command.agents != null) {
+                    for (String agent : command.agents.split(",")) {
+                        sb.append("<span class=\"chip\">").append(esc(agent.trim())).append("</span>");
+                    }
+                }
+                sb.append("</span></div>");
+                if (command.arguments != null && !command.arguments.isEmpty()) {
+                    sb.append("<div class=\"muted\">arguments</div><ul>");
+                    for (String arg : command.arguments) {
+                        sb.append("<li><code>").append(esc(arg)).append("</code></li>");
+                    }
+                    sb.append("</ul>");
+                }
+                sb.append("</div>");
+            }
+        }
+        if (aRawYaml != null) {
+            sb.append("<details class=\"raw\"><summary>raw YAML</summary><pre>").append(esc(aRawYaml)).append("</pre></details>");
+        }
+        return sb.toString();
     }
 
     /** One horizontal bar: label, a filled track (fraction clamped to [0,1]) and a value caption. */
