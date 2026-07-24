@@ -1,15 +1,19 @@
 package io.pne.deploy.server.vertx.dashboard;
 
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
+import io.pne.deploy.server.service.impl.alias.AliasCommand;
+import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.status.model.TaskState;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -139,6 +143,53 @@ public class DashboardViewTest {
     @Test
     public void logsEmptyShowsPlaceholder() {
         assertTrue(DashboardView.logs(new java.util.ArrayList<>()).contains("no logs yet"));
+    }
+
+    @Test
+    public void configRendersNamesGroupsAndMaskedValue() {
+        List<StartupConfigReport.Entry> entries = List.of(
+                new StartupConfigReport.Entry("Redmine", "REDMINE_URL", "http://x", "", false, false),
+                new StartupConfigReport.Entry("Redmine", "TELEGRAM_TOKEN", "•••• (set)", "", true, false));
+        String html = DashboardView.config(entries);
+        assertTrue(html, html.contains("Redmine"));
+        assertTrue(html, html.contains("REDMINE_URL"));
+        assertTrue(html, html.contains("•••• (set)"));
+    }
+
+    @Test
+    public void aliasListRendersButtonsWithHxGet() {
+        String html = DashboardView.aliasList(List.of("deploy-demo"), "/deploy/dashboard");
+        assertTrue(html, html.contains("deploy-demo"));
+        assertTrue(html, html.contains("hx-get=\"/deploy/dashboard/aliases/deploy-demo\""));
+    }
+
+    @Test
+    public void aliasListEmptyShowsPlaceholder() {
+        assertTrue(DashboardView.aliasList(new ArrayList<>(), "/x").contains("no aliases"));
+    }
+
+    @Test
+    public void aliasDetailRendersCommandsAndEscapes() {
+        AliasCommand command = new AliasCommand();
+        command.agents = "agent-1,agent-2";
+        command.name = "echo";
+        command.arguments = List.of("<hi>", "$1");
+        AliasDescription description = new AliasDescription();
+        description.commands = List.of(command);
+
+        String html = DashboardView.aliasDetail("deploy-demo", description, "commands: []");
+        assertTrue(html, html.contains("deploy-demo"));
+        assertTrue(html, html.contains("echo"));
+        assertTrue(html, html.contains("agent-1"));
+        assertTrue(html, html.contains("agent-2"));
+        assertTrue(html, html.contains("&lt;hi&gt;"));
+        assertFalse(html, html.contains("<hi>"));
+        assertTrue(html, html.contains("raw YAML"));
+    }
+
+    @Test
+    public void aliasDetailNullDescriptionIsSafe() {
+        assertTrue(DashboardView.aliasDetail("x", null, null).contains("could not parse"));
     }
 
     @Test

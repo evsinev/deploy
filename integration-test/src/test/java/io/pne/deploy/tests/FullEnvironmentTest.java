@@ -3,6 +3,7 @@ package io.pne.deploy.tests;
 import io.pne.deploy.tests.env.LocalEnvironment;
 import org.junit.Test;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -30,6 +31,15 @@ public class FullEnvironmentTest {
             String frames = env.readDashboardEvents("deployed", 10_000);
             assertTrue("dashboard should stream an 'logs' event, got: " + frames, frames.contains("event: logs"));
             assertTrue("agent echo output should appear in the logs card, got: " + frames, frames.contains("deployed"));
+
+            // Config screen lists env vars but masks secrets.
+            String config = env.httpGet("/deploy/dashboard/config");
+            assertTrue("config screen should list REDMINE_URL, got: " + config, config.contains("REDMINE_URL"));
+            assertFalse("the telegram token must be masked, not shown: " + config, config.contains("test-token"));
+
+            // Aliases screen lists the demo alias and renders its definition.
+            assertTrue(env.httpGet("/deploy/dashboard/aliases").contains("deploy-demo"));
+            assertTrue(env.httpGet("/deploy/dashboard/aliases/deploy-demo").contains("echo"));
         }
     }
 }
