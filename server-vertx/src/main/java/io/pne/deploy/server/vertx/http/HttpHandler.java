@@ -5,6 +5,7 @@ import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.vertx.AgentConnections;
+import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
@@ -26,7 +27,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final Collection<Long>  issues;
     private final Handler<HttpServerRequest> statusHttpHandler;
     private final Handler<HttpServerRequest> metricsHttpHandler;
-    private final Handler<HttpServerRequest> dashboardHttpHandler;
+    private final DashboardHttpHandler       dashboardHttpHandler;
 
     public HttpHandler(
             AgentConnections connections
@@ -36,7 +37,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             , Collection<Long> aIssues
             , Handler<HttpServerRequest> aStatusHandler
             , Handler<HttpServerRequest> aMetricsHandler
-            , Handler<HttpServerRequest> aDashboardHandler
+            , DashboardHttpHandler aDashboardHandler
     ) {
         this.connections = connections;
         this.deployService = deployService;
@@ -59,7 +60,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             return;
         }
 
-        if(aRequest.path().startsWith("/deploy/dashboard")) {
+        if(dashboardHttpHandler.handles(aRequest.path())) {
             dashboardHttpHandler.handle(aRequest);
             return;
         }

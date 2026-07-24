@@ -29,6 +29,7 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
+import io.pne.deploy.server.vertx.dashboard.IDashboardConfig;
 import io.pne.deploy.server.vertx.metrics.MetricsHttpHandler;
 import io.pne.deploy.server.vertx.metrics.QueueMetrics;
 import io.vertx.core.Vertx;
@@ -92,8 +93,10 @@ public class VertxServerApplication {
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
 
         StatusHttpHandler    statusHttpHandler    = new StatusHttpHandler(agentConnections, pendingIssues);
+        IDashboardConfig     dashboardConfig      = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
-                this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus, 2000);
+                this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
+                null, dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
@@ -136,12 +139,14 @@ public class VertxServerApplication {
 
         this.vertx          = Vertx.vertx();
 
-        // Live dashboard at /deploy/dashboard: reads the same live state and streams it over SSE.
+        // Live dashboard: reads the same live state and streams it over SSE (path/interval configurable).
         Map<String, PersistentSpool> dashboardQueues = new LinkedHashMap<>();
         dashboardQueues.put("telegram", telegramClient.getSpool());
         dashboardQueues.put("redmine",  redmine.getSpool());
+        IDashboardConfig dashboardConfig = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
-                this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus, 2000);
+                this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
+                metrics, dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;

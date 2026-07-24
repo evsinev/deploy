@@ -45,6 +45,7 @@ public final class QueueMetrics {
         Timer timer = Timer.builder("deploy_queue_send_latency")
                 .description("Latency of a successful send/edit call to the external service")
                 .publishPercentileHistogram()
+                .publishPercentiles(0.5, 0.95, 0.99)
                 .tag("queue", aQueue)
                 .register(aRegistry);
         return nanos -> timer.record(nanos, TimeUnit.NANOSECONDS);
