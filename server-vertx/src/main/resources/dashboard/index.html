@@ -23,10 +23,11 @@
         body {
             margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
             font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh; display: flex; flex-direction: column;
         }
         h1 { font-size: 20px; margin: 0 0 4px; }
         .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
-        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); flex: 0 0 auto; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
         .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
         .tablewrap { overflow-x: auto; }
@@ -72,8 +73,10 @@
         }
         .banner[hidden] { display: none; }
 
-        /* agent logs */
-        .logbox { max-height: 220px; overflow-y: auto; }
+        /* agent logs — full-width panel that fills the remaining height */
+        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 16px; min-height: 160px; }
+        .logs-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+        .logbox { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
         .logline {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
             white-space: pre-wrap; word-break: break-word; padding: 1px 0;
@@ -98,8 +101,11 @@
         </section>
         <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
         <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
-        <section class="card"><h2>Agent logs</h2>       <div sse-swap="logs"><span class="muted">connecting&hellip;</span></div></section>
     </div>
+    <section class="card logs-card">
+        <h2>Agent logs</h2>
+        <div class="logs-body" sse-swap="logs"><span class="muted">connecting&hellip;</span></div>
+    </section>
     <script>
         (function () {
             var banner = document.getElementById('sse-status');
