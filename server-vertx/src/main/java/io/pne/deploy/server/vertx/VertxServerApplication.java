@@ -21,6 +21,14 @@ import io.pne.deploy.server.vertx.status.TaskExecutionListenerQueue;
 import io.pne.deploy.server.vertx.status.TaskExecutionListenerStatus;
 import io.pne.deploy.server.vertx.status.TaskExecutionListenerTelegram;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
+import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
+import io.micrometer.prometheus.PrometheusConfig;
+import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.pne.deploy.server.vertx.metrics.MetricsHttpHandler;
+import io.pne.deploy.server.vertx.metrics.QueueMetrics;
 import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +86,7 @@ public class VertxServerApplication {
 
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
 
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, event -> {});
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, event -> {}, event -> {});
         this.serverListener = serverListener;
     }
 
@@ -89,7 +97,7 @@ public class VertxServerApplication {
         CommandResponses          response          = new CommandResponses();
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
-        IRemoteRedmineService     redmine           = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
+        RemoteRedmine4_2_10ServiceImpl redmine      = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
         IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         // Single Telegram client shared by both the live-status listener and the diff notifications,
@@ -98,6 +106,16 @@ public class VertxServerApplication {
         IRemoteTelegramService    diffTelegram      = new RemoteTelegramServiceImpl(telegramClient, redmineConfig);
         ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig, telegramClient);
 
+        // Prometheus metrics for both durable queues (scraped at /metrics)
+        PrometheusMeterRegistry   metrics           = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        QueueMetrics.register(metrics, "telegram", telegramClient.getSpool());
+        QueueMetrics.register(metrics, "redmine", redmine.getSpool());
+        new JvmMemoryMetrics().bindTo(metrics);
+        new JvmGcMetrics().bindTo(metrics);
+        new JvmThreadMetrics().bindTo(metrics);
+        new ProcessorMetrics().bindTo(metrics);
+        MetricsHttpHandler        metricsHttpHandler = new MetricsHttpHandler(metrics);
+
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), config.getAliasesDir(), taskListener);
 
         RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram);
@@ -105,7 +123,7 @@ public class VertxServerApplication {
 
         this.vertx          = Vertx.vertx();
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler);
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler);
         this.serverListener = serverListener;
     }
 

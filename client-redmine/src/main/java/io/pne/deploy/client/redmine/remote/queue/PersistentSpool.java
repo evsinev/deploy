@@ -29,6 +29,8 @@ public class PersistentSpool {
 
     private final File       dir;
     private final AtomicLong sequence;
+    private final AtomicLong sent         = new AtomicLong();
+    private final AtomicLong deadLettered = new AtomicLong();
 
     public PersistentSpool(File aDir) {
         this.dir = aDir;
@@ -58,6 +60,7 @@ public class PersistentSpool {
         } catch (IOException e) {
             LOG.warn("Cannot remove spool file {}", aFileName, e);
         }
+        sent.incrementAndGet();
     }
 
     /** Move a give-up operation into the {@code dead/} sub-directory so it stops being retried but is kept. */
@@ -74,6 +77,29 @@ public class PersistentSpool {
         } catch (IOException e) {
             LOG.warn("Cannot dead-letter spool file {}", aFileName, e);
         }
+        deadLettered.incrementAndGet();
+    }
+
+    /** Number of active (pending) operations currently spooled. */
+    public synchronized int size() {
+        File[] files = dir.listFiles((d, name) -> name.endsWith(SUFFIX));
+        return files == null ? 0 : files.length;
+    }
+
+    /** Number of dead-lettered operations kept in {@code dead/}. */
+    public int deadSize() {
+        File[] files = new File(dir, DEAD_SUBDIR).listFiles((d, name) -> name.endsWith(SUFFIX));
+        return files == null ? 0 : files.length;
+    }
+
+    /** Cumulative count of successfully sent (removed) operations since start. */
+    public long sentCount() {
+        return sent.get();
+    }
+
+    /** Cumulative count of operations moved to dead-letter since start. */
+    public long deadLetterCount() {
+        return deadLettered.get();
     }
 
     public synchronized List<Stored> loadAll() {

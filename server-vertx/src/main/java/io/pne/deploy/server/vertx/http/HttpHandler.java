@@ -25,6 +25,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final RedmineCallbackHttpHander redmineCallbackHttpHander;
     private final Collection<Long>  issues;
     private final Handler<HttpServerRequest> statusHttpHandler;
+    private final Handler<HttpServerRequest> metricsHttpHandler;
 
     public HttpHandler(
             AgentConnections connections
@@ -33,6 +34,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             , IRedmineRemoteConfig aRedmineConfig
             , Collection<Long> aIssues
             , Handler<HttpServerRequest> aStatusHandler
+            , Handler<HttpServerRequest> aMetricsHandler
     ) {
         this.connections = connections;
         this.deployService = deployService;
@@ -41,6 +43,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
         redmineCallbackHttpHander = new RedmineCallbackHttpHander(aIssues);
         issues = aIssues;
         statusHttpHandler = aStatusHandler;
+        metricsHttpHandler = aMetricsHandler;
     }
 
     @Override
@@ -55,6 +58,11 @@ public class HttpHandler implements Handler<HttpServerRequest> {
 
         if(aRequest.uri().startsWith(redmineConfig.statusPageHtmlPath())) {
             statusHttpHandler.handle(aRequest);
+            return;
+        }
+
+        if("/metrics".equals(aRequest.uri())) {
+            metricsHttpHandler.handle(aRequest);
             return;
         }
 
