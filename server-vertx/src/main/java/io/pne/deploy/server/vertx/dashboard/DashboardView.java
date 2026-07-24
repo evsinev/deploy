@@ -74,9 +74,9 @@ public final class DashboardView {
             return "<p class=\"muted\">no queues</p>";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<table><thead><tr><th>queue</th>")
+        sb.append("<div class=\"tablewrap\"><table><thead><tr><th>queue</th>")
           .append("<th class=\"num\">pending</th><th class=\"num\">dead</th>")
-          .append("<th class=\"num\">sent</th><th class=\"num\">dead-lettered</th></tr></thead><tbody>");
+          .append("<th class=\"num\">sent</th><th class=\"num\" title=\"dead-lettered\">DLQ</th></tr></thead><tbody>");
         int maxPending = 0;
         for (Map.Entry<String, PersistentSpool> entry : aQueues.entrySet()) {
             PersistentSpool spool = entry.getValue();
@@ -87,7 +87,7 @@ public final class DashboardView {
               .append("<td class=\"num\">").append(spool.sentCount()).append("</td>")
               .append("<td class=\"num\">").append(spool.deadLetterCount()).append("</td></tr>");
         }
-        sb.append("</tbody></table>");
+        sb.append("</tbody></table></div>");
 
         // depth bars (pending), scaled to the busiest queue
         sb.append("<div class=\"bars\">");
