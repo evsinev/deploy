@@ -10,6 +10,7 @@ import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.TelegramClient;
+import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.ITaskExecutionListener;
@@ -27,6 +28,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.pne.deploy.server.vertx.metrics.MetricsHttpHandler;
 import io.pne.deploy.server.vertx.metrics.QueueMetrics;
 import io.vertx.core.Vertx;
@@ -35,6 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.io.File;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -87,7 +91,11 @@ public class VertxServerApplication {
 
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
 
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, event -> {}, event -> {});
+        StatusHttpHandler    statusHttpHandler    = new StatusHttpHandler(agentConnections, pendingIssues);
+        DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
+                this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus, 2000);
+
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
     }
 
@@ -128,7 +136,14 @@ public class VertxServerApplication {
 
         this.vertx          = Vertx.vertx();
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler);
+        // Live dashboard at /deploy/dashboard: reads the same live state and streams it over SSE.
+        Map<String, PersistentSpool> dashboardQueues = new LinkedHashMap<>();
+        dashboardQueues.put("telegram", telegramClient.getSpool());
+        dashboardQueues.put("redmine",  redmine.getSpool());
+        DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
+                this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus, 2000);
+
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
     }
 

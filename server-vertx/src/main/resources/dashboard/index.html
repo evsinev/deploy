@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Deploy dashboard</title>
+    <script src="/deploy/dashboard/htmx.min.js"></script>
+    <script src="/deploy/dashboard/sse.js"></script>
+    <style>
+        :root {
+            --bg: #f4f5f7; --card: #ffffff; --fg: #1c1e21; --muted: #6b7280;
+            --border: #e2e4e8; --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #16181d; --card: #1f232b; --fg: #e6e8eb; --muted: #9aa1ab;
+                --border: #2c313b; --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
+            font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+        .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        ul { margin: 0; padding-left: 18px; }
+        .muted { color: var(--muted); }
+        .kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+        .kv b { font-weight: 600; }
+        .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+        code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+</head>
+<body hx-ext="sse" sse-connect="/deploy/dashboard/events">
+    <h1>Deploy server</h1>
+    <p class="sub">Live status &middot; updates automatically over SSE</p>
+    <div class="grid">
+        <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Connected agents</h2> <div sse-swap="agents"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Current task</h2>     <div sse-swap="status"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Issues queue</h2>     <div sse-swap="issues"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
+    </div>
+</body>
+</html>

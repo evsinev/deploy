@@ -49,4 +49,9 @@ public class StatusHttpHandler implements Handler<HttpServerRequest>, Consumer<T
     public void accept(TaskStatus aTaskStatus) {
          deployStatusRef.set(aTaskStatus);
     }
+
+    /** The last task status pushed by the execution listener, or null if none yet. */
+    public TaskStatus getLatestTaskStatus() {
+        return deployStatusRef.get();
+    }
 }
