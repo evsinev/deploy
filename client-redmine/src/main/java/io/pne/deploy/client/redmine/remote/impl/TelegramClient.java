@@ -21,6 +21,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -37,6 +38,7 @@ public class TelegramClient {
     private final ITelegramService telegram;
     private final long             minIntervalMs;
     private final PersistentSpool  spool;
+    private final LongConsumer     sendLatencyNanos; // nullable: records duration of a successful API call
     private final Gson             gson = new GsonBuilder().disableHtmlEscaping().create();
 
     private final BlockingQueue<Runnable> queue        = new LinkedBlockingQueue<>();
@@ -45,13 +47,22 @@ public class TelegramClient {
     private volatile long lastCallAt = 0;
 
     public TelegramClient(String aToken, File aSpoolDir) {
-        this(new TelegramServiceImpl(new TelegramHttpClientImpl(aToken)), DEFAULT_MIN_INTERVAL_MS, aSpoolDir);
+        this(aToken, aSpoolDir, null);
+    }
+
+    public TelegramClient(String aToken, File aSpoolDir, LongConsumer aSendLatencyNanos) {
+        this(new TelegramServiceImpl(new TelegramHttpClientImpl(aToken)), DEFAULT_MIN_INTERVAL_MS, aSpoolDir, aSendLatencyNanos);
     }
 
     public TelegramClient(ITelegramService aTelegram, long aMinIntervalMs, File aSpoolDir) {
-        this.telegram      = aTelegram;
-        this.minIntervalMs = aMinIntervalMs;
-        this.spool         = new PersistentSpool(aSpoolDir);
+        this(aTelegram, aMinIntervalMs, aSpoolDir, null);
+    }
+
+    public TelegramClient(ITelegramService aTelegram, long aMinIntervalMs, File aSpoolDir, LongConsumer aSendLatencyNanos) {
+        this.telegram         = aTelegram;
+        this.minIntervalMs    = aMinIntervalMs;
+        this.spool            = new PersistentSpool(aSpoolDir);
+        this.sendLatencyNanos = aSendLatencyNanos;
 
         Thread worker = new Thread(this::runWorker, "telegram-sender");
         worker.setDaemon(true);
@@ -184,7 +195,10 @@ public class TelegramClient {
         for (int attempt = 1; attempt <= Backoff.MAX_ATTEMPTS; attempt++) {
             awaitRateLimit();
             try {
-                return aCall.get();
+                long start = System.nanoTime();
+                T result = aCall.get();
+                recordLatency(start);
+                return result;
             } catch (RuntimeException e) {
                 last = e;
                 LOG.warn("Telegram call failed (attempt {}/{})", attempt, Backoff.MAX_ATTEMPTS, e);
@@ -206,6 +220,12 @@ public class TelegramClient {
             }
         }
         return Backoff.delayMs(aAttempt);
+    }
+
+    private void recordLatency(long aStartNanos) {
+        if (sendLatencyNanos != null) {
+            sendLatencyNanos.accept(System.nanoTime() - aStartNanos);
+        }
     }
 
     private void awaitRateLimit() {

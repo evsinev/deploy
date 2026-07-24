@@ -38,6 +38,7 @@ import java.io.File;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
 public class VertxServerApplication {
 
@@ -97,17 +98,21 @@ public class VertxServerApplication {
         CommandResponses          response          = new CommandResponses();
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
-        RemoteRedmine4_2_10ServiceImpl redmine      = new RemoteRedmine4_2_10ServiceImpl(redmineConfig);
+
+        // Prometheus metrics for both durable queues (scraped at /metrics); recorders must exist before the queues.
+        PrometheusMeterRegistry   metrics           = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        LongConsumer              telegramLatency   = QueueMetrics.sendLatencyRecorder(metrics, "telegram");
+        LongConsumer              redmineLatency    = QueueMetrics.sendLatencyRecorder(metrics, "redmine");
+
+        RemoteRedmine4_2_10ServiceImpl redmine      = new RemoteRedmine4_2_10ServiceImpl(redmineConfig, redmineLatency);
         IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         // Single Telegram client shared by both the live-status listener and the diff notifications,
         // so all traffic goes through one rate-limited queue (one limit per chat).
-        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken(), new File(redmineConfig.queueDir(), "telegram"));
+        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken(), new File(redmineConfig.queueDir(), "telegram"), telegramLatency);
         IRemoteTelegramService    diffTelegram      = new RemoteTelegramServiceImpl(telegramClient, redmineConfig);
         ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig, telegramClient);
 
-        // Prometheus metrics for both durable queues (scraped at /metrics)
-        PrometheusMeterRegistry   metrics           = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         QueueMetrics.register(metrics, "telegram", telegramClient.getSpool());
         QueueMetrics.register(metrics, "redmine", redmine.getSpool());
         new JvmMemoryMetrics().bindTo(metrics);

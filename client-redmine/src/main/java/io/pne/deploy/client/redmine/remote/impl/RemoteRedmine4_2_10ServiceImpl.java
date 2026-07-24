@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.LongConsumer;
 import java.util.stream.Collectors;
 
 import static com.payneteasy.http.client.api.HttpHeaders.singleHeader;
@@ -49,10 +50,16 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     });
 
     private final PersistentSpool spool;
+    private final LongConsumer    sendLatencyNanos; // nullable: records duration of a successful mutation call
 
     public RemoteRedmine4_2_10ServiceImpl(IRedmineRemoteConfig aConfig) {
+        this(aConfig, null);
+    }
+
+    public RemoteRedmine4_2_10ServiceImpl(IRedmineRemoteConfig aConfig, LongConsumer aSendLatencyNanos) {
         client = new HttpClientImpl();
         config = aConfig;
+        sendLatencyNanos = aSendLatencyNanos;
         gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
         spool = new PersistentSpool(new File(aConfig.queueDir(), "redmine"));
         // resend operations that survived a restart (were persisted but not confirmed sent)
@@ -192,7 +199,9 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
     private void runOp(String aFile, RedmineOp aOp) {
         for (int attempt = 1; attempt <= Backoff.MAX_ATTEMPTS; attempt++) {
             try {
+                long start = System.nanoTime();
                 execute(aOp);
+                recordLatency(start);
                 spool.remove(aFile);
                 return;
             } catch (Exception e) {
@@ -204,6 +213,12 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         }
         LOG.error("redmine {} for issue {} dead-lettered after {} attempts", aOp.kind, aOp.issueId, Backoff.MAX_ATTEMPTS);
         spool.deadLetter(aFile);
+    }
+
+    private void recordLatency(long aStartNanos) {
+        if (sendLatencyNanos != null) {
+            sendLatencyNanos.accept(System.nanoTime() - aStartNanos);
+        }
     }
 
     private static void sleep(long aMs) {

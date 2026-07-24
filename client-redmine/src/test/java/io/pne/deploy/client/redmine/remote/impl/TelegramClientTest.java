@@ -16,6 +16,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -59,6 +60,18 @@ public class TelegramClientTest {
 
         assertEquals(7L, client.sendMessage(1L, "hi", null));
         verify(service, times(2)).sendMessage(any());
+    }
+
+    @Test
+    public void recordsSendLatencyOnSuccess() throws Exception {
+        AtomicLong recorded = new AtomicLong(-1);
+        TelegramClient timed = new TelegramClient(service, 0L, tmp.newFolder("latency"), recorded::set);
+
+        TelegramMessage sent = message(1L);
+        when(service.sendMessage(any())).thenReturn(sent);
+
+        timed.sendMessage(1L, "hi", ParseMode.HTML);
+        assertTrue("latency should be recorded and positive", recorded.get() > 0);
     }
 
     @Test
