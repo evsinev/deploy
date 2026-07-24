@@ -26,6 +26,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
     private final Collection<Long>  issues;
     private final Handler<HttpServerRequest> statusHttpHandler;
     private final Handler<HttpServerRequest> metricsHttpHandler;
+    private final Handler<HttpServerRequest> dashboardHttpHandler;
 
     public HttpHandler(
             AgentConnections connections
@@ -35,6 +36,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             , Collection<Long> aIssues
             , Handler<HttpServerRequest> aStatusHandler
             , Handler<HttpServerRequest> aMetricsHandler
+            , Handler<HttpServerRequest> aDashboardHandler
     ) {
         this.connections = connections;
         this.deployService = deployService;
@@ -44,6 +46,7 @@ public class HttpHandler implements Handler<HttpServerRequest> {
         issues = aIssues;
         statusHttpHandler = aStatusHandler;
         metricsHttpHandler = aMetricsHandler;
+        dashboardHttpHandler = aDashboardHandler;
     }
 
     @Override
@@ -53,6 +56,11 @@ public class HttpHandler implements Handler<HttpServerRequest> {
 
         if(redmineConfig.redmineCallbackUrl().equals(aRequest.uri())) {
             redmineCallbackHttpHander.handle(aRequest);
+            return;
+        }
+
+        if(aRequest.path().startsWith("/deploy/dashboard")) {
+            dashboardHttpHandler.handle(aRequest);
             return;
         }
 

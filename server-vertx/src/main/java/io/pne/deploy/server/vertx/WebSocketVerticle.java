@@ -30,6 +30,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final Collection<Long>            issues;
     private final Handler<HttpServerRequest>           statusHttpHandler;
     private final Handler<HttpServerRequest>           metricsHttpHandler;
+    private final Handler<HttpServerRequest>           dashboardHttpHandler;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
@@ -43,6 +44,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , ITaskExecutionListener aListener
             , Handler<HttpServerRequest> aStatusHttpHandler
             , Handler<HttpServerRequest> aMetricsHttpHandler
+            , Handler<HttpServerRequest> aDashboardHttpHandler
     ) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
         port = aPort;
@@ -53,6 +55,7 @@ public class WebSocketVerticle extends AbstractVerticle {
         issues = aIssues;
         statusHttpHandler = aStatusHttpHandler;
         metricsHttpHandler = aMetricsHttpHandler;
+        dashboardHttpHandler = aDashboardHttpHandler;
     }
 
     @Override
@@ -94,7 +97,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 //                    aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, statusHttpHandler, metricsHttpHandler))
+                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler))
                 .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());
