@@ -120,7 +120,7 @@ public class VertxServerApplication {
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         // Single Telegram client shared by both the live-status listener and the diff notifications,
         // so all traffic goes through one rate-limited queue (one limit per chat).
-        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.getTelegramToken(), new File(redmineConfig.queueDir(), "telegram"), telegramLatency);
+        TelegramClient            telegramClient    = new TelegramClient(redmineConfig.telegramUrl(), redmineConfig.getTelegramToken(), new File(redmineConfig.queueDir(), "telegram"), telegramLatency);
         IRemoteTelegramService    diffTelegram      = new RemoteTelegramServiceImpl(telegramClient, redmineConfig);
         ITaskExecutionListener    taskListener      = createTaskListener(statusHttpHandler, redmineConfig, telegramClient);
 

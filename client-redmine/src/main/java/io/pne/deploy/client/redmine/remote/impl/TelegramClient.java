@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.payneteasy.telegram.bot.client.ITelegramService;
 import com.payneteasy.telegram.bot.client.TelegramCommandException;
+import com.payneteasy.telegram.bot.client.http.HttpClientTimeouts;
 import com.payneteasy.telegram.bot.client.http.TelegramHttpClientImpl;
 import com.payneteasy.telegram.bot.client.impl.TelegramServiceImpl;
 import com.payneteasy.telegram.bot.client.messages.EditMessageTextRequest;
@@ -52,6 +53,14 @@ public class TelegramClient {
 
     public TelegramClient(String aToken, File aSpoolDir, LongConsumer aSendLatencyNanos) {
         this(new TelegramServiceImpl(new TelegramHttpClientImpl(aToken)), DEFAULT_MIN_INTERVAL_MS, aSpoolDir, aSendLatencyNanos);
+    }
+
+    /** Same as above but with a configurable Telegram API base URL (e.g. a proxy or a mock server). */
+    public TelegramClient(String aBaseUrl, String aToken, File aSpoolDir, LongConsumer aSendLatencyNanos) {
+        this(new TelegramServiceImpl(new TelegramHttpClientImpl(
+                        aBaseUrl, aToken, new HttpClientTimeouts(30_000, 30_000, 30_000),
+                        new GsonBuilder().setPrettyPrinting().create())),
+                DEFAULT_MIN_INTERVAL_MS, aSpoolDir, aSendLatencyNanos);
     }
 
     public TelegramClient(ITelegramService aTelegram, long aMinIntervalMs, File aSpoolDir) {
