@@ -209,3 +209,21 @@ plus standard JVM (memory/GC/threads) and process metrics.
 
 GitHub Actions (`.github/workflows/ci.yml`) builds and tests on Temurin JDK 21 with
 `mvn -B -ntp verify`, on pushes to `master` and on all pull requests.
+
+## Releases
+
+Pushing a git **tag** triggers `.github/workflows/release.yml`: it builds the fat jars on JDK 21 and
+publishes a GitHub Release for the tag with the two runnable artifacts attached —
+`deploy-server-<tag>.jar` and `deploy-agent-<tag>.jar`.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Then download and run, e.g.:
+
+```bash
+java -jar deploy-server-v1.0.0.jar   # env config as in "Running the server"
+java -jar deploy-agent-v1.0.0.jar    # SERVER_BASE_URL + AGENT_ID
+```
