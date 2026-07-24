@@ -62,10 +62,27 @@
             padding: 6px 14px; border: 0; border-radius: 8px; cursor: pointer;
             background: var(--accent); color: #fff; font-weight: 600;
         }
+
+        /* SSE connection warning banner */
+        .banner {
+            margin: 0 0 16px; padding: 10px 14px; border-radius: 8px; font-weight: 600;
+            color: var(--warn);
+            background: color-mix(in srgb, var(--warn) 15%, transparent);
+            border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+        }
+        .banner[hidden] { display: none; }
+
+        /* agent logs */
+        .logbox { max-height: 220px; overflow-y: auto; }
+        .logline {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+            white-space: pre-wrap; word-break: break-word; padding: 1px 0;
+        }
     </style>
 </head>
 <body hx-ext="sse" sse-connect="{{BASE}}/events">
     <h1>Deploy server</h1>
+    <div id="sse-status" class="banner" hidden>&#9888; Not connected to backend (SSE) &mdash; retrying&hellip;</div>
     <p class="sub">Live status &middot; updates automatically over SSE</p>
     <div class="grid">
         <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
@@ -81,6 +98,18 @@
         </section>
         <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
         <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
+        <section class="card"><h2>Agent logs</h2>       <div sse-swap="logs"><span class="muted">connecting&hellip;</span></div></section>
     </div>
+    <script>
+        (function () {
+            var banner = document.getElementById('sse-status');
+            var body   = document.body;
+            function show() { banner.hidden = false; }
+            function hide() { banner.hidden = true; }
+            body.addEventListener('htmx:sseOpen', hide);
+            body.addEventListener('htmx:sseError', show);
+            body.addEventListener('htmx:sseClose', show);
+        })();
+    </script>
 </body>
 </html>

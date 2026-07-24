@@ -122,6 +122,26 @@ public class DashboardViewTest {
     }
 
     @Test
+    public void logsRenderMessagesNewestFirstAndEscape() {
+        AgentLogBuffer buffer = new AgentLogBuffer(10);
+        buffer.add("cmd-123456789", "first line");
+        buffer.add("cmd-123456789", "<script>bad</script>");
+
+        String html = DashboardView.logs(buffer.snapshot(10));
+        assertTrue(html, html.contains("first line"));
+        assertTrue(html, html.contains("&lt;script&gt;bad&lt;/script&gt;"));
+        assertFalse(html, html.contains("<script>bad"));
+        assertTrue(html, html.contains("logbox"));
+        // newest first: the escaped script line (added last) appears before "first line"
+        assertTrue(html.indexOf("bad") < html.indexOf("first line"));
+    }
+
+    @Test
+    public void logsEmptyShowsPlaceholder() {
+        assertTrue(DashboardView.logs(new java.util.ArrayList<>()).contains("no logs yet"));
+    }
+
+    @Test
     public void escEscapesMarkup() {
         assertEquals("&lt;x&gt;", DashboardView.esc("<x>"));
         assertEquals("a &amp; b", DashboardView.esc("a & b"));

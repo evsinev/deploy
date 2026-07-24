@@ -25,6 +25,11 @@ public class FullEnvironmentTest {
                     env.gitlab().await(r -> "GET".equals(r.method) && r.path.contains("/repository/compare"), 25_000));
             assertTrue("Telegram sendMessage should be delivered",
                     env.telegram().await(r -> "POST".equals(r.method) && r.path.contains("/sendMessage"), 25_000));
+
+            // The dashboard streams the agents' command output (echo) as an SSE 'logs' card.
+            String frames = env.readDashboardEvents("deployed", 10_000);
+            assertTrue("dashboard should stream an 'logs' event, got: " + frames, frames.contains("event: logs"));
+            assertTrue("agent echo output should appear in the logs card, got: " + frames, frames.contains("deployed"));
         }
     }
 }

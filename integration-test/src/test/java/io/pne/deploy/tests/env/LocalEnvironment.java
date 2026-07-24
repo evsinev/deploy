@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -230,6 +232,34 @@ public class LocalEnvironment implements AutoCloseable {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         LOG.info("triggerIssue({}) -> {} {}", aIssueId, response.statusCode(), response.body().trim());
+    }
+
+    /** Opens the dashboard SSE stream and returns the frames read until {@code until} appears or timeout. */
+    public String readDashboardEvents(String aUntil, long aTimeoutMs) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpResponse<InputStream> response = client.send(
+                HttpRequest.newBuilder(URI.create(baseUrl() + "/deploy/dashboard/events")).GET().build(),
+                HttpResponse.BodyHandlers.ofInputStream());
+        InputStream in = response.body();
+        ExecutorService reader = Executors.newSingleThreadExecutor();
+        Future<String> future = reader.submit(() -> {
+            StringBuilder sb = new StringBuilder();
+            byte[] buf = new byte[1024];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                sb.append(new String(buf, 0, n, StandardCharsets.UTF_8));
+                if (sb.indexOf(aUntil) >= 0) {
+                    return sb.toString();
+                }
+            }
+            return sb.toString();
+        });
+        try {
+            return future.get(aTimeoutMs, TimeUnit.MILLISECONDS);
+        } finally {
+            in.close();
+            reader.shutdownNow();
+        }
     }
 
     public String baseUrl() {

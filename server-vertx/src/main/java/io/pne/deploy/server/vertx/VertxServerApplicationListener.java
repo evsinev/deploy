@@ -1,9 +1,11 @@
 package io.pne.deploy.server.vertx;
 
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
+import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
 import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
 import io.pne.deploy.server.IServerApplicationListener;
+import io.pne.deploy.server.vertx.dashboard.AgentLogBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,10 +19,12 @@ public class VertxServerApplicationListener implements IServerApplicationListene
     private final    IRedmineIssuesProcessService redmineIssuesProcessService;
     private volatile Thread                       thread;
     private final   ArrayBlockingQueue<Long>      pendingIssues;
+    private final   AgentLogBuffer                agentLogBuffer;
 
-    public VertxServerApplicationListener(IRedmineIssuesProcessService aRedmineProcessService, ArrayBlockingQueue<Long> aIssues) {
+    public VertxServerApplicationListener(IRedmineIssuesProcessService aRedmineProcessService, ArrayBlockingQueue<Long> aIssues, AgentLogBuffer aAgentLogBuffer) {
         redmineIssuesProcessService = aRedmineProcessService;
         pendingIssues = aIssues;
+        agentLogBuffer = aAgentLogBuffer;
     }
 
     @Override
@@ -69,7 +73,10 @@ public class VertxServerApplicationListener implements IServerApplicationListene
 
     @Override
     public <T extends IAgentClientMessage> void didReceiveMessage(T aMessage) {
-
+        // Capture agent command output for the dashboard; connect/disconnect are socket events, not messages.
+        if (agentLogBuffer != null && aMessage instanceof RunAgentCommandLog log) {
+            agentLogBuffer.add(log.commandId, log.message);
+        }
     }
 
     @Override
