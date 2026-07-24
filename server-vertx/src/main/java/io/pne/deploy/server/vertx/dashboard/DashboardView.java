@@ -4,7 +4,11 @@ import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.vertx.status.model.TaskState;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,6 +20,8 @@ public final class DashboardView {
 
     private DashboardView() {
     }
+
+    private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /** Connected agent ids. */
     public static String agents(Set<String> aAgents) {
@@ -120,6 +126,31 @@ public final class DashboardView {
             sb.append("</div></div>");
         }
         return sb.toString();
+    }
+
+    /** Recent agent command-output log lines (newest first). Connect/disconnect are not shown. */
+    public static String logs(List<AgentLogBuffer.LogLine> aLines) {
+        if (aLines.isEmpty()) {
+            return "<p class=\"muted\">no logs yet</p>";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"logbox\">");
+        for (AgentLogBuffer.LogLine line : aLines) {
+            String time = LOG_TIME.format(Instant.ofEpochMilli(line.epochMs()).atZone(ZoneId.systemDefault()));
+            sb.append("<div class=\"logline\"><span class=\"muted\">").append(time).append("</span> ")
+              .append("<code>#").append(esc(shortId(line.commandId()))).append("</code> ")
+              .append(esc(line.message()))
+              .append("</div>");
+        }
+        sb.append("</div>");
+        return sb.toString();
+    }
+
+    private static String shortId(String aCommandId) {
+        if (aCommandId == null) {
+            return "?";
+        }
+        return aCommandId.length() > 8 ? aCommandId.substring(0, 8) : aCommandId;
     }
 
     /** One horizontal bar: label, a filled track (fraction clamped to [0,1]) and a value caption. */

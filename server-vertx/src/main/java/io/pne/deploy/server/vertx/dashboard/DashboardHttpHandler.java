@@ -48,6 +48,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final Map<String, PersistentSpool> queues;
     private final Supplier<TaskStatus>         taskStatusSupplier;
     private final MeterRegistry                registry; // nullable: no latency card without it
+    private final AgentLogBuffer               logBuffer;
     private final long                         refreshMs;
 
     private final String basePath;
@@ -67,6 +68,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             , Map<String, PersistentSpool> aQueues
             , Supplier<TaskStatus> aTaskStatusSupplier
             , MeterRegistry aRegistry
+            , AgentLogBuffer aLogBuffer
             , String aBasePath
             , long aRefreshMs
     ) {
@@ -76,6 +78,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.queues             = aQueues;
         this.taskStatusSupplier = aTaskStatusSupplier;
         this.registry           = aRegistry;
+        this.logBuffer          = aLogBuffer;
         this.refreshMs          = aRefreshMs;
 
         this.basePath   = normalize(aBasePath);
@@ -177,6 +180,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             writeEvent(aResponse, "issues", DashboardView.issues(issueSnapshot));
             writeEvent(aResponse, "queues", DashboardView.queues(queues));
             writeEvent(aResponse, "latency", DashboardView.latency(latencySnapshot()));
+            writeEvent(aResponse, "logs", DashboardView.logs(logBuffer.snapshot(50)));
             return true;
         } catch (RuntimeException e) {
             LOG.debug("SSE client gone, stopping stream: {}", e.toString());

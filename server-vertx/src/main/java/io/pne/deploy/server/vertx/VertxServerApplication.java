@@ -28,6 +28,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.pne.deploy.server.vertx.dashboard.AgentLogBuffer;
 import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.pne.deploy.server.vertx.dashboard.IDashboardConfig;
 import io.pne.deploy.server.vertx.metrics.MetricsHttpHandler;
@@ -96,7 +97,7 @@ public class VertxServerApplication {
         IDashboardConfig     dashboardConfig      = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
-                null, dashboardConfig.path(), dashboardConfig.refreshMs());
+                null, new AgentLogBuffer(200), dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
@@ -134,8 +135,11 @@ public class VertxServerApplication {
 
         deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), config.getAliasesDir(), taskListener);
 
+        // Ring buffer of recent agent command-output logs, written by the server listener and read by the dashboard.
+        AgentLogBuffer agentLogBuffer = new AgentLogBuffer(200);
+
         RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram);
-        VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues);
+        VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues, agentLogBuffer);
 
         this.vertx          = Vertx.vertx();
 
@@ -146,7 +150,7 @@ public class VertxServerApplication {
         IDashboardConfig dashboardConfig = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
-                metrics, dashboardConfig.path(), dashboardConfig.refreshMs());
+                metrics, agentLogBuffer, dashboardConfig.path(), dashboardConfig.refreshMs());
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
