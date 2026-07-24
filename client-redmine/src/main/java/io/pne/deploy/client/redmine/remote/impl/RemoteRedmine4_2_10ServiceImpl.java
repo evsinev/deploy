@@ -180,6 +180,10 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         enqueue(new RedmineOp(RedmineOp.COMMENT, aIssueId, null, aMessage));
     }
 
+    public PersistentSpool getSpool() {
+        return spool;
+    }
+
     private void enqueue(RedmineOp aOp) {
         String file = spool.append(gson.toJson(aOp));
         writer.submit(() -> runOp(file, aOp));

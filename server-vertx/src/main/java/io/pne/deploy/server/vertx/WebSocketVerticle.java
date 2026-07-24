@@ -29,6 +29,7 @@ public class WebSocketVerticle extends AbstractVerticle {
     private final IRedmineRemoteConfig        redmineConfig;
     private final Collection<Long>            issues;
     private final Handler<HttpServerRequest>           statusHttpHandler;
+    private final Handler<HttpServerRequest>           metricsHttpHandler;
 
     public WebSocketVerticle(int aPort
             , IServerApplicationListener aServerListener
@@ -41,6 +42,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , Collection<Long>  aIssues
             , ITaskExecutionListener aListener
             , Handler<HttpServerRequest> aStatusHttpHandler
+            , Handler<HttpServerRequest> aMetricsHttpHandler
     ) {
         this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
         port = aPort;
@@ -50,6 +52,7 @@ public class WebSocketVerticle extends AbstractVerticle {
         redmineConfig = aRedmineConfig;
         issues = aIssues;
         statusHttpHandler = aStatusHttpHandler;
+        metricsHttpHandler = aMetricsHttpHandler;
     }
 
     @Override
@@ -91,7 +94,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 //                    aSocket.writeBinaryMessage(buffer);
 
                 })
-                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, statusHttpHandler))
+                .requestHandler(new HttpHandler(connections, deployService, commandExecutor, redmineConfig, issues, statusHttpHandler, metricsHttpHandler))
                 .listen(port, "127.0.0.1", event -> {
                     if(event.failed()) {
                         aStartFuture.fail(event.cause());

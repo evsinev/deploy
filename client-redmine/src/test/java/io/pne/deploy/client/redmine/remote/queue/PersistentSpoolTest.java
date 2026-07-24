@@ -54,6 +54,23 @@ public class PersistentSpoolTest {
     }
 
     @Test
+    public void tracksSizeSentAndDeadLetterCounts() {
+        PersistentSpool spool = new PersistentSpool(tmp.getRoot());
+        String first  = spool.append("{\"x\":1}");
+        String second = spool.append("{\"x\":2}");
+        assertEquals(2, spool.size());
+
+        spool.remove(first);
+        assertEquals(1, spool.size());
+        assertEquals(1, spool.sentCount());
+
+        spool.deadLetter(second);
+        assertEquals(0, spool.size());
+        assertEquals(1, spool.deadSize());
+        assertEquals(1, spool.deadLetterCount());
+    }
+
+    @Test
     public void reopenSeesPendingAndContinuesSequence() {
         PersistentSpool first = new PersistentSpool(tmp.getRoot());
         first.append("{\"a\":1}");

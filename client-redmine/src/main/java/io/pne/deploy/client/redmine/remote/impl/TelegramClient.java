@@ -94,6 +94,10 @@ public class TelegramClient {
         }
     }
 
+    public PersistentSpool getSpool() {
+        return spool;
+    }
+
     private void runSend(String aFile, TelegramOp aOp, CompletableFuture<Long> aFuture) {
         try {
             long id = callWithRetry(() -> telegram.sendMessage(TelegramMessageRequest.builder()
