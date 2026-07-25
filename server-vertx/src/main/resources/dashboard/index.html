@@ -19,6 +19,7 @@
             --hover-border:color-mix(in srgb, var(--border) 78%, var(--fg));
             --label:       color-mix(in srgb, var(--muted) 78%, var(--bg));
             --argnum:      color-mix(in srgb, var(--muted) 58%, var(--bg));
+            --row-border:  color-mix(in srgb, var(--border) 60%, var(--bg));
         }
         /* dark palette — applied on explicit toggle (data-theme=dark) or by OS unless the user forced light */
         :root[data-theme="dark"] {
@@ -39,62 +40,20 @@
             font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             min-height: 100vh; display: flex; flex-direction: column;
         }
-        h1 { font-size: 20px; margin: 0 0 4px; }
-        .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
-        .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); flex: 0 0 auto; }
+        h1 { font-size: 20px; margin: 0 0 12px; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-        .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
-        .tablewrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        .card table { font-size: 12px; }
-        th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-        th { color: var(--muted); font-weight: 600; }
-        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-        ul { margin: 0; padding-left: 18px; }
+        .card.flush { padding: 0; overflow: hidden; }
         .muted { color: var(--muted); }
-        .kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
-        .kv b { font-weight: 600; }
         .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
         .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
         code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .cmd-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--label); font-weight: 700; }
 
-        /* horizontal bars (queue depth, latency percentiles) */
-        .bars { margin-top: 8px; }
-        .lat + .lat { margin-top: 12px; }
-        .barrow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-        .barlabel { flex: 0 0 44px; color: var(--muted); font-size: 12px; }
-        .bartrack { flex: 1 1 auto; height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; }
-        .barfill { display: block; height: 100%; background: var(--fill); border-radius: 999px; }
-        .barval { flex: 0 0 auto; min-width: 56px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
-
-        /* add-issue form */
-        .issue-form { display: flex; gap: 8px; margin-bottom: 12px; }
-        .issue-form input {
-            flex: 1 1 auto; min-width: 0; padding: 6px 8px; border-radius: 8px;
-            border: 1px solid var(--border); background: var(--bg); color: var(--fg);
-        }
-        .issue-form button {
-            padding: 6px 14px; border: 0; border-radius: 8px; cursor: pointer;
-            background: var(--accent); color: #fff; font-weight: 600;
-        }
-
-        /* SSE connection warning banner */
-        .banner {
-            margin: 0 0 16px; padding: 10px 14px; border-radius: 8px; font-weight: 600;
-            color: var(--warn);
-            background: color-mix(in srgb, var(--warn) 15%, transparent);
-            border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
-        }
-        .banner[hidden] { display: none; }
-
-        /* agent logs — full-width panel that fills the remaining height */
-        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 16px; min-height: 160px; }
-        .logs-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-        .logbox { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-        .logline {
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
-            white-space: pre-wrap; word-break: break-word; padding: 1px 0;
-        }
+        /* card header bar (Delivery, Agent logs) */
+        .card-head { padding: 12px 16px; background: var(--card-head); border-bottom: 1px solid var(--border);
+                     display: flex; align-items: center; gap: 12px;
+                     font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--label); font-weight: 700; }
+        .card-inline-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 
         /* top menu + screens */
         .tabs { display: flex; gap: 8px; margin: 0 0 16px; flex: 0 0 auto; }
@@ -106,11 +65,156 @@
         .screen[hidden] { display: none; }
         #screen-config, #screen-aliases { overflow-y: auto; }
 
-        /* config screen */
-        .cfg-group { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 8px; }
-        .cfg-group:first-child { margin-top: 0; }
+        /* SSE connection warning banner */
+        .banner {
+            margin: 0 0 16px; padding: 10px 14px; border-radius: 8px; font-weight: 600;
+            color: var(--warn);
+            background: color-mix(in srgb, var(--warn) 15%, transparent);
+            border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+        }
+        .banner[hidden] { display: none; }
 
-        /* aliases screen */
+        /* ---- Live: header status line ---- */
+        .statusbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 16px; flex: 0 0 auto; }
+        .sse-ind { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--ok); }
+        .sse-ind.warn { color: var(--warn); }
+        .sse-ind .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+        .vitals { margin-left: auto; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+                  font-size: 12px; color: var(--muted); }
+        .vitals .vital b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+        /* ---- Live: top row (current task | issues) ---- */
+        .live-top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px;
+                    align-items: start; margin: 0 0 16px; flex: 0 0 auto; }
+        @media (max-width: 900px) { .live-top { grid-template-columns: 1fr; } }
+
+        .task-card { display: flex; flex-direction: column; gap: 14px; }
+        .task-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+                 padding: 2px 9px; border-radius: 999px; color: var(--muted); background: var(--track); }
+        .badge.ok   { color: var(--ok);   background: color-mix(in srgb, var(--ok) 16%, transparent);   border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
+        .badge.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+        .badge.bad  { color: var(--bad);  background: color-mix(in srgb, var(--bad) 16%, transparent);  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent); }
+        .task-name { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+        .task-name code { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+        .task-meta { display: flex; gap: 24px; flex-wrap: wrap; }
+        .meta-col { display: flex; flex-direction: column; gap: 2px; }
+        .meta-val { font-size: 12px; color: var(--fg); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        a.issue-link { color: var(--accent); text-decoration: none; }
+        a.issue-link:hover { text-decoration: underline; }
+        .task-err { margin: 0; color: var(--bad); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+        .task-agents { border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .agents-head { display: flex; align-items: center; gap: 10px; }
+        .agents-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+                        background: var(--track); padding: 1px 7px; border-radius: 999px; }
+        .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 1px 9px;
+                border-radius: 999px; background: var(--track); border: 1px solid var(--chip-border); color: var(--fg); }
+
+        /* issues card */
+        .issue-form { display: flex; gap: 8px; margin-bottom: 12px; }
+        .issue-form input {
+            flex: 1 1 auto; min-width: 0; padding: 7px 10px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; outline: none;
+        }
+        .issue-form input:focus { border-color: var(--accent); }
+        .issue-form button {
+            padding: 7px 16px; border: 0; border-radius: 8px; cursor: pointer;
+            background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 700;
+        }
+        .issues-count { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+        .issues-count b { color: var(--fg); font-variant-numeric: tabular-nums; }
+        .issues-empty { border: 1px dashed var(--border); border-radius: 8px; padding: 18px; text-align: center;
+                        color: var(--label); font-size: 12px; }
+        .issues-list { display: flex; flex-direction: column; }
+        .issue-row { padding: 6px 0; border-bottom: 1px solid var(--row-border);
+                     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+        .issue-row:last-child { border-bottom: 0; }
+
+        /* ---- Live: Delivery table ---- */
+        .delivery-wrap { overflow-x: auto; }
+        table.delivery { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table.delivery th, table.delivery td {
+            text-align: right; padding: 9px 12px; white-space: nowrap;
+            font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--row-border);
+        }
+        table.delivery th { color: var(--label); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+        table.delivery td { color: var(--fg); }
+        table.delivery th.l, table.delivery td.l { text-align: left; }
+        table.delivery td.l { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        table.delivery th:first-child, table.delivery td:first-child { padding-left: 16px; }
+        table.delivery th:last-child, table.delivery td:last-child { padding-right: 16px; }
+        table.delivery th.n, table.delivery td.n { color: var(--muted); }
+        table.delivery td.warn { color: var(--warn); }
+        table.delivery td.bad  { color: var(--bad); }
+        table.delivery tbody tr:last-child td { border-bottom: 0; }
+
+        /* ---- Live: Agent logs ---- */
+        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 340px; margin-top: 16px; }
+        .logs-head { text-transform: uppercase; }
+        .streaming { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+                     color: var(--ok); text-transform: none; letter-spacing: 0; }
+        .streaming .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+        .logs-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 0; }
+        .logbox { display: flex; flex-direction: column; }
+        .logline { display: flex; gap: 12px; padding: 1px 16px;
+                   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.7; }
+        .logline:hover { background: var(--card-head); }
+        .log-time { flex: 0 0 auto; color: var(--argnum); font-variant-numeric: tabular-nums; }
+        .log-id { flex: 0 0 auto; color: var(--muted); }
+        .log-msg { min-width: 0; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+
+        /* ---- Config screen ---- */
+        .cfg-root { display: flex; flex-direction: column; gap: 16px; }
+        .cfg-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .cfg-filter { box-sizing: border-box; width: 280px; max-width: 100%; padding: 7px 10px; border-radius: 8px;
+                      border: 1px solid var(--border); background: var(--card); color: var(--fg); font: inherit; font-size: 13px; outline: none; }
+        .cfg-filter:focus { border-color: var(--accent); }
+        .cfg-toggle { padding: 7px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+                      color: var(--muted); background: transparent; border: 1px solid var(--border); }
+        .cfg-toggle.active { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent);
+                             border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+        .cfg-summary { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .cfg-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .cfg-card[hidden] { display: none; }
+        .cfg-card-head { padding: 10px 16px; background: var(--card-head); border-bottom: 1px solid var(--border);
+                         display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .cfg-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+        .cfg-count { font-size: 11px; color: var(--label); font-variant-numeric: tabular-nums; }
+        .cfg-ovr { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--warn);
+                   background: color-mix(in srgb, var(--warn) 16%, transparent);
+                   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); padding: 1px 7px; border-radius: 999px; }
+        .cfg-grid { display: flex; flex-direction: column; }
+        .cfg-row { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) minmax(0, 0.8fr);
+                   column-gap: 20px; align-items: baseline; padding: 8px 16px; border-bottom: 1px solid var(--row-border);
+                   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+        .cfg-row:last-child { border-bottom: 0; }
+        .cfg-row[hidden] { display: none; }
+        .cfg-th { color: var(--label); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+                  font-family: inherit; }
+        .cfg-var { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+        .cfg-dot { flex: 0 0 auto; width: 5px; height: 5px; border-radius: 999px; background: transparent; }
+        .cfg-dot.on { background: var(--warn); }
+        .cfg-name { color: var(--fg); overflow-wrap: anywhere; }
+        .cfg-value { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+        .cfg-value > span:first-child { overflow-wrap: anywhere; min-width: 0; }
+        .cfg-def { color: var(--argnum); overflow-wrap: anywhere; }
+        .v-num { color: var(--accent); }
+        .v-bool { color: var(--ok); }
+        .v-path { color: var(--muted); }
+        .v-str { color: var(--fg); }
+        .v-secret { color: var(--muted); }
+        .cfg-set { flex: 0 0 auto; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+                   color: var(--muted); background: var(--track); border: 1px solid var(--chip-border); padding: 0 7px; border-radius: 999px; }
+        .cfg-empty { border: 1px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center;
+                     color: var(--label); font-size: 12px; }
+        .cfg-empty[hidden] { display: none; }
+        @media (max-width: 720px) {
+            .cfg-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            .cfg-row > *:nth-child(3) { grid-column: 1 / -1; padding-top: 2px; }
+        }
+
+        /* ---- Aliases screen ---- */
         .aliases-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
         .aliases-list-pane { min-width: 0; }
         @media (max-width: 720px) { .aliases-layout { grid-template-columns: 1fr; } }
@@ -150,10 +254,6 @@
                     background: var(--card-head); flex-wrap: wrap; }
         .cmd-num { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 6px; background: var(--border); color: var(--muted);
                    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
-        .cmd-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--label); font-weight: 700; }
-        .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-        .chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 1px 9px; border-radius: 999px;
-                background: var(--track); border: 1px solid var(--chip-border); color: var(--fg); }
         .cmd-body { padding: 12px; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 12px; align-items: start; }
         .cmd-body .cmd-label { padding-top: 5px; }
         .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--fg);
@@ -181,30 +281,39 @@
     </nav>
 
     <section id="screen-live" class="screen">
-        <p class="sub">Live status &middot; updates automatically over SSE</p>
-        <div class="grid">
-            <section class="card"><h2>Service</h2>          <div sse-swap="service"><span class="muted">connecting&hellip;</span></div></section>
-            <section class="card"><h2>Connected agents</h2> <div sse-swap="agents"><span class="muted">connecting&hellip;</span></div></section>
-            <section class="card"><h2>Current task</h2>     <div sse-swap="status"><span class="muted">connecting&hellip;</span></div></section>
-            <section class="card">
-                <h2>Issues queue</h2>
+        <div class="statusbar">
+            <span id="sse-indicator" class="sse-ind"><span class="dot"></span><span class="sse-txt">live</span></span>
+            <div class="vitals" sse-swap="service"><span class="muted">connecting&hellip;</span></div>
+        </div>
+
+        <div class="live-top">
+            <section class="card task-card">
+                <div class="task-main" sse-swap="status"><span class="muted">connecting&hellip;</span></div>
+                <div class="task-agents" sse-swap="agents"><span class="muted">connecting&hellip;</span></div>
+            </section>
+            <section class="card issues-card">
+                <div class="card-inline-head"><span class="cmd-label">issues queue</span></div>
                 <form class="issue-form" hx-post="{{BASE}}/issue" hx-target="#issues-list" hx-swap="innerHTML">
                     <input type="number" name="issue_id" min="1" placeholder="issue id" required>
                     <button type="submit">Add</button>
                 </form>
                 <div id="issues-list" sse-swap="issues"><span class="muted">connecting&hellip;</span></div>
             </section>
-            <section class="card"><h2>Delivery queues</h2>  <div sse-swap="queues"><span class="muted">connecting&hellip;</span></div></section>
-            <section class="card"><h2>Send latency</h2>     <div sse-swap="latency"><span class="muted">connecting&hellip;</span></div></section>
         </div>
-        <section class="card logs-card">
-            <h2>Agent logs</h2>
-            <div class="logs-body" sse-swap="logs"><span class="muted">connecting&hellip;</span></div>
+
+        <section class="card flush delivery-card">
+            <div class="card-head">Delivery</div>
+            <div class="delivery-body" sse-swap="delivery"><span class="muted" style="display:block; padding:12px 16px">connecting&hellip;</span></div>
+        </section>
+
+        <section class="card flush logs-card">
+            <div class="card-head logs-head"><span>Agent logs</span><span class="streaming"><span class="dot"></span>streaming</span></div>
+            <div class="logs-body" sse-swap="logs"><span class="muted" style="display:block; padding:12px 16px">connecting&hellip;</span></div>
         </section>
     </section>
 
     <section id="screen-config" class="screen" hidden>
-        <div hx-get="{{BASE}}/config" hx-trigger="load"><span class="muted">loading&hellip;</span></div>
+        <div class="cfg-root" hx-get="{{BASE}}/config" hx-trigger="load"><span class="muted">loading&hellip;</span></div>
     </section>
 
     <section id="screen-aliases" class="screen" hidden>
@@ -241,12 +350,19 @@
 
         (function () {
             var banner = document.getElementById('sse-status');
+            var ind    = document.getElementById('sse-indicator');
             var body   = document.body;
-            function show() { banner.hidden = false; }
-            function hide() { banner.hidden = true; }
-            body.addEventListener('htmx:sseOpen', hide);
-            body.addEventListener('htmx:sseError', show);
-            body.addEventListener('htmx:sseClose', show);
+            function setConnected(connected) {
+                banner.hidden = connected;
+                if (ind) {
+                    ind.classList.toggle('warn', !connected);
+                    var txt = ind.querySelector('.sse-txt');
+                    if (txt) { txt.textContent = connected ? 'live' : 'reconnecting'; }
+                }
+            }
+            body.addEventListener('htmx:sseOpen',  function () { setConnected(true); });
+            body.addEventListener('htmx:sseError', function () { setConnected(false); });
+            body.addEventListener('htmx:sseClose', function () { setConnected(false); });
         })();
 
         (function () {
@@ -254,6 +370,7 @@
             var screens = { live: 'screen-live', config: 'screen-config', aliases: 'screen-aliases' };
             tabs.forEach(function (tab) {
                 tab.addEventListener('click', function () {
+                    if (!tab.getAttribute('data-screen')) { return; }
                     tabs.forEach(function (t) { t.classList.remove('active'); });
                     tab.classList.add('active');
                     var want = tab.getAttribute('data-screen');
@@ -289,6 +406,44 @@
                 if (!btn) { return; }
                 scr.querySelectorAll('.alias-item.active').forEach(function (a) { a.classList.remove('active'); });
                 btn.classList.add('active');
+            });
+        })();
+
+        (function () {
+            var scr = document.getElementById('screen-config');
+            if (!scr) { return; }
+            function apply() {
+                var input  = scr.querySelector('.cfg-filter');
+                var toggle = scr.querySelector('.cfg-toggle');
+                var q      = input ? input.value.trim().toLowerCase() : '';
+                var only   = toggle ? toggle.classList.contains('active') : false;
+                var anyVisible = false;
+                scr.querySelectorAll('.cfg-card').forEach(function (card) {
+                    var shown = 0;
+                    card.querySelectorAll('.cfg-row[data-var]').forEach(function (row) {
+                        var name  = row.getAttribute('data-var') || '';
+                        var val   = row.getAttribute('data-value') || '';
+                        var ovr   = row.getAttribute('data-overridden') === 'true';
+                        var match = (!only || ovr) && (!q || name.indexOf(q) >= 0 || val.indexOf(q) >= 0);
+                        row.hidden = !match;
+                        if (match) { shown++; }
+                    });
+                    var count = card.querySelector('.cfg-count');
+                    if (count) { count.textContent = shown + ' of ' + (count.getAttribute('data-total') || shown); }
+                    card.hidden = (shown === 0);
+                    if (shown > 0) { anyVisible = true; }
+                });
+                var empty = scr.querySelector('.cfg-empty');
+                if (empty) { empty.hidden = anyVisible; }
+            }
+            scr.addEventListener('input', function (e) {
+                if (e.target.classList && e.target.classList.contains('cfg-filter')) { apply(); }
+            });
+            scr.addEventListener('click', function (e) {
+                var t = e.target.closest ? e.target.closest('.cfg-toggle') : null;
+                if (!t) { return; }
+                t.classList.toggle('active');
+                apply();
             });
         })();
     </script>
