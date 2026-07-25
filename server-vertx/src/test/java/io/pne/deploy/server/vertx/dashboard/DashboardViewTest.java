@@ -37,6 +37,17 @@ public class DashboardViewTest {
     }
 
     @Test
+    public void agentsAreSortedAlphabetically() {
+        String html = DashboardView.agents(new LinkedHashSet<>(List.of("dvpn-2", "ipro-1", "dpub-1")));
+        int dpub = html.indexOf("dpub-1");
+        int dvpn = html.indexOf("dvpn-2");
+        int ipro = html.indexOf("ipro-1");
+        assertTrue(dpub >= 0 && dvpn >= 0 && ipro >= 0);
+        assertTrue("dpub-1 before dvpn-2", dpub < dvpn);
+        assertTrue("dvpn-2 before ipro-1", dvpn < ipro);
+    }
+
+    @Test
     public void agentsEmptyShowsPlaceholder() {
         String html = DashboardView.agents(emptySet());
         assertTrue(html, html.contains("no agents connected"));

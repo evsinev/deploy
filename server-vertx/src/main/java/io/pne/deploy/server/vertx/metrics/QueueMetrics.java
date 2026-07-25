@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongConsumer;
 
@@ -46,6 +47,10 @@ public final class QueueMetrics {
                 .description("Latency of a successful send/edit call to the external service")
                 .publishPercentileHistogram()
                 .publishPercentiles(0.5, 0.95, 0.99)
+                // Sends are infrequent; keep max/percentiles all-time instead of decaying to 0 after the
+                // default 2-minute window (mean/count are cumulative anyway).
+                .distributionStatisticExpiry(Duration.ofDays(3650))
+                .distributionStatisticBufferLength(1)
                 .tag("queue", aQueue)
                 .register(aRegistry);
         return nanos -> timer.record(nanos, TimeUnit.NANOSECONDS);
