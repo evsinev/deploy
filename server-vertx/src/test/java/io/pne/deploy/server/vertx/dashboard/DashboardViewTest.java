@@ -168,15 +168,23 @@ public class DashboardViewTest {
     }
 
     @Test
-    public void aliasListRendersButtonsWithHxGet() {
-        String html = DashboardView.aliasList(List.of("deploy-demo"), "/deploy/dashboard");
+    public void aliasSidebarRendersItemsWithHxGetAndCount() {
+        String html = DashboardView.aliasSidebar(List.of(new DashboardView.AliasInfo("deploy-demo", 2)), "/deploy/dashboard");
         assertTrue(html, html.contains("deploy-demo"));
-        assertTrue(html, html.contains("hx-get=\"/deploy/dashboard/aliases/deploy-demo\""));
+        assertTrue(html, html.contains("2 commands"));
+        assertTrue(html, html.contains("hx-get=\"/deploy/dashboard/alias?name=deploy-demo\""));
     }
 
     @Test
-    public void aliasListEmptyShowsPlaceholder() {
-        assertTrue(DashboardView.aliasList(new ArrayList<>(), "/x").contains("no aliases"));
+    public void aliasSidebarSingleCommandIsSingular() {
+        String html = DashboardView.aliasSidebar(List.of(new DashboardView.AliasInfo("solo", 1)), "/x");
+        assertTrue(html, html.contains("1 command"));
+        assertFalse(html, html.contains("1 commands"));
+    }
+
+    @Test
+    public void aliasSidebarEmptyShowsPlaceholder() {
+        assertTrue(DashboardView.aliasSidebar(new ArrayList<>(), "/x").contains("no aliases"));
     }
 
     @Test
@@ -195,7 +203,8 @@ public class DashboardViewTest {
         assertTrue(html, html.contains("agent-2"));
         assertTrue(html, html.contains("&lt;hi&gt;"));
         assertFalse(html, html.contains("<hi>"));
-        assertTrue(html, html.contains("raw YAML"));
+        assertTrue(html, html.contains("show yaml"));
+        assertTrue(html, html.contains("cmd-card"));
     }
 
     @Test

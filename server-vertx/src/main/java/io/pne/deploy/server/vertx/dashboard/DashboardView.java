@@ -183,52 +183,75 @@ public final class DashboardView {
         return sb.toString();
     }
 
-    /** Clickable list of alias names; each loads its detail into {@code #alias-detail} via htmx. */
-    public static String aliasList(List<String> aNames, String aBasePath) {
-        if (aNames.isEmpty()) {
-            return "<p class=\"muted\">no aliases</p>";
-        }
+    /** One alias in the sidebar list: name + number of commands. */
+    public record AliasInfo(String name, int commandCount) {
+    }
+
+    /** Aliases sidebar: header (title + count) + client-side filter input + clickable list. */
+    public static String aliasSidebar(List<AliasInfo> aAliases, String aBasePath) {
         StringBuilder sb = new StringBuilder();
+        sb.append("<aside class=\"alias-side\">");
+        sb.append("<div class=\"alias-side-head\"><div class=\"alias-side-row\">")
+          .append("<span class=\"alias-side-title\">Aliases</span>")
+          .append("<span class=\"alias-count\">").append(aAliases.size()).append("</span></div>")
+          .append("<input class=\"alias-filter\" type=\"text\" placeholder=\"filter&hellip;\" autocomplete=\"off\" spellcheck=\"false\"></div>");
         sb.append("<div class=\"alias-list\">");
-        for (String name : aNames) {
-            sb.append("<button class=\"alias-item\" hx-get=\"").append(esc(aBasePath)).append("/aliases/").append(esc(name))
-              .append("\" hx-target=\"#alias-detail\" hx-swap=\"innerHTML\"><code>").append(esc(name)).append("</code></button>");
+        if (aAliases.isEmpty()) {
+            sb.append("<div class=\"muted\" style=\"padding:8px 10px\">no aliases</div>");
+        } else {
+            for (AliasInfo alias : aAliases) {
+                String meta = alias.commandCount() == 1 ? "1 command" : alias.commandCount() + " commands";
+                sb.append("<button class=\"alias-item\" hx-get=\"").append(esc(aBasePath)).append("/alias?name=").append(esc(alias.name()))
+                  .append("\" hx-target=\"#alias-detail\" hx-swap=\"innerHTML\">")
+                  .append("<span class=\"alias-name\">").append(esc(alias.name())).append("</span>")
+                  .append("<span class=\"alias-sub\">").append(meta).append("</span></button>");
+            }
+            sb.append("<div class=\"alias-nomatch\">no matches</div>");
         }
-        sb.append("</div>");
+        sb.append("</div></aside>");
         return sb.toString();
     }
 
-    /** Rendered alias definition: each command's agents/command/arguments, plus the raw YAML. */
+    /** Rendered alias definition: per-command agents/name/arguments cards + a toggleable raw-YAML block. */
     public static String aliasDetail(String aName, AliasDescription aDescription, String aRawYaml) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<h3 class=\"cfg-group\">").append(esc(aName)).append("</h3>");
+        sb.append("<div class=\"alias-head\"><h2 class=\"alias-title\">").append(esc(aName)).append("</h2>");
+        if (aRawYaml != null) {
+            sb.append("<button class=\"alias-rawbtn\" onclick=\"var r=document.getElementById('alias-raw');")
+              .append("r.hidden=!r.hidden;this.textContent=r.hidden?'show yaml':'hide yaml';\">show yaml</button>");
+        }
+        sb.append("</div>");
+
         if (aDescription == null || aDescription.commands == null || aDescription.commands.isEmpty()) {
             sb.append("<p class=\"muted\">no commands / could not parse</p>");
         } else {
             int index = 1;
             for (AliasCommand command : aDescription.commands) {
-                sb.append("<div class=\"alias-cmd\">");
-                sb.append("<div class=\"kv\"><span>#").append(index++).append(" command</span><b><code>")
-                  .append(esc(command.name)).append("</code></b></div>");
-                sb.append("<div class=\"kv\"><span>agents</span><span>");
+                sb.append("<section class=\"cmd-card\"><div class=\"cmd-head\">")
+                  .append("<span class=\"cmd-num\">").append(index++).append("</span>")
+                  .append("<span class=\"cmd-label\">agents</span><span class=\"chips\">");
                 if (command.agents != null) {
                     for (String agent : command.agents.split(",")) {
                         sb.append("<span class=\"chip\">").append(esc(agent.trim())).append("</span>");
                     }
                 }
-                sb.append("</span></div>");
+                sb.append("</span></div><div class=\"cmd-body\">");
+                sb.append("<span class=\"cmd-label\">name</span><code class=\"code\">").append(esc(command.name)).append("</code>");
                 if (command.arguments != null && !command.arguments.isEmpty()) {
-                    sb.append("<div class=\"muted\">arguments</div><ul>");
+                    sb.append("<span class=\"cmd-label\">arguments</span><div class=\"args\">");
+                    int k = 1;
                     for (String arg : command.arguments) {
-                        sb.append("<li><code>").append(esc(arg)).append("</code></li>");
+                        sb.append("<div class=\"arg\"><span class=\"arg-i\">").append(k++).append("</span>")
+                          .append("<code class=\"code\">").append(esc(arg)).append("</code></div>");
                     }
-                    sb.append("</ul>");
+                    sb.append("</div>");
                 }
-                sb.append("</div>");
+                sb.append("</div></section>");
             }
         }
+
         if (aRawYaml != null) {
-            sb.append("<details class=\"raw\"><summary>raw YAML</summary><pre>").append(esc(aRawYaml)).append("</pre></details>");
+            sb.append("<div id=\"alias-raw\" class=\"raw-card\" hidden><pre>").append(esc(aRawYaml)).append("</pre></div>");
         }
         return sb.toString();
     }
