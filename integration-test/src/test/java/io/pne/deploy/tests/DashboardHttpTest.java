@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -61,6 +63,16 @@ public class DashboardHttpTest {
             assertEquals(200, added.statusCode());
             assertTrue("issue list should show the added id, got: " + added.body(), added.body().contains("#777"));
 
+            // 3a. the id may also arrive on the query string (GET) — must enqueue, not 405
+            HttpResponse<String> viaQuery = client.send(get("/deploy/dashboard/issue?issue_id=555"), ofString());
+            assertEquals(200, viaQuery.statusCode());
+            assertTrue("query-string id should enqueue, got: " + viaQuery.body(), viaQuery.body().contains("#555"));
+
+            // 3b. a reverse proxy rewrites the htmx POST into a GET keeping the body; that must still enqueue
+            String rewritten = issueViaRawGetWithBody("issue_id=888");
+            assertTrue("proxy-rewritten GET must not be 405, got: " + rewritten, rewritten.startsWith("HTTP/1.1 200"));
+            assertTrue("GET with body should enqueue the id, got: " + rewritten, rewritten.contains("#888"));
+
             // 4. the live SSE stream — first snapshot (all cards) must arrive immediately
             HttpResponse<InputStream> events = client.send(get("/deploy/dashboard/events"), ofInputStream());
             assertEquals(200, events.statusCode());
@@ -76,6 +88,27 @@ public class DashboardHttpTest {
 
     private static HttpRequest get(String path) {
         return HttpRequest.newBuilder(URI.create(BASE + path)).GET().build();
+    }
+
+    /**
+     * Sends a raw {@code GET} carrying a url-encoded body — exactly what the production reverse proxy does
+     * when it rewrites the htmx POST — and returns the full HTTP response. Java's {@link HttpClient} forbids
+     * a body on GET, hence the raw socket.
+     */
+    private static String issueViaRawGetWithBody(String aBody) throws Exception {
+        byte[] payload = aBody.getBytes(UTF_8);
+        String head = "GET /deploy/dashboard/issue HTTP/1.1\r\n"
+                + "Host: 127.0.0.1:" + PORT + "\r\n"
+                + "Content-Type: application/x-www-form-urlencoded\r\n"
+                + "Content-Length: " + payload.length + "\r\n"
+                + "Connection: close\r\n\r\n";
+        try (Socket socket = new Socket("127.0.0.1", PORT)) {
+            OutputStream out = socket.getOutputStream();
+            out.write(head.getBytes(UTF_8));
+            out.write(payload);
+            out.flush();
+            return new String(socket.getInputStream().readAllBytes(), UTF_8);
+        }
     }
 
     private static IVertxServerConfiguration config() {

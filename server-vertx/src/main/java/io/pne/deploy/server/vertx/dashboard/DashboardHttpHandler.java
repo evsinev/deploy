@@ -11,7 +11,6 @@ import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import org.slf4j.Logger;
@@ -22,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -205,15 +205,17 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         return "";
     }
 
-    /** POST {base}/issue with form field issue_id -> enqueue, then return the refreshed issues fragment. */
+    /**
+     * {base}/issue with {@code issue_id} in the query string or the url-encoded body -> enqueue, then return
+     * the refreshed issues fragment. Method-agnostic on purpose: the reverse proxy in front of the dashboard
+     * rewrites the htmx POST into a GET (keeping the body), so requiring POST would 405 every "Add".
+     */
     private void handleIssue(HttpServerRequest aRequest) {
-        if (aRequest.method() != HttpMethod.POST) {
-            aRequest.response().setStatusCode(405).end("Method not allowed\n");
-            return;
-        }
-        aRequest.setExpectMultipart(true);
-        aRequest.endHandler(aVoid -> {
-            String raw   = aRequest.getFormAttribute("issue_id");
+        aRequest.bodyHandler(aBody -> {
+            String raw = aRequest.getParam("issue_id"); // query string, if any
+            if (raw == null || raw.isBlank()) {
+                raw = formField(aBody.toString(UTF_8), "issue_id"); // url-encoded body
+            }
             String error = null;
             try {
                 long id = Long.parseLong(raw == null ? "" : raw.trim());
@@ -229,8 +231,26 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             }
             String body = (error == null ? "" : "<p class=\"pill bad\">" + DashboardView.esc(error) + "</p>")
                     + DashboardView.issues(new ArrayList<>(pendingIssues));
-            aRequest.response().putHeader("Content-Type", "text/html; charset=utf-8").end(body);
+            aRequest.response()
+                    .putHeader("Content-Type", "text/html; charset=utf-8")
+                    .putHeader("Cache-Control", "no-store")
+                    .end(body);
         });
+    }
+
+    /** First value of {@code aName} in an application/x-www-form-urlencoded body, URL-decoded; null if absent. */
+    private static String formField(String aBody, String aName) {
+        if (aBody == null || aBody.isEmpty()) {
+            return null;
+        }
+        for (String pair : aBody.split("&")) {
+            int eq = pair.indexOf('=');
+            String key = URLDecoder.decode(eq >= 0 ? pair.substring(0, eq) : pair, UTF_8);
+            if (aName.equals(key)) {
+                return eq >= 0 ? URLDecoder.decode(pair.substring(eq + 1), UTF_8) : "";
+            }
+        }
+        return null;
     }
 
     private void handleEvents(HttpServerRequest aRequest) {
