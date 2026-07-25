@@ -53,9 +53,14 @@ public class DiffServiceImpl implements DiffService {
     }
 
     public void processDiff(List<DiffTask> tasks, int issueId) {
-        if (tasks == null || tasks.isEmpty()) return;
+        if (tasks == null || tasks.isEmpty()) {
+            LOG.info("Diff: nothing to send for issue {} (no diff tasks)", issueId);
+            return;
+        }
 
         Map<DiffKey, DiffTask> aggregated = aggregate(tasks);
+        LOG.info("Diff: processing {} diff task(s) ({} after aggregation) for issue {}",
+                tasks.size(), aggregated.size(), issueId);
         Map<Integer, String> subjectCache = new HashMap<>();
 
         StringBuilder fullRedmineMessage = new StringBuilder();
@@ -63,12 +68,17 @@ public class DiffServiceImpl implements DiffService {
 
         for (DiffTask diffTask : aggregated.values()) {
             List<String> diffs = gitlab.getTagDiff(diffTask);
+            LOG.info("Diff: {} commit(s) for {} ({} -> {}), gitlab project {}",
+                    diffs == null ? 0 : diffs.size(), diffTask.getIdsString(),
+                    diffTask.getOldVersion(), diffTask.getNewVersion(), diffTask.getGitlabProject());
             List<DiffLink> diffLinks = mapDiffIssues(diffs, subjectCache);
 
             fullRedmineMessage.append(constructRedmineMessage(diffTask, diffLinks)).append("\n");
             fullTelegramMessage.addAll(constructTelegramMessage(diffTask, diffLinks));
         }
 
+        LOG.info("Diff: sending Redmine comment ({} chars) and {} Telegram message(s) for issue {}",
+                fullRedmineMessage.length(), fullTelegramMessage.size(), issueId);
         redmine.enqueueAddComment(issueId, fullRedmineMessage.toString());
         telegram.sendMessages(fullTelegramMessage);
     }
@@ -76,49 +86,50 @@ public class DiffServiceImpl implements DiffService {
     public List<DiffTask> getCurrentVersion(Task task) {
         List<DiffTask> diffTasks = new ArrayList<>();
         if (task == null || task.commands.isEmpty()) {
+            LOG.info("Diff: no task/commands, nothing to diff");
             return diffTasks;
         }
+        // A command is diff-eligible purely by its arguments: a version, an old-version url, and a gitlab=<id>.
+        LOG.info("Diff: scanning {} command(s) of '{}' (need version + url + gitlab=<id>)",
+                task.commands.size(), task.taskLine);
         for (TaskCommand command : task.commands) {
             if (command == null) {
                 continue;
             }
-            if (command.command.name.contains("sandbox")) {
-                continue;
-            }
+            String name = command.command.name;
             try {
                 String newVersion = parseStringFromArguments(command.command.arguments, VERSION_LIKE);
                 if (newVersion == null) {
-                    LOG.debug("Skip command (no new version): {}", command);
+                    LOG.info("Diff: skip '{}' — no version argument", name);
                     continue;
                 }
                 String linkForOldVersion = parseStringFromArguments(command.command.arguments, LINK_LIKE);
                 if (linkForOldVersion == null) {
-                    LOG.debug("Skip command (no old version link): {}", command);
+                    LOG.info("Diff: skip '{}' — no old-version url argument", name);
                     continue;
                 }
                 Integer gitlabProject = parseGitlabProjectFromArguments(command.command.arguments);
                 if (gitlabProject == null) {
-                    LOG.debug("Skip command (no gitlab project id): {}", command);
+                    LOG.info("Diff: skip '{}' — no gitlab=<id> argument", name);
                     continue;
                 }
                 String oldVersion = getUrlContent(linkForOldVersion);
-                if (oldVersion == null) {
-                    LOG.debug("Skip command (old version is null): {}", command);
+                if (oldVersion == null || oldVersion.isEmpty()) {
+                    LOG.info("Diff: skip '{}' — old version is empty from {}", name, linkForOldVersion);
                     continue;
                 }
-                if (oldVersion.isEmpty()) {
-                    LOG.debug("Skip command (old version is empty): {}", command);
-                    continue;
-                }
+                LOG.info("Diff: include '{}' — gitlab={}, {} -> {}, agents={}",
+                        name, gitlabProject, oldVersion, newVersion, Arrays.toString(command.agents.getIds()));
                 diffTasks.add(new DiffTask(command.agents.getIds(),
                         gitlabProject,
                         task.taskLine,
                         oldVersion,
                         newVersion));
             } catch (Exception e) {
-                LOG.error("Can't get data for command: {}", command.toString(), e);
+                LOG.error("Diff: can't build diff task for command '{}'", name, e);
             }
         }
+        LOG.info("Diff: {} diff task(s) built for '{}'", diffTasks.size(), task.taskLine);
         return diffTasks;
     }
 

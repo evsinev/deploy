@@ -100,6 +100,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
         Task task = parseTask(aIssue.issueId(), aIssue.description());
         List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
         int issueId = aIssue.issueId();
+        LOG.info("Diff: submitting {} diff task(s) for issue {} to background processing", diffTasks.size(), issueId);
         diffExecutor.submit(() -> {
             try {
                 diffService.processDiff(diffTasks, issueId);
