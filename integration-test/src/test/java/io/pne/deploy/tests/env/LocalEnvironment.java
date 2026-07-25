@@ -48,7 +48,7 @@ public class LocalEnvironment implements AutoCloseable {
     private static final String ALIAS        = "deploy-demo";
     private static final String CALLBACK_URI = "/redmine/callback";
     // The line the pipeline looks for in the issue description (alias-line chars are restricted: no '/', ':', '=').
-    private static final String DEPLOY_LINE = "> deploy " + ALIAS;
+    private static final String DEPLOY_LINE = "> deploy " + ALIAS + " 1.2.3";
 
     private final int serverPort   = Ports.free();
     private final int redminePort  = Ports.free();
@@ -142,21 +142,22 @@ public class LocalEnvironment implements AutoCloseable {
 
             String oldVersionUrl = "http://127.0.0.1:" + gitlabPort + "/old-version";
             String yaml = ""
+                    + "diff:\n"
+                    + "  enabled: true\n"
+                    + "  versionUrl: " + oldVersionUrl + "\n"
+                    + "  gitlabProjectId: 42\n"
+                    + "  agent: agent-1\n"
                     + "commands:\n"
                     + "- agents: agent-1\n"
                     + "  name: echo\n"
                     + "  arguments:\n"
                     + "    - deployed\n"
-                    + "    - 1.2.3\n"
-                    + "    - " + oldVersionUrl + "\n"
-                    + "    - gitlab=42\n"
+                    + "    - $1\n"
                     + "- agents: agent-2\n"
                     + "  name: echo\n"
                     + "  arguments:\n"
                     + "    - deployed\n"
-                    + "    - 1.2.3\n"
-                    + "    - " + oldVersionUrl + "\n"
-                    + "    - gitlab=42\n";
+                    + "    - $1\n";
             Files.writeString(aliasesDir.resolve(ALIAS + ".yml"), yaml, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException("cannot write temp environment files", e);

@@ -43,7 +43,7 @@ public class DeployServiceImplTest {
         service.runTask(new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("localhost"), new AgentCommand(
                         new AgentCommandParameters(), SHELL, "echo", singletonList("test")
-                ))), "test-task", 0)
+                ))), "test-task", 0, null)
         );
 
         System.out.println("Waiting for a text message from command ...");

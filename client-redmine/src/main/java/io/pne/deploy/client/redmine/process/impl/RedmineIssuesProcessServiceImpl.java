@@ -143,6 +143,7 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
                 , stub.commands
                 , text
                 , aIssueId
+                , stub.diff
         );
     }
 }

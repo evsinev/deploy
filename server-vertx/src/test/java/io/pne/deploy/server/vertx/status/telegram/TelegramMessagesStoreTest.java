@@ -32,7 +32,7 @@ public class TelegramMessagesStoreTest {
         when(telegram.sendMessage(anyLong(), anyString(), any())).thenReturn(ROLLED_MSG);
 
         Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
-                Collections.emptyList(), "deploy something", 0);
+                Collections.emptyList(), "deploy something", 0, null);
         store.addTask(task, FIRST_MSG, "start");
 
         // push enough long lines to blow past TG_SAFE_MAX (4000)
