@@ -10,15 +10,12 @@ import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteGitlabServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
+import io.pne.deploy.server.api.IAgentVersionReader;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskDiff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,21 +29,23 @@ public class DiffServiceImpl implements DiffService {
     private final IRemoteGitlabService gitlab;
     private final IRemoteTelegramService telegram;
     private final String redmineUrl;
+    private final IAgentVersionReader versionReader;
 
-    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRedmineRemoteConfig aConfig) {
-        this(aRedmine, new RemoteGitlabServiceImpl(aConfig), new RemoteTelegramServiceImpl(aConfig), aConfig.url());
+    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRedmineRemoteConfig aConfig, IAgentVersionReader aVersionReader) {
+        this(aRedmine, new RemoteGitlabServiceImpl(aConfig), new RemoteTelegramServiceImpl(aConfig), aConfig.url(), aVersionReader);
     }
 
-    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRemoteTelegramService aTelegram, IRedmineRemoteConfig aConfig) {
-        this(aRedmine, new RemoteGitlabServiceImpl(aConfig), aTelegram, aConfig.url());
+    public DiffServiceImpl(IRemoteRedmineService aRedmine, IRemoteTelegramService aTelegram, IRedmineRemoteConfig aConfig, IAgentVersionReader aVersionReader) {
+        this(aRedmine, new RemoteGitlabServiceImpl(aConfig), aTelegram, aConfig.url(), aVersionReader);
     }
 
     public DiffServiceImpl(IRemoteRedmineService aRedmine, IRemoteGitlabService aGitlab,
-                           IRemoteTelegramService aTelegram, String aRedmineUrl) {
+                           IRemoteTelegramService aTelegram, String aRedmineUrl, IAgentVersionReader aVersionReader) {
         this.redmine = aRedmine;
         this.gitlab = aGitlab;
         this.telegram = aTelegram;
         this.redmineUrl = aRedmineUrl;
+        this.versionReader = aVersionReader;
     }
 
     public void processDiff(List<DiffTask> tasks, int issueId) {
@@ -91,23 +90,18 @@ public class DiffServiceImpl implements DiffService {
             LOG.info("Diff: skip '{}' — no version in the task line", task.taskLine);
             return new ArrayList<>();
         }
-        try {
-            String oldVersion = getUrlContent(diff.getVersionUrl());
-            if (oldVersion == null || oldVersion.isEmpty()) {
-                LOG.info("Diff: skip '{}' — old version is empty from {}", task.taskLine, diff.getVersionUrl());
-                return new ArrayList<>();
-            }
-            String[] agents = diff.getAgent() == null || diff.getAgent().isBlank()
-                    ? new String[0] : new String[]{diff.getAgent()};
-            LOG.info("Diff: '{}' — gitlabProjectId={}, {} -> {}, agent={}",
-                    task.taskLine, diff.getGitlabProjectId(), oldVersion, newVersion, diff.getAgent());
-            List<DiffTask> diffTasks = new ArrayList<>();
-            diffTasks.add(new DiffTask(agents, diff.getGitlabProjectId(), task.taskLine, oldVersion, newVersion));
-            return diffTasks;
-        } catch (Exception e) {
-            LOG.error("Diff: can't build diff task for '{}'", task.taskLine, e);
+        String oldVersion = versionReader.readVersion(diff.getAgent(), diff.getVersionUrl());
+        if (oldVersion == null || oldVersion.isEmpty()) {
+            LOG.info("Diff: skip '{}' — no old version via agent {} from {}", task.taskLine, diff.getAgent(), diff.getVersionUrl());
             return new ArrayList<>();
         }
+        String[] agents = diff.getAgent() == null || diff.getAgent().isBlank()
+                ? new String[0] : new String[]{diff.getAgent()};
+        LOG.info("Diff: '{}' — gitlabProjectId={}, {} -> {}, agent={}",
+                task.taskLine, diff.getGitlabProjectId(), oldVersion, newVersion, diff.getAgent());
+        List<DiffTask> diffTasks = new ArrayList<>();
+        diffTasks.add(new DiffTask(agents, diff.getGitlabProjectId(), task.taskLine, oldVersion, newVersion));
+        return diffTasks;
     }
 
     /** The deploy version is the first parameter of the task line ("&lt;alias&gt; &lt;version&gt; ..."). */
@@ -266,25 +260,4 @@ public class DiffServiceImpl implements DiffService {
         return null;
     }
 
-    private static String getUrlContent(String aUrl) throws IOException {
-        LOG.info("Loading {}", aUrl);
-        URL url = new URL(aUrl);
-        URLConnection con = url.openConnection();
-        con.setConnectTimeout(10_000);
-        con.setReadTimeout(10_000);
-        InputStream in = con.getInputStream();
-        if (in == null) {
-            throw new IllegalStateException("Input stream is null for " + url);
-        }
-        try {
-            Scanner scanner = new Scanner(in, "utf-8");
-            if (scanner.hasNextLine()) {
-                return scanner.nextLine();
-            } else {
-                throw new IllegalStateException("No content for url " + url);
-            }
-        } finally {
-            in.close();
-        }
-    }
 }

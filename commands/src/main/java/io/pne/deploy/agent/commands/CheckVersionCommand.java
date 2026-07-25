@@ -4,10 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.Scanner;
 import java.util.StringTokenizer;
 
 public class CheckVersionCommand {
@@ -66,21 +62,6 @@ public class CheckVersionCommand {
 
     private static String getUrlContent(String aUrl) throws IOException {
         LOG.info("Loading {}", aUrl);
-        URL url = new URL(aUrl);
-        URLConnection con = url.openConnection();
-        InputStream in = con.getInputStream();
-        if(in == null) {
-            throw new IllegalStateException("Input stream is null for " + url);
-        }
-        try {
-            Scanner scanner = new Scanner(in, "utf-8");
-            if(scanner.hasNextLine()) {
-                return scanner.nextLine();
-            } else {
-                throw new IllegalStateException("No content for url " + url);
-            }
-        } finally {
-            in.close();
-        }
+        return VersionFetcher.fetch(aUrl);
     }
 }

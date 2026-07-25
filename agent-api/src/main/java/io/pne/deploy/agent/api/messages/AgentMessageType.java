@@ -6,6 +6,8 @@ public enum AgentMessageType {
       RUN_COMMAND_REQUEST  (1, RunAgentCommandRequest.class)
     , RUN_COMMAND_RESPONSE (2, RunAgentCommandResponse.class)
     , RUN_COMMAND_LOG      (3, RunAgentCommandLog.class    )
+    , GET_VERSION_REQUEST  (4, GetVersionRequest.class     )
+    , GET_VERSION_RESPONSE (5, GetVersionResponse.class    )
     ;
 
     public final byte id;

@@ -5,21 +5,18 @@ import io.pne.deploy.client.redmine.remote.IRemoteGitlabService;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import io.pne.deploy.server.api.IAgentVersionReader;
 import io.pne.deploy.server.api.task.Task;
 import io.pne.deploy.server.api.task.TaskDiff;
 import io.pne.deploy.server.api.task.TaskId;
 import io.pne.deploy.server.api.task.TaskParameters;
-import com.sun.net.httpserver.HttpServer;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -40,9 +37,10 @@ public class DiffServiceProcessDiffTest {
     private final IRemoteRedmineService  redmine  = mock(IRemoteRedmineService.class);
     private final IRemoteGitlabService   gitlab   = mock(IRemoteGitlabService.class);
     private final IRemoteTelegramService telegram = mock(IRemoteTelegramService.class);
+    private final IAgentVersionReader    reader   = mock(IAgentVersionReader.class);
 
     private final DiffServiceImpl diffService =
-            new DiffServiceImpl(redmine, gitlab, telegram, "https://redmine.example");
+            new DiffServiceImpl(redmine, gitlab, telegram, "https://redmine.example", reader);
 
     @Test
     public void processDiffPostsAggregatedCommentAndTelegramMessages() {
@@ -76,37 +74,27 @@ public class DiffServiceProcessDiffTest {
 
     /**
      * The diff is driven by {@code task.diff} (versionUrl / gitlabProjectId / agent), not by command arguments;
-     * newVersion is the first parameter of the task line. Old version is fetched from the diff's versionUrl.
+     * newVersion is the first parameter of the task line. The old version is fetched through the agent
+     * (the deploy-server can't reach the firewalled versionUrl), so the reader is mocked here.
      */
     @Test
-    public void getCurrentVersionUsesTaskDiff() throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/version", exchange -> {
-            byte[] body = "3.36.16-42\n".getBytes(UTF_8);
-            exchange.sendResponseHeaders(200, body.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(body);
-            }
-        });
-        server.start();
-        String versionUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/version";
-        try {
-            TaskDiff diff = TaskDiff.builder()
-                    .enabled(true).versionUrl(versionUrl).gitlabProjectId(42).agent("agent-1").build();
-            Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
-                    Collections.emptyList(), "demo 3.36.16-100", 168059, diff);
+    public void getCurrentVersionUsesTaskDiff() {
+        String versionUrl = "http://firewalled.example/version";
+        when(reader.readVersion("agent-1", versionUrl)).thenReturn("3.36.16-42");
 
-            List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
+        TaskDiff diff = TaskDiff.builder()
+                .enabled(true).versionUrl(versionUrl).gitlabProjectId(42).agent("agent-1").build();
+        Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
+                Collections.emptyList(), "demo 3.36.16-100", 168059, diff);
 
-            assertEquals(1, diffTasks.size());
-            DiffTask built = diffTasks.get(0);
-            assertEquals(Integer.valueOf(42), built.getGitlabProject());
-            assertEquals("3.36.16-42", built.getOldVersion());
-            assertEquals("3.36.16-100", built.getNewVersion());
-            assertTrue("agent from diff is used, got: " + built.getIdsString(), built.getIdsString().contains("agent-1"));
-        } finally {
-            server.stop(0);
-        }
+        List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
+
+        assertEquals(1, diffTasks.size());
+        DiffTask built = diffTasks.get(0);
+        assertEquals(Integer.valueOf(42), built.getGitlabProject());
+        assertEquals("3.36.16-42", built.getOldVersion());
+        assertEquals("3.36.16-100", built.getNewVersion());
+        assertTrue("agent from diff is used, got: " + built.getIdsString(), built.getIdsString().contains("agent-1"));
     }
 
     @Test
