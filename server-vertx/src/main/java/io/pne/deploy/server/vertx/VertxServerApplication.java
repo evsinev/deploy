@@ -62,6 +62,7 @@ public class VertxServerApplication {
     private final IServerApplicationListener serverListener;
     private final AgentConnections           agentConnections;
     private final DeployServiceImpl          deployService;
+    private final TelegramClient             telegramClient; // nullable: the test constructor has no Telegram wiring
 
     public static void main(String[] args) {
 
@@ -105,6 +106,7 @@ public class VertxServerApplication {
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
+        this.telegramClient = null;
     }
 
     public VertxServerApplication() {
@@ -160,6 +162,7 @@ public class VertxServerApplication {
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
+        this.telegramClient = telegramClient;
     }
 
     private static List<StartupConfigReport.Entry> buildConfigReport(
@@ -194,6 +197,9 @@ public class VertxServerApplication {
 
     public void stop() {
         LOG.info("Exiting ...");
+        if (telegramClient != null) {
+            telegramClient.close(); // abort any in-flight retry so shutdown does not block on a stuck send
+        }
         vertx.close();
         serverListener.serverStopped();
     }

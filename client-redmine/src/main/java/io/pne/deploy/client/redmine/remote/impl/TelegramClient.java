@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  * ограничением темпа и повтором на 429 по {@code retry_after}. Частые правки одного сообщения коалесятся.
  * Операции персистятся на диск (spool) и переотправляются после рестарта (at-least-once).
  */
-public class TelegramClient {
+public class TelegramClient implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(TelegramClient.class);
 
@@ -40,6 +40,7 @@ public class TelegramClient {
     private final long             minIntervalMs;
     private final PersistentSpool  spool;
     private final LongConsumer     sendLatencyNanos; // nullable: records duration of a successful API call
+    private final Thread           worker;
     private final Gson             gson = new GsonBuilder().disableHtmlEscaping().create();
 
     private final BlockingQueue<Runnable> queue        = new LinkedBlockingQueue<>();
@@ -73,11 +74,21 @@ public class TelegramClient {
         this.spool            = new PersistentSpool(aSpoolDir);
         this.sendLatencyNanos = aSendLatencyNanos;
 
-        Thread worker = new Thread(this::runWorker, "telegram-sender");
+        this.worker = new Thread(this::runWorker, "telegram-sender");
         worker.setDaemon(true);
         worker.start();
 
         replay();
+    }
+
+    /**
+     * Stops the background sender. Interrupting the worker aborts any in-flight retry/backoff so a shutdown
+     * (or test teardown) returns immediately instead of hammering an unreachable endpoint for minutes; the
+     * op being retried is left in the spool for replay on the next start.
+     */
+    @Override
+    public void close() {
+        worker.interrupt();
     }
 
     /** Блокирующая отправка нового сообщения; возвращает message_id. */
@@ -132,6 +143,13 @@ public class TelegramClient {
                 aFuture.complete(id);
             }
         } catch (RuntimeException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                // shutting down mid-retry: keep the op in the spool for replay on the next start
+                if (aFuture != null) {
+                    aFuture.completeExceptionally(e);
+                }
+                return;
+            }
             spool.deadLetter(aFile);
             if (aFuture != null) {
                 aFuture.completeExceptionally(e);
@@ -161,6 +179,9 @@ public class TelegramClient {
             });
             spool.remove(edit.fileName);
         } catch (RuntimeException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                return; // shutting down mid-retry: keep the edit in the spool for replay on the next start
+            }
             spool.deadLetter(edit.fileName);
             LOG.error("telegram edit dead-lettered after {} attempts", Backoff.MAX_ATTEMPTS, e);
         }
@@ -203,6 +224,9 @@ public class TelegramClient {
         RuntimeException last = null;
         for (int attempt = 1; attempt <= Backoff.MAX_ATTEMPTS; attempt++) {
             awaitRateLimit();
+            if (Thread.currentThread().isInterrupted()) {
+                throw new IllegalStateException("Telegram sender stopped", last);
+            }
             try {
                 long start = System.nanoTime();
                 T result = aCall.get();
@@ -211,8 +235,8 @@ public class TelegramClient {
             } catch (RuntimeException e) {
                 last = e;
                 LOG.warn("Telegram call failed (attempt {}/{})", attempt, Backoff.MAX_ATTEMPTS, e);
-                if (attempt < Backoff.MAX_ATTEMPTS) {
-                    sleep(backoffMs(e, attempt));
+                if (attempt < Backoff.MAX_ATTEMPTS && !sleep(backoffMs(e, attempt))) {
+                    throw new IllegalStateException("Telegram sender stopped", e);
                 }
             } finally {
                 lastCallAt = System.currentTimeMillis();
@@ -241,14 +265,17 @@ public class TelegramClient {
         sleep(lastCallAt + minIntervalMs - System.currentTimeMillis());
     }
 
-    private static void sleep(long aMs) {
+    /** Sleeps for {@code aMs}; returns {@code false} if interrupted so a retry loop can abort on shutdown. */
+    private static boolean sleep(long aMs) {
         if (aMs <= 0) {
-            return;
+            return true;
         }
         try {
             Thread.sleep(aMs);
+            return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 
