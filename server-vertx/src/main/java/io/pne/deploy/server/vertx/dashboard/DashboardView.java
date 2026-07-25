@@ -25,109 +25,116 @@ public final class DashboardView {
 
     private static final DateTimeFormatter LOG_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    /** Connected agent ids. */
+    /** Connected agent ids, rendered as the AGENTS block (label + count pill + chips) of the task card. */
     public static String agents(Set<String> aAgents) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"kv\"><span>Connected</span><b>").append(aAgents.size()).append("</b></div>");
+        sb.append("<div class=\"agents-head\"><span class=\"cmd-label\">agents</span>")
+          .append("<span class=\"agents-count\">").append(aAgents.size()).append(" connected</span></div>");
         if (aAgents.isEmpty()) {
             sb.append("<p class=\"muted\">no agents connected</p>");
         } else {
-            sb.append("<ul>");
+            sb.append("<div class=\"chips\">");
             for (String agent : new java.util.TreeSet<>(aAgents)) { // alphabetical
-                sb.append("<li><code>").append(esc(agent)).append("</code></li>");
+                sb.append("<span class=\"chip\">").append(esc(agent)).append("</span>");
             }
-            sb.append("</ul>");
+            sb.append("</div>");
         }
         return sb.toString();
     }
 
-    /** The last task pushed by the execution listener (nullable). */
-    public static String status(TaskStatus aStatus) {
+    /** The last task pushed by the execution listener (nullable). {@code aRedmineBaseUrl} links the issue id. */
+    public static String status(TaskStatus aStatus, String aRedmineBaseUrl) {
         if (aStatus == null) {
-            return "<p class=\"muted\">idle &mdash; no task running</p>";
+            return "<div class=\"task-head\"><span class=\"cmd-label\">current task</span></div>"
+                    + "<p class=\"muted\">idle &mdash; no task running</p>";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"kv\"><span>State</span>").append(statePill(aStatus.getTaskState())).append("</div>");
-        sb.append("<div class=\"kv\"><span>Task id</span><b><code>").append(esc(aStatus.getTaskId())).append("</code></b></div>");
-        sb.append("<div class=\"kv\"><span>Issue</span><b>").append(aStatus.getIssueId()).append("</b></div>");
+        sb.append("<div class=\"task-head\"><span class=\"cmd-label\">current task</span>")
+          .append(stateBadge(aStatus.getTaskState())).append("</div>");
         if (aStatus.getTaskLine() != null) {
-            sb.append("<div class=\"kv\"><span>Task</span><b><code>").append(esc(aStatus.getTaskLine())).append("</code></b></div>");
+            sb.append("<div class=\"task-name\"><code>").append(esc(aStatus.getTaskLine())).append("</code></div>");
         }
+        sb.append("<div class=\"task-meta\">")
+          .append("<div class=\"meta-col\"><span class=\"cmd-label\">task id</span>")
+          .append("<code class=\"meta-val\">").append(esc(aStatus.getTaskId())).append("</code></div>")
+          .append("<div class=\"meta-col\"><span class=\"cmd-label\">issue</span>")
+          .append(issueLink(aStatus.getIssueId(), aRedmineBaseUrl)).append("</div>")
+          .append("</div>");
         TaskState state = aStatus.getTaskState();
         if (state != null && state.getErrorMessage() != null) {
-            sb.append("<p class=\"pill bad\">").append(esc(state.getErrorMessage())).append("</p>");
+            sb.append("<p class=\"task-err\">").append(esc(state.getErrorMessage())).append("</p>");
         }
         return sb.toString();
+    }
+
+    private static String issueLink(long aIssueId, String aRedmineBaseUrl) {
+        String label = "#" + aIssueId;
+        if (aRedmineBaseUrl == null || aRedmineBaseUrl.isBlank()) {
+            return "<code class=\"meta-val\">" + label + "</code>";
+        }
+        String base = aRedmineBaseUrl.endsWith("/")
+                ? aRedmineBaseUrl.substring(0, aRedmineBaseUrl.length() - 1) : aRedmineBaseUrl;
+        return "<a class=\"meta-val issue-link\" href=\"" + esc(base) + "/issues/" + aIssueId
+                + "\" target=\"_blank\" rel=\"noopener\">" + label + "</a>";
     }
 
     /** Pending Redmine issue ids waiting to be processed. */
     public static String issues(Collection<Long> aIssues) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"kv\"><span>Pending</span><b>").append(aIssues.size()).append("</b></div>");
+        sb.append("<div class=\"issues-count\">pending <b>").append(aIssues.size()).append("</b></div>");
         if (aIssues.isEmpty()) {
-            sb.append("<p class=\"muted\">queue is empty</p>");
+            sb.append("<div class=\"issues-empty\">queue is empty</div>");
         } else {
-            sb.append("<ul>");
+            sb.append("<div class=\"issues-list\">");
             for (Long id : aIssues) {
-                sb.append("<li><code>#").append(id).append("</code></li>");
+                sb.append("<div class=\"issue-row\"><code>#").append(id).append("</code></div>");
             }
-            sb.append("</ul>");
+            sb.append("</div>");
         }
         return sb.toString();
     }
 
-    /** Durable delivery queues (telegram, redmine) with their spool counters. */
-    public static String queues(Map<String, PersistentSpool> aQueues) {
+    /** Delivery queues + send-latency merged into one table: one row per queue, all values as numbers. */
+    public static String delivery(Map<String, PersistentSpool> aQueues, Map<String, LatencyStat> aLatency) {
         if (aQueues.isEmpty()) {
             return "<p class=\"muted\">no queues</p>";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"tablewrap\"><table><thead><tr><th>queue</th>")
-          .append("<th class=\"num\">pending</th><th class=\"num\">dead</th>")
-          .append("<th class=\"num\">sent</th><th class=\"num\" title=\"dead-lettered\">DLQ</th></tr></thead><tbody>");
-        int maxPending = 0;
+        sb.append("<div class=\"delivery-wrap\"><table class=\"delivery\"><thead><tr>")
+          .append("<th class=\"l\">queue</th>")
+          .append("<th>pending</th><th>dead</th><th>sent</th><th>dlq</th>")
+          .append("<th class=\"n\">n</th><th>mean</th><th>p50</th><th>p95</th><th>p99</th><th>max</th>")
+          .append("</tr></thead><tbody>");
         for (Map.Entry<String, PersistentSpool> entry : aQueues.entrySet()) {
             PersistentSpool spool = entry.getValue();
-            maxPending = Math.max(maxPending, spool.size());
-            sb.append("<tr><td>").append(esc(entry.getKey())).append("</td>")
-              .append("<td class=\"num\">").append(spool.size()).append("</td>")
-              .append("<td class=\"num\">").append(spool.deadSize()).append("</td>")
-              .append("<td class=\"num\">").append(spool.sentCount()).append("</td>")
-              .append("<td class=\"num\">").append(spool.deadLetterCount()).append("</td></tr>");
+            int  pending = spool.size();
+            long dead    = spool.deadSize();
+            long dlq     = spool.deadLetterCount();
+            sb.append("<tr><td class=\"l\">").append(esc(entry.getKey())).append("</td>")
+              .append(numCell(pending, pending > 0 ? "warn" : null))
+              .append(numCell(dead, dead > 0 ? "bad" : null))
+              .append(numCell(spool.sentCount(), null))
+              .append(numCell(dlq, dlq > 0 ? "bad" : null));
+            LatencyStat stat = aLatency == null ? null : aLatency.get(entry.getKey());
+            if (stat == null || stat.count() == 0) {
+                sb.append("<td class=\"n\">&mdash;</td><td>&mdash;</td><td>&mdash;</td>")
+                  .append("<td>&mdash;</td><td>&mdash;</td><td>&mdash;</td>");
+            } else {
+                sb.append("<td class=\"n\">").append(stat.count()).append("</td>")
+                  .append("<td>").append(formatMs(stat.meanMs())).append("</td>")
+                  .append("<td>").append(formatMs(stat.p50Ms())).append("</td>")
+                  .append("<td>").append(formatMs(stat.p95Ms())).append("</td>")
+                  .append("<td>").append(formatMs(stat.p99Ms())).append("</td>")
+                  .append("<td>").append(formatMs(stat.maxMs())).append("</td>");
+            }
+            sb.append("</tr>");
         }
         sb.append("</tbody></table></div>");
-
-        // depth bars (pending), scaled to the busiest queue
-        sb.append("<div class=\"bars\">");
-        for (Map.Entry<String, PersistentSpool> entry : aQueues.entrySet()) {
-            int pending = entry.getValue().size();
-            double fraction = maxPending == 0 ? 0.0 : (double) pending / maxPending;
-            sb.append(barRow(esc(entry.getKey()), Integer.toString(pending), fraction));
-        }
-        sb.append("</div>");
         return sb.toString();
     }
 
-    /** Per-queue send-latency percentiles as horizontal bars scaled to each queue's max. */
-    public static String latency(Map<String, LatencyStat> aStats) {
-        if (aStats.isEmpty()) {
-            return "<p class=\"muted\">no data</p>";
-        }
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, LatencyStat> entry : aStats.entrySet()) {
-            LatencyStat stat = entry.getValue();
-            sb.append("<div class=\"lat\"><div class=\"kv\"><span><b>").append(esc(entry.getKey())).append("</b></span>")
-              .append("<span class=\"muted\">n=").append(stat.count())
-              .append(", mean ").append(formatMs(stat.meanMs())).append("</span></div>");
-            double scale = stat.maxMs() <= 0 ? 1.0 : stat.maxMs();
-            sb.append("<div class=\"bars\">");
-            sb.append(barRow("p50", formatMs(stat.p50Ms()), stat.p50Ms() / scale));
-            sb.append(barRow("p95", formatMs(stat.p95Ms()), stat.p95Ms() / scale));
-            sb.append(barRow("p99", formatMs(stat.p99Ms()), stat.p99Ms() / scale));
-            sb.append(barRow("max", formatMs(stat.maxMs()), 1.0));
-            sb.append("</div></div>");
-        }
-        return sb.toString();
+    private static String numCell(long aValue, String aClass) {
+        return aClass == null ? "<td>" + aValue + "</td>" : "<td class=\"" + aClass + "\">" + aValue + "</td>";
     }
 
     /** Recent agent command-output log lines (newest first). Connect/disconnect are not shown. */
@@ -139,9 +146,9 @@ public final class DashboardView {
         sb.append("<div class=\"logbox\">");
         for (AgentLogBuffer.LogLine line : aLines) {
             String time = LOG_TIME.format(Instant.ofEpochMilli(line.epochMs()).atZone(ZoneId.systemDefault()));
-            sb.append("<div class=\"logline\"><span class=\"muted\">").append(time).append("</span> ")
-              .append("<code>#").append(esc(shortId(line.commandId()))).append("</code> ")
-              .append(esc(line.message()))
+            sb.append("<div class=\"logline\"><span class=\"log-time\">").append(time).append("</span>")
+              .append("<code class=\"log-id\">#").append(esc(shortId(line.commandId()))).append("</code>")
+              .append("<span class=\"log-msg\">").append(esc(line.message())).append("</span>")
               .append("</div>");
         }
         sb.append("</div>");
@@ -155,32 +162,94 @@ public final class DashboardView {
         return aCommandId.length() > 8 ? aCommandId.substring(0, 8) : aCommandId;
     }
 
-    /** Grouped table of startup config parameters (secrets already masked in the entries). */
+    /**
+     * Full Config screen: a filter toolbar plus one card per group with a filterable grid of rows. Secrets are
+     * already masked in the entries and never carry the real value. The client filters the rendered rows.
+     */
     public static String config(List<StartupConfigReport.Entry> aEntries) {
         if (aEntries.isEmpty()) {
             return "<p class=\"muted\">no config</p>";
         }
-        StringBuilder sb = new StringBuilder();
-        String currentGroup = null;
-        for (StartupConfigReport.Entry entry : aEntries) {
-            if (!entry.group().equals(currentGroup)) {
-                if (currentGroup != null) {
-                    sb.append("</tbody></table></div>");
-                }
-                currentGroup = entry.group();
-                sb.append("<h3 class=\"cfg-group\">").append(esc(currentGroup)).append("</h3>");
-                sb.append("<div class=\"tablewrap\"><table><thead><tr>")
-                  .append("<th>variable</th><th>value</th><th>default</th></tr></thead><tbody>");
+        int overridden = 0;
+        for (StartupConfigReport.Entry e : aEntries) {
+            if (isOverridden(e)) {
+                overridden++;
             }
-            sb.append("<tr><td><code>").append(esc(entry.name())).append("</code></td>")
-              .append("<td>").append(esc(entry.value()));
-            if (!entry.isDefault()) {
-                sb.append(" <span class=\"pill warn\">overridden</span>");
-            }
-            sb.append("</td><td class=\"muted\"><code>").append(esc(entry.def())).append("</code></td></tr>");
         }
-        sb.append("</tbody></table></div>");
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"cfg-toolbar\">")
+          .append("<input class=\"cfg-filter\" type=\"text\" placeholder=\"filter variables&hellip;\" autocomplete=\"off\" spellcheck=\"false\">")
+          .append("<button class=\"cfg-toggle\" type=\"button\">overridden only</button>")
+          .append("<span class=\"cfg-summary\">").append(aEntries.size()).append(" variables &middot; ")
+          .append(overridden).append(" overridden</span></div>");
+
+        Map<String, List<StartupConfigReport.Entry>> byGroup = new java.util.LinkedHashMap<>();
+        for (StartupConfigReport.Entry e : aEntries) {
+            byGroup.computeIfAbsent(e.group(), k -> new java.util.ArrayList<>()).add(e);
+        }
+        for (Map.Entry<String, List<StartupConfigReport.Entry>> group : byGroup.entrySet()) {
+            List<StartupConfigReport.Entry> rows = group.getValue();
+            int groupOvr = 0;
+            for (StartupConfigReport.Entry e : rows) {
+                if (isOverridden(e)) {
+                    groupOvr++;
+                }
+            }
+            sb.append("<section class=\"cfg-card\"><div class=\"cfg-card-head\">")
+              .append("<span class=\"cfg-group-label\">").append(esc(group.getKey())).append("</span>")
+              .append("<span class=\"cfg-count\" data-total=\"").append(rows.size()).append("\">")
+              .append(rows.size()).append(" of ").append(rows.size()).append("</span>");
+            if (groupOvr > 0) {
+                sb.append("<span class=\"cfg-ovr\">").append(groupOvr).append(" overridden</span>");
+            }
+            sb.append("</div><div class=\"cfg-grid\">")
+              .append("<div class=\"cfg-row cfg-th\"><span>variable</span><span>value</span><span>default</span></div>");
+            for (StartupConfigReport.Entry e : rows) {
+                boolean ovr   = isOverridden(e);
+                String  value = e.masked() ? "••••" : e.value();
+                String  def   = e.def() == null || e.def().isEmpty() ? "—" : e.def();
+                sb.append("<div class=\"cfg-row\" data-var=\"").append(esc(e.name().toLowerCase()))
+                  .append("\" data-value=\"").append(esc(e.value() == null ? "" : e.value().toLowerCase()))
+                  .append("\" data-overridden=\"").append(ovr).append("\">")
+                  .append("<span class=\"cfg-var\"><span class=\"cfg-dot").append(ovr ? " on" : "").append("\"></span>")
+                  .append("<span class=\"cfg-name\">").append(esc(e.name())).append("</span></span>")
+                  .append("<span class=\"cfg-value\"><span class=\"v-").append(valueKind(e)).append("\">")
+                  .append(esc(value)).append("</span>");
+                if (e.masked() && isSecretSet(e)) {
+                    sb.append("<span class=\"cfg-set\">set</span>");
+                }
+                sb.append("</span><span class=\"cfg-def\">").append(esc(def)).append("</span></div>");
+            }
+            sb.append("</div></section>");
+        }
+        sb.append("<div class=\"cfg-empty\" hidden>nothing matches the current filter</div>");
         return sb.toString();
+    }
+
+    private static boolean isOverridden(StartupConfigReport.Entry aEntry) {
+        return aEntry.masked() ? isSecretSet(aEntry) : !aEntry.isDefault();
+    }
+
+    private static boolean isSecretSet(StartupConfigReport.Entry aEntry) {
+        return aEntry.value() != null && aEntry.value().contains("(set)");
+    }
+
+    /** Coarse value classification for colour-coding: secret / num / bool / path / str. */
+    private static String valueKind(StartupConfigReport.Entry aEntry) {
+        if (aEntry.masked()) {
+            return "secret";
+        }
+        String v = aEntry.value() == null ? "" : aEntry.value().trim();
+        if (v.matches("-?\\d+")) {
+            return "num";
+        }
+        if (v.equalsIgnoreCase("true") || v.equalsIgnoreCase("false")) {
+            return "bool";
+        }
+        if (v.startsWith("/") || v.startsWith("./") || v.startsWith("../")) {
+            return "path";
+        }
+        return "str";
     }
 
     /** One alias in the sidebar list: name + number of commands. */
@@ -256,16 +325,6 @@ public final class DashboardView {
         return sb.toString();
     }
 
-    /** One horizontal bar: label, a filled track (fraction clamped to [0,1]) and a value caption. */
-    static String barRow(String aLabel, String aValueText, double aFraction) {
-        long pct = Math.round(Math.max(0.0, Math.min(1.0, aFraction)) * 100);
-        return "<div class=\"barrow\">"
-                + "<span class=\"barlabel\">" + aLabel + "</span>"
-                + "<span class=\"bartrack\"><span class=\"barfill\" style=\"width:" + pct + "%\"></span></span>"
-                + "<span class=\"barval\">" + aValueText + "</span>"
-                + "</div>";
-    }
-
     static String formatMs(double aMs) {
         if (aMs < 1.0) {
             return String.format("%.1f ms", aMs);
@@ -276,19 +335,16 @@ public final class DashboardView {
         return String.format("%.1f s", aMs / 1000.0);
     }
 
-    /** Coarse JVM/service vitals; values are passed in so the method stays deterministic. */
+    /** Coarse JVM/service vitals rendered as inline header metrics (uptime / heap / agents). */
     public static String service(long aUptimeMs, long aHeapUsed, long aHeapMax, int aAgentCount) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"kv\"><span>Uptime</span><b>").append(formatDuration(aUptimeMs)).append("</b></div>");
-        sb.append("<div class=\"kv\"><span>Heap</span><b>")
-          .append(formatBytes(aHeapUsed)).append(" / ").append(formatBytes(aHeapMax)).append("</b></div>");
-        sb.append("<div class=\"kv\"><span>Agents</span><b>").append(aAgentCount).append("</b></div>");
-        return sb.toString();
+        return "<span class=\"vital\">uptime <b>" + formatDuration(aUptimeMs) + "</b></span>"
+                + "<span class=\"vital\">heap <b>" + formatBytes(aHeapUsed) + " / " + formatBytes(aHeapMax) + "</b></span>"
+                + "<span class=\"vital\">agents <b>" + aAgentCount + "</b></span>";
     }
 
-    private static String statePill(TaskState aState) {
+    private static String stateBadge(TaskState aState) {
         if (aState == null || aState.getType() == null) {
-            return "<span class=\"pill\">unknown</span>";
+            return "<span class=\"badge\">unknown</span>";
         }
         String cls;
         switch (aState.getType()) {
@@ -296,7 +352,7 @@ public final class DashboardView {
             case ERROR:   cls = "bad";  break;
             default:      cls = "warn"; break; // RUNNING
         }
-        return "<span class=\"pill " + cls + "\">" + aState.getType() + "</span>";
+        return "<span class=\"badge " + cls + "\">" + aState.getType() + "</span>";
     }
 
     static String formatDuration(long aMs) {

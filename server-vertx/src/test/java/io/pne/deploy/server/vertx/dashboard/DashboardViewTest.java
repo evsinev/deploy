@@ -33,7 +33,7 @@ public class DashboardViewTest {
         String html = DashboardView.agents(agents);
         assertTrue(html, html.contains("host-a"));
         assertTrue(html, html.contains("host-b"));
-        assertTrue(html, html.contains(">2<")); // count
+        assertTrue(html, html.contains("2 connected")); // count
     }
 
     @Test
@@ -61,7 +61,7 @@ public class DashboardViewTest {
     }
 
     @Test
-    public void queuesRendersSpoolCounters() throws Exception {
+    public void deliveryRendersCountersAndLatencyColumns() throws Exception {
         PersistentSpool spool = new PersistentSpool(tmp.newFolder("telegram"));
         String first = spool.append("{\"x\":1}");
         spool.append("{\"x\":2}");
@@ -69,71 +69,72 @@ public class DashboardViewTest {
 
         Map<String, PersistentSpool> queues = new LinkedHashMap<>();
         queues.put("telegram", spool);
+        Map<String, LatencyStat> latency = new LinkedHashMap<>();
+        latency.put("telegram", new LatencyStat(16, 126.0, 98.0, 210.0, 244.0, 251.0));
 
-        String html = DashboardView.queues(queues);
+        String html = DashboardView.delivery(queues, latency);
+        assertTrue(html, html.contains("<table class=\"delivery\""));
         assertTrue(html, html.contains("telegram"));
-        assertTrue(html, html.contains("<td class=\"num\">1</td>")); // pending and sent are both 1
+        assertTrue(html, html.contains(">16<"));   // n column
+        assertTrue(html, html.contains("210 ms")); // p95 latency value
+        assertTrue(html, html.contains("<th class=\"l\">queue</th>"));
     }
 
     @Test
-    public void queuesRendersDepthBars() throws Exception {
+    public void deliveryWithoutLatencyShowsDashes() throws Exception {
         PersistentSpool spool = new PersistentSpool(tmp.newFolder("redmine"));
         spool.append("{\"x\":1}");
         Map<String, PersistentSpool> queues = new LinkedHashMap<>();
         queues.put("redmine", spool);
 
-        String html = DashboardView.queues(queues);
-        assertTrue(html, html.contains("barfill"));
-        assertTrue(html, html.contains("style=\"width:"));
+        String html = DashboardView.delivery(queues, new LinkedHashMap<>());
+        assertTrue(html, html.contains("redmine"));
+        assertTrue(html, html.contains("&mdash;")); // no latency yet -> em dashes
     }
 
     @Test
-    public void queuesEmptyShowsPlaceholder() {
-        assertTrue(DashboardView.queues(new LinkedHashMap<>()).contains("no queues"));
-    }
-
-    @Test
-    public void latencyRendersPercentileBars() {
-        Map<String, LatencyStat> stats = new LinkedHashMap<>();
-        stats.put("telegram", new LatencyStat(1043, 45.0, 12.0, 180.0, 240.0, 310.0));
-
-        String html = DashboardView.latency(stats);
-        assertTrue(html, html.contains("telegram"));
-        assertTrue(html, html.contains("p95"));
-        assertTrue(html, html.contains("style=\"width:"));
-        assertTrue(html, html.contains("n=1043"));
-        assertTrue(html, html.contains("180 ms"));
-    }
-
-    @Test
-    public void latencyEmptyShowsNoData() {
-        assertTrue(DashboardView.latency(new LinkedHashMap<>()).contains("no data"));
-    }
-
-    @Test
-    public void barRowClampsFractionAndFormatsWidth() {
-        assertTrue(DashboardView.barRow("p99", "9 ms", 2.0).contains("width:100%"));
-        assertTrue(DashboardView.barRow("p50", "0 ms", -1.0).contains("width:0%"));
+    public void deliveryEmptyShowsPlaceholder() {
+        assertTrue(DashboardView.delivery(new LinkedHashMap<>(), new LinkedHashMap<>()).contains("no queues"));
     }
 
     @Test
     public void statusNullIsIdleWithoutException() {
-        String html = DashboardView.status(null);
+        String html = DashboardView.status(null, "");
         assertTrue(html, html.contains("idle"));
     }
 
     @Test
-    public void statusRendersTaskFields() {
+    public void statusRendersTaskFieldsAndIssueLink() {
         TaskStatus status = TaskStatus.builder()
                 .taskId("task-1")
                 .issueId(42)
                 .taskLine("> deploy web")
                 .taskState(TaskState.taskRunning())
                 .build();
-        String html = DashboardView.status(status);
+        String html = DashboardView.status(status, "https://redmine.example.com/");
         assertTrue(html, html.contains("task-1"));
-        assertTrue(html, html.contains("42"));
         assertTrue(html, html.contains("RUNNING"));
+        assertTrue(html, html.contains("badge"));
+        assertTrue(html, html.contains("href=\"https://redmine.example.com/issues/42\"")); // trailing slash trimmed
+        assertTrue(html, html.contains("#42"));
+    }
+
+    @Test
+    public void statusWithoutRedmineUrlShowsPlainIssue() {
+        TaskStatus status = TaskStatus.builder()
+                .taskId("t").issueId(7).taskState(TaskState.taskRunning()).build();
+        String html = DashboardView.status(status, "");
+        assertFalse(html, html.contains("<a "));
+        assertTrue(html, html.contains("#7"));
+    }
+
+    @Test
+    public void statusRendersErrorMessage() {
+        TaskStatus status = TaskStatus.builder()
+                .taskId("t").issueId(9).taskState(TaskState.taskError("boom <fail>")).build();
+        String html = DashboardView.status(status, "");
+        assertTrue(html, html.contains("task-err"));
+        assertTrue(html, html.contains("boom &lt;fail&gt;")); // escaped
     }
 
     @Test
@@ -157,14 +158,17 @@ public class DashboardViewTest {
     }
 
     @Test
-    public void configRendersNamesGroupsAndMaskedValue() {
+    public void configRendersGroupsMaskedSecretAndSetChip() {
         List<StartupConfigReport.Entry> entries = List.of(
                 new StartupConfigReport.Entry("Redmine", "REDMINE_URL", "http://x", "", false, false),
                 new StartupConfigReport.Entry("Redmine", "TELEGRAM_TOKEN", "•••• (set)", "", true, false));
         String html = DashboardView.config(entries);
-        assertTrue(html, html.contains("Redmine"));
+        assertTrue(html, html.contains("cfg-toolbar"));   // filter toolbar
+        assertTrue(html, html.contains("Redmine"));       // group card header
         assertTrue(html, html.contains("REDMINE_URL"));
-        assertTrue(html, html.contains("•••• (set)"));
+        assertTrue(html, html.contains("••••"));          // secret masked
+        assertTrue(html, html.contains("cfg-set"));       // "set" chip for the secret
+        assertTrue(html, html.contains("v-str"));         // non-secret value colour class
     }
 
     @Test

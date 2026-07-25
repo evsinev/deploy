@@ -60,6 +60,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final List<StartupConfigReport.Entry> configEntries;
     private final File                         aliasesDir;
     private final long                         refreshMs;
+    private final String                       redmineBaseUrl; // for linking issue ids on the task card
 
     private final String basePath;
     private final String eventsPath;
@@ -97,6 +98,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.configEntries      = aConfigEntries;
         this.aliasesDir         = aAliasesDir;
         this.refreshMs          = aRefreshMs;
+        this.redmineBaseUrl     = findConfig(aConfigEntries, "REDMINE_URL");
 
         this.basePath    = normalize(aBasePath);
         this.eventsPath  = basePath + "/events";
@@ -190,6 +192,19 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         aRequest.response().putHeader("Content-Type", aContentType).end(aBody);
     }
 
+    /** Effective value of a non-masked config entry by name, or "" when absent or masked. */
+    private static String findConfig(List<StartupConfigReport.Entry> aEntries, String aName) {
+        if (aEntries == null) {
+            return "";
+        }
+        for (StartupConfigReport.Entry entry : aEntries) {
+            if (aName.equals(entry.name()) && !entry.masked()) {
+                return entry.value() == null ? "" : entry.value();
+            }
+        }
+        return "";
+    }
+
     /** POST {base}/issue with form field issue_id -> enqueue, then return the refreshed issues fragment. */
     private void handleIssue(HttpServerRequest aRequest) {
         if (aRequest.method() != HttpMethod.POST) {
@@ -249,10 +264,9 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             writeEvent(aResponse, "service", DashboardView.service(
                     ManagementFactory.getRuntimeMXBean().getUptime(), heapUsed, runtime.maxMemory(), agentSnapshot.size()));
             writeEvent(aResponse, "agents", DashboardView.agents(agentSnapshot));
-            writeEvent(aResponse, "status", DashboardView.status(taskStatusSupplier.get()));
+            writeEvent(aResponse, "status", DashboardView.status(taskStatusSupplier.get(), redmineBaseUrl));
             writeEvent(aResponse, "issues", DashboardView.issues(issueSnapshot));
-            writeEvent(aResponse, "queues", DashboardView.queues(queues));
-            writeEvent(aResponse, "latency", DashboardView.latency(latencySnapshot()));
+            writeEvent(aResponse, "delivery", DashboardView.delivery(queues, latencySnapshot()));
             writeEvent(aResponse, "logs", DashboardView.logs(logBuffer.snapshot(50)));
             return true;
         } catch (RuntimeException e) {

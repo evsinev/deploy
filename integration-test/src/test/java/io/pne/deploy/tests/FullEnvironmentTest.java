@@ -31,6 +31,8 @@ public class FullEnvironmentTest {
             String frames = env.readDashboardEvents("deployed", 10_000);
             assertTrue("dashboard should stream an 'logs' event, got: " + frames, frames.contains("event: logs"));
             assertTrue("agent echo output should appear in the logs card, got: " + frames, frames.contains("deployed"));
+            // queues + latency are merged into one 'delivery' fragment
+            assertTrue("dashboard should stream a 'delivery' event, got: " + frames, frames.contains("event: delivery"));
 
             // Config screen lists env vars but masks secrets.
             String config = env.httpGet("/deploy/dashboard/config");
