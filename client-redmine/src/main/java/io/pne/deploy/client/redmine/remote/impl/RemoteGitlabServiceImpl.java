@@ -58,6 +58,7 @@ public class RemoteGitlabServiceImpl implements IRemoteGitlabService {
 
     private GitlabDiffData fetchGitlabDiffData(DiffTask diffTask) {
         String requestUrl = gitlabUrl + API_1 + diffTask.getGitlabProject() + API_2 + FROM + getTagFromVersion(diffTask.getOldVersion()) + TO + getTagFromVersion(diffTask.getNewVersion());
+        LOG.info("Gitlab compare: GET {}", requestUrl); // the api key is in the Authorization header, not the url
 
         HttpRequest request = HttpRequest.builder()
                 .url(requestUrl)
@@ -72,9 +73,14 @@ public class RemoteGitlabServiceImpl implements IRemoteGitlabService {
         }
         String responseBody = new String(response.getBody(), UTF_8);
         if (response.getStatusCode() != 200) {
+            LOG.warn("Gitlab compare failed: HTTP {} for project {} ({} -> {})", response.getStatusCode(),
+                    diffTask.getGitlabProject(), diffTask.getOldVersion(), diffTask.getNewVersion());
             throw new IllegalStateException("Can't get diff for tags " + diffTask.getOldVersion() + " and " + diffTask.getNewVersion() + " for project " + diffTask.getGitlabProject());
         }
-        return gson.fromJson(responseBody, GitlabDiffData.class);
+        GitlabDiffData data = gson.fromJson(responseBody, GitlabDiffData.class);
+        LOG.info("Gitlab compare: HTTP 200, {} commit(s) for project {}",
+                data == null || data.getCommits() == null ? 0 : data.getCommits().size(), diffTask.getGitlabProject());
+        return data;
     }
 
     private String getTagFromVersion(String version) {
