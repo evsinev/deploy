@@ -29,7 +29,7 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     @AStartupParameter(name = "REDMINE_READ_TIMEOUT", value = "120")
     int readTimeoutSeconds();
 
-    @AStartupParameter(name = "REDMINE_CALLBACK_URI", value = "")
+    @AStartupParameter(name = "REDMINE_CALLBACK_URI", value = "", maskVariable = true)
     String redmineCallbackUrl();
 
     @AStartupParameter(name = "ISSUE_VALIDATION_SCRIPT", value = "")
@@ -44,7 +44,7 @@ public interface IRedmineRemoteConfig extends IStartupConfig {
     @AStartupParameter(name = "GITLAB_URL", value = "")
     String gitlabUrl();
 
-    @AStartupParameter(name = "GITLAB_API_KEY", value = "")
+    @AStartupParameter(name = "GITLAB_API_KEY", value = "", maskVariable = true)
     String gitlabApiKey();
 
     @AStartupParameter(name = "TELEGRAM_ENABLED", value = "false")
