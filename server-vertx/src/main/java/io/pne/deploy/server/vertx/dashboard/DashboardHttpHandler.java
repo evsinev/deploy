@@ -61,6 +61,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final File                         aliasesDir;
     private final long                         refreshMs;
     private final String                       redmineBaseUrl; // for linking issue ids on the task card
+    private final String                       serverLogFile;  // tailed by the Log screen; blank disables it
 
     private final String basePath;
     private final String eventsPath;
@@ -70,6 +71,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final String configPath;
     private final String aliasesPath;
     private final String aliasPath;
+    private final String logEventsPath;
 
     private final Buffer indexHtml;
     private final Buffer htmxJs = readResource("/dashboard/htmx.min.js");
@@ -87,6 +89,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             , File aAliasesDir
             , String aBasePath
             , long aRefreshMs
+            , String aServerLogFile
     ) {
         this.vertx              = aVertx;
         this.agents             = aAgents;
@@ -99,6 +102,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.aliasesDir         = aAliasesDir;
         this.refreshMs          = aRefreshMs;
         this.redmineBaseUrl     = findConfig(aConfigEntries, "REDMINE_URL");
+        this.serverLogFile      = aServerLogFile;
 
         this.basePath    = normalize(aBasePath);
         this.eventsPath  = basePath + "/events";
@@ -108,6 +112,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.configPath  = basePath + "/config";
         this.aliasesPath = basePath + "/aliases";
         this.aliasPath   = basePath + "/alias";
+        this.logEventsPath = basePath + "/log/events";
 
         this.indexHtml = Buffer.buffer(readResourceString("/dashboard/index.html").replace("{{BASE}}", basePath));
     }
@@ -134,6 +139,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             handleAliasList(aRequest);
         } else if (aliasPath.equals(path)) {
             handleAliasDetail(aRequest, aRequest.getParam("name"));
+        } else if (logEventsPath.equals(path)) {
+            handleLogEvents(aRequest);
         } else if (basePath.equals(path) || (basePath + "/").equals(path)) {
             serve(aRequest, "text/html; charset=utf-8", indexHtml);
         } else {
@@ -271,6 +278,61 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         });
 
         aRequest.connection().closeHandler(aVoid -> vertx.cancelTimer(timerId));
+    }
+
+    /** SSE tail of the configured server log file: the last 300 lines on connect, then appended lines each tick. */
+    private void handleLogEvents(HttpServerRequest aRequest) {
+        HttpServerResponse response = aRequest.response();
+        response.setChunked(true);
+        response.putHeader("Content-Type", "text/event-stream");
+        response.putHeader("Cache-Control", "no-cache");
+        response.putHeader("Connection", "keep-alive");
+
+        if (serverLogFile == null || serverLogFile.isBlank()) {
+            writeEvent(response, "logline", "<div class=\"log-row\">server log is not configured (SERVER_LOG_FILE)</div>");
+            response.end();
+            return;
+        }
+
+        ServerLogTailer tailer = new ServerLogTailer(new File(serverLogFile));
+        long[] offset = {0};
+
+        vertx.<List<String>>executeBlocking(() -> {
+            List<String> initial = tailer.lastLines(300);
+            offset[0] = tailer.size();
+            return initial;
+        }, false).onComplete(ar -> {
+            if (ar.succeeded() && !response.closed() && !response.ended()) {
+                writeEvent(response, "logline", logRows(ar.result()));
+            }
+        });
+
+        long timerId = vertx.setPeriodic(refreshMs, id -> {
+            if (response.closed() || response.ended()) {
+                vertx.cancelTimer(id);
+                return;
+            }
+            vertx.<ServerLogTailer.Chunk>executeBlocking(() -> tailer.readFrom(offset[0]), false).onComplete(ar -> {
+                if (ar.failed()) {
+                    return;
+                }
+                ServerLogTailer.Chunk chunk = ar.result();
+                offset[0] = chunk.offset();
+                if (!chunk.lines().isEmpty() && !response.closed() && !response.ended()) {
+                    writeEvent(response, "logline", logRows(chunk.lines()));
+                }
+            });
+        });
+
+        aRequest.connection().closeHandler(aVoid -> vertx.cancelTimer(timerId));
+    }
+
+    private static String logRows(List<String> aLines) {
+        StringBuilder sb = new StringBuilder();
+        for (String line : aLines) {
+            sb.append("<div class=\"log-row\">").append(DashboardView.esc(line)).append("</div>");
+        }
+        return sb.toString();
     }
 
     /** Writes one snapshot of every card; returns false if the client connection is gone. */

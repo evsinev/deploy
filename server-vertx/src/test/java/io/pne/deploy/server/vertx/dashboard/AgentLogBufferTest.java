@@ -12,10 +12,10 @@ public class AgentLogBufferTest {
     @Test
     public void keepsMostRecentUpToCapacityNewestFirst() {
         AgentLogBuffer buffer = new AgentLogBuffer(3);
-        buffer.add("c", "one");
-        buffer.add("c", "two");
-        buffer.add("c", "three");
-        buffer.add("c", "four"); // evicts "one"
+        buffer.add("a", "c","one");
+        buffer.add("a", "c","two");
+        buffer.add("a", "c","three");
+        buffer.add("a", "c","four"); // evicts "one"
 
         List<AgentLogBuffer.LogLine> snap = buffer.snapshot(10);
         assertEquals(3, snap.size());
@@ -28,7 +28,7 @@ public class AgentLogBufferTest {
     public void snapshotRespectsMax() {
         AgentLogBuffer buffer = new AgentLogBuffer(100);
         for (int i = 0; i < 10; i++) {
-            buffer.add("c", "m" + i);
+            buffer.add("a", "c","m" + i);
         }
         List<AgentLogBuffer.LogLine> snap = buffer.snapshot(3);
         assertEquals(3, snap.size());

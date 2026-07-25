@@ -7,7 +7,6 @@ import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
 import io.pne.deploy.server.IServerApplicationListener;
 import io.pne.deploy.server.api.ITaskExecutionListener;
-import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.WebSocketFrame;
 import org.slf4j.Logger;
@@ -15,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
-public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
+public class ServerWebSocketFrameHandler {
 
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerWebSocketFrameHandler.class);
@@ -34,8 +33,7 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
         listener = aListener;
     }
 
-    @Override
-    public void handle(WebSocketFrame aEvent) {
+    public void onFrame(String aAgentId, WebSocketFrame aEvent) {
         if (!aEvent.isBinary()) {
             LOG.warn("Frame is not binary {}", aEvent);
             return;
@@ -49,7 +47,7 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
         AgentMessageType    type    = AgentMessageType.findType(typeId);
         IAgentClientMessage message = parseMessage(type, buffer);
 
-        serverListener.didReceiveMessage(message);
+        serverListener.didReceiveMessage(aAgentId, message);
         LOG.debug("Got {}", message);
 
         switch (type) {
@@ -61,7 +59,7 @@ public class ServerWebSocketFrameHandler implements Handler<WebSocketFrame> {
 
             case RUN_COMMAND_LOG:
                 RunAgentCommandLog logMessage = (RunAgentCommandLog) message;
-                LOG_AGENT.info("{}: {}", logMessage.commandId, logMessage.message);
+                LOG_AGENT.info("{} {}: {}", aAgentId, logMessage.commandId, logMessage.message);
                 listener.onCommandLog(logMessage);
                 break;
 

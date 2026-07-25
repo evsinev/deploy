@@ -10,4 +10,8 @@ public interface IDashboardConfig extends IStartupConfig {
 
     @AStartupParameter(name = "DASHBOARD_REFRESH_MS", value = "2000")
     long refreshMs();
+
+    /** Server log file tailed on the dashboard "Log" screen. Blank disables the screen. */
+    @AStartupParameter(name = "SERVER_LOG_FILE", value = "/var/log/deploy-server-1/current")
+    String serverLogFile();
 }

@@ -147,6 +147,7 @@ public final class DashboardView {
         for (AgentLogBuffer.LogLine line : aLines) {
             String time = LOG_TIME.format(Instant.ofEpochMilli(line.epochMs()).atZone(ZoneId.systemDefault()));
             sb.append("<div class=\"logline\"><span class=\"log-time\">").append(time).append("</span>")
+              .append("<span class=\"log-agent\">").append(esc(line.agentId())).append("</span>")
               .append("<code class=\"log-id\">#").append(esc(shortId(line.commandId()))).append("</code>")
               .append("<span class=\"log-msg\">").append(esc(line.message())).append("</span>")
               .append("</div>");
