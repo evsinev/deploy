@@ -20,8 +20,14 @@
             --label:       color-mix(in srgb, var(--muted) 78%, var(--bg));
             --argnum:      color-mix(in srgb, var(--muted) 58%, var(--bg));
         }
+        /* dark palette — applied on explicit toggle (data-theme=dark) or by OS unless the user forced light */
+        :root[data-theme="dark"] {
+            --bg: #16181d; --card: #1f232b; --fg: #e6e8eb; --muted: #9aa1ab;
+            --border: #2c313b; --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --track: #2c313b; --fill: #60a5fa;
+        }
         @media (prefers-color-scheme: dark) {
-            :root {
+            :root:not([data-theme="light"]) {
                 --bg: #16181d; --card: #1f232b; --fg: #e6e8eb; --muted: #9aa1ab;
                 --border: #2c313b; --accent: #60a5fa; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
                 --track: #2c313b; --fill: #60a5fa;
@@ -95,6 +101,7 @@
         .tab { padding: 6px 14px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600;
                color: var(--muted); background: transparent; border: 1px solid var(--border); }
         .tab.active { color: var(--fg); background: var(--card); border-color: var(--accent); }
+        .theme-toggle { margin-left: auto; }
         .screen { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
         .screen[hidden] { display: none; }
         #screen-config, #screen-aliases { overflow-y: auto; }
@@ -121,7 +128,7 @@
         .alias-filter:focus { border-color: var(--accent); }
         .alias-list { padding: 8px; display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 220px); overflow-y: auto; }
         @media (max-width: 720px) { .alias-list { max-height: none; } }
-        .alias-item { text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit;
+        .alias-item { text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; color: var(--fg);
                       display: flex; flex-direction: column; gap: 2px; border: 1px solid transparent; background: transparent;
                       transition: border-color .12s ease; }
         .alias-item:hover { border-color: var(--hover-border); }
@@ -170,6 +177,7 @@
         <button class="tab active" data-screen="live">Live</button>
         <button class="tab" data-screen="config">Config</button>
         <button class="tab" data-screen="aliases">Aliases</button>
+        <button class="tab theme-toggle" id="theme-btn" type="button" title="Toggle light / dark theme" aria-label="Toggle theme">&#9680;</button>
     </nav>
 
     <section id="screen-live" class="screen">
@@ -207,6 +215,30 @@
     </section>
 
     <script>
+        (function () {
+            var root = document.documentElement;
+            var btn  = document.getElementById('theme-btn');
+            function effective() {
+                var t = root.getAttribute('data-theme');
+                if (t === 'light' || t === 'dark') { return t; }
+                return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            function label() { if (btn) { btn.textContent = effective() === 'dark' ? '☾' : '☀'; } }
+            try {
+                var saved = localStorage.getItem('theme');
+                if (saved === 'light' || saved === 'dark') { root.setAttribute('data-theme', saved); }
+            } catch (e) { /* localStorage unavailable */ }
+            label();
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    var next = effective() === 'dark' ? 'light' : 'dark';
+                    root.setAttribute('data-theme', next);
+                    try { localStorage.setItem('theme', next); } catch (e) { /* ignore */ }
+                    label();
+                });
+            }
+        })();
+
         (function () {
             var banner = document.getElementById('sse-status');
             var body   = document.body;
