@@ -336,8 +336,9 @@
     <section id="screen-log" class="screen" hidden>
         <section class="card flush log-card">
             <div class="card-head">Server log</div>
-            <div class="log-view" hx-ext="sse" sse-connect="{{BASE}}/log/events">
-                <div class="log-stream" sse-swap="logline" hx-swap="beforeend"></div>
+            <div class="log-view" sse-connect="{{BASE}}/log/events">
+                <div class="log-stream" hx-get="{{BASE}}/log" hx-trigger="load"><span class="muted" style="display:block; padding:8px 16px">loading&hellip;</span></div>
+                <div class="log-tail" sse-swap="logline" hx-swap="beforeend"></div>
             </div>
         </section>
     </section>
@@ -468,12 +469,12 @@
 
         (function () {
             var view = document.querySelector('#screen-log .log-view');
-            var stream = document.querySelector('#screen-log .log-stream');
-            if (!view || !stream) { return; }
+            var tail = document.querySelector('#screen-log .log-tail');
+            if (!view) { return; }
             var MAX_ROWS = 1000;
-            stream.addEventListener('htmx:afterSwap', function () {
-                while (stream.children.length > MAX_ROWS) { stream.removeChild(stream.firstChild); }
-                var nearBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 60;
+            view.addEventListener('htmx:afterSwap', function () {
+                if (tail) { while (tail.children.length > MAX_ROWS) { tail.removeChild(tail.firstChild); } }
+                var nearBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
                 if (nearBottom) { view.scrollTop = view.scrollHeight; }
             });
             var logTab = document.querySelector('.tab[data-screen="log"]');
