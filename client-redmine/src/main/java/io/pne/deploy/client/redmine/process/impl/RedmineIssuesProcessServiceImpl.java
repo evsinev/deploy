@@ -10,6 +10,7 @@ import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import io.pne.deploy.server.api.IAgentVersionReader;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
@@ -42,10 +43,10 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     });
 
 
-    public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram) {
+    public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram, IAgentVersionReader aVersionReader) {
         this.redmine = redmine;
         this.deployService = deployService;
-        this.diffService = new DiffServiceImpl(redmine, telegram, aConfig);
+        this.diffService = new DiffServiceImpl(redmine, telegram, aConfig, aVersionReader);
         issueValidationScript = aConfig.issueValidationScript();
     }
 

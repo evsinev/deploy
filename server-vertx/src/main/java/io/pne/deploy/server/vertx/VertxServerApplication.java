@@ -86,7 +86,8 @@ public class VertxServerApplication {
     // for test only
     public VertxServerApplication(IServerApplicationListener serverListener, IVertxServerConfiguration aConfig, IRedmineRemoteConfig redmineConfig) {
         Gson                   gson         = new GsonBuilder().setPrettyPrinting().create();
-        CommandResponses       response     = new CommandResponses();
+        CommandResponses       response         = new CommandResponses();
+        VersionResponses       versionResponses = new VersionResponses();
         ITaskExecutionListener taskListener = new TaskExecutionListenerLogger();
 
         this.vertx = Vertx.vertx();
@@ -104,7 +105,7 @@ public class VertxServerApplication {
                 buildConfigReport(redmineConfig, aConfig, dashboardConfig), aConfig.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), "");
 
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, versionResponses, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
         this.telegramClient = null;
     }
@@ -114,6 +115,7 @@ public class VertxServerApplication {
 
         Gson                      gson              = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses          response          = new CommandResponses();
+        VersionResponses          versionResponses  = new VersionResponses();
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
 
@@ -144,7 +146,8 @@ public class VertxServerApplication {
         // Ring buffer of recent agent command-output logs, written by the server listener and read by the dashboard.
         AgentLogBuffer agentLogBuffer = new AgentLogBuffer(200);
 
-        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram);
+        AgentVersionReaderImpl versionReader = new AgentVersionReaderImpl(agentConnections, gson, versionResponses);
+        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram, versionReader);
         VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues, agentLogBuffer);
 
         this.vertx          = Vertx.vertx();
@@ -160,7 +163,7 @@ public class VertxServerApplication {
                 buildConfigReport(redmineConfig, config, dashboardConfig), config.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), dashboardConfig.serverLogFile());
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, versionResponses, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
         this.telegramClient = telegramClient;
     }

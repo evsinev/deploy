@@ -6,6 +6,7 @@ import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
+import io.pne.deploy.server.api.IAgentVersionReader;
 import org.junit.Test;
 
 import java.util.*;
@@ -18,7 +19,7 @@ public class DiffServiceImplTest {
 
     private final IRemoteRedmineService redmine = mock(IRemoteRedmineService.class);
     private final DiffServiceImpl diffService =
-            new DiffServiceImpl(redmine, getStartupParameters(IRedmineRemoteConfig.class));
+            new DiffServiceImpl(redmine, getStartupParameters(IRedmineRemoteConfig.class), mock(IAgentVersionReader.class));
 
     // --- aggregate ---
 

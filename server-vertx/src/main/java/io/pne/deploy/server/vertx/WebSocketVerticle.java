@@ -38,6 +38,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , AgentConnections aConnections
             , Gson aGson
             , CommandResponses aCommandResponses
+            , VersionResponses aVersionResponses
             , IDeployService   aDeploService
             , Executor         aCommandExecutor
             , IRedmineRemoteConfig aRedmineConfig
@@ -47,7 +48,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , Handler<HttpServerRequest> aMetricsHttpHandler
             , DashboardHttpHandler aDashboardHttpHandler
     ) {
-        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aListener);
+        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aVersionResponses, aListener);
         port = aPort;
         connections = aConnections;
         deployService = aDeploService;

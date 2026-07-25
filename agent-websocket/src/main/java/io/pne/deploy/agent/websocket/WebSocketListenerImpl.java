@@ -8,8 +8,11 @@ import io.pne.deploy.agent.api.IAgentService;
 import io.pne.deploy.agent.api.exceptions.AgentCommandException;
 import io.pne.deploy.agent.api.messages.AgentMessageType;
 import io.pne.deploy.agent.api.messages.IAgentServerMessage;
+import io.pne.deploy.agent.api.messages.GetVersionRequest;
+import io.pne.deploy.agent.api.messages.GetVersionResponse;
 import io.pne.deploy.agent.api.messages.RunAgentCommandRequest;
 import io.pne.deploy.agent.api.messages.RunAgentCommandResponse;
+import io.pne.deploy.agent.commands.VersionFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +56,20 @@ public class WebSocketListenerImpl implements IWebSocketListener {
                 }
                 break;
 
+            case GET_VERSION_REQUEST:
+                GetVersionRequest versionRequest = (GetVersionRequest) message;
+                try {
+                    String fetchedVersion = VersionFetcher.fetch(versionRequest.versionUrl);
+                    LOG.info("GetVersion {} -> {}", versionRequest.versionUrl, fetchedVersion);
+                    queue.enqueue(new GetVersionResponse(versionRequest.requestId, fetchedVersion, null));
+                } catch (Exception e) {
+                    LOG.warn("Can't fetch version from {}", versionRequest.versionUrl, e);
+                    queue.enqueue(new GetVersionResponse(versionRequest.requestId, null, e.toString()));
+                }
+                break;
+
             default:
-                throw new IllegalStateException(type + " not supported");
+                LOG.warn("Unsupported message type {} — ignoring", type);
 
         }
     }
