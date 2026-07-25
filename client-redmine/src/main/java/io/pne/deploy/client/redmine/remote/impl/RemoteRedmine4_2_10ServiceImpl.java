@@ -265,8 +265,11 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
 
     private ImmutableRedmineIssue mapIssue(RedmineIssueData issue) {
         Map<String, String> customFields = new HashMap<>();
-        for (CustomFields redmineCustomField : issue.getCustomFields()) {
-            customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
+        List<CustomFields> fields = issue.getCustomFields();
+        if (fields != null) {
+            for (CustomFields redmineCustomField : fields) {
+                customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
+            }
         }
         return ImmutableRedmineIssue.builder()
                 .issueId        ( issue.getId())
