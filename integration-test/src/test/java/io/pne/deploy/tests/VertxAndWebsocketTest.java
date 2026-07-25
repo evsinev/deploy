@@ -41,7 +41,7 @@ public class VertxAndWebsocketTest {
         Task task = new Task(generateTaskId(), new TaskParameters(), Arrays.asList(
                 shell("test-host", "echo", "test123"),
                 shell("test-host", "echo", "test1234")
-        ), "test-task", 0);
+        ), "test-task", 0, null);
 
         List<RunAgentCommandResponse> responses = runAndCollect(9090, "test-host", 2,
                 app -> app.getDeployService().runTask(task));
@@ -55,7 +55,7 @@ public class VertxAndWebsocketTest {
         Task task = new Task(generateTaskId(), new TaskParameters(), singletonList(
                 new TaskCommand(agentByName("test-host"), new AgentCommand(
                         new AgentCommandParameters(), SHELL, "sh", Arrays.asList("-c", "exit 1")))
-        ), "failing-task", 0);
+        ), "failing-task", 0, null);
 
         try {
             runAndCollect(9091, "test-host", 1, app -> app.getDeployService().runTask(task));

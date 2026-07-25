@@ -4,4 +4,5 @@ import java.util.List;
 
 public class AliasDescription {
     public List<AliasCommand> commands;
+    public AliasDiff          diff;
 }

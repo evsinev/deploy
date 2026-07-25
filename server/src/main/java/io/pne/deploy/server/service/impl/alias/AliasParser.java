@@ -47,6 +47,12 @@ public class AliasParser {
             );
             commands.add(new TaskCommand(agentByName(command.agents), agentCommand));
         }
-        return new Task(TaskId.generateTaskId(), new TaskParameters(), commands, aText, aIssueId);
+        TaskDiff diff = description.diff == null ? null : TaskDiff.builder()
+                .enabled(description.diff.enabled)
+                .versionUrl(description.diff.versionUrl)
+                .gitlabProjectId(description.diff.gitlabProjectId)
+                .agent(description.diff.agent)
+                .build();
+        return new Task(TaskId.generateTaskId(), new TaskParameters(), commands, aText, aIssueId, diff);
     }
 }

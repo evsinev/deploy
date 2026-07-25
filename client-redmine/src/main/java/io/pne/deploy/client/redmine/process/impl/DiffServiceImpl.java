@@ -11,7 +11,7 @@ import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteGitlabServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
 import io.pne.deploy.server.api.task.Task;
-import io.pne.deploy.server.api.task.TaskCommand;
+import io.pne.deploy.server.api.task.TaskDiff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +25,6 @@ import java.util.regex.Pattern;
 
 public class DiffServiceImpl implements DiffService {
     private static final Logger LOG = LoggerFactory.getLogger(DiffServiceImpl.class);
-    private static final Pattern LINK_LIKE = Pattern.compile("^(https?://|http:).+");
-    private static final Pattern VERSION_LIKE = Pattern.compile("^\\d+(?:\\.\\d+){2}(?:-\\d+)?$");
-    private static final Pattern GITLAB_PROJECT_LIKE = Pattern.compile("^gitlab=(\\d+)$");
     private static final Pattern REDMINE_ISSUE_LIKE = Pattern.compile("#(\\d+)");
     private static final int TG_SAFE_MAX = 4000;
 
@@ -84,53 +81,42 @@ public class DiffServiceImpl implements DiffService {
     }
 
     public List<DiffTask> getCurrentVersion(Task task) {
-        List<DiffTask> diffTasks = new ArrayList<>();
-        if (task == null || task.commands.isEmpty()) {
-            LOG.info("Diff: no task/commands, nothing to diff");
+        if (task == null || task.diff == null || !task.diff.isEnabled()) {
+            LOG.info("Diff: no enabled diff config for '{}'", task == null ? null : task.taskLine);
+            return new ArrayList<>();
+        }
+        TaskDiff diff = task.diff;
+        String newVersion = taskVersion(task.taskLine);
+        if (newVersion == null) {
+            LOG.info("Diff: skip '{}' — no version in the task line", task.taskLine);
+            return new ArrayList<>();
+        }
+        try {
+            String oldVersion = getUrlContent(diff.getVersionUrl());
+            if (oldVersion == null || oldVersion.isEmpty()) {
+                LOG.info("Diff: skip '{}' — old version is empty from {}", task.taskLine, diff.getVersionUrl());
+                return new ArrayList<>();
+            }
+            String[] agents = diff.getAgent() == null || diff.getAgent().isBlank()
+                    ? new String[0] : new String[]{diff.getAgent()};
+            LOG.info("Diff: '{}' — gitlabProjectId={}, {} -> {}, agent={}",
+                    task.taskLine, diff.getGitlabProjectId(), oldVersion, newVersion, diff.getAgent());
+            List<DiffTask> diffTasks = new ArrayList<>();
+            diffTasks.add(new DiffTask(agents, diff.getGitlabProjectId(), task.taskLine, oldVersion, newVersion));
             return diffTasks;
+        } catch (Exception e) {
+            LOG.error("Diff: can't build diff task for '{}'", task.taskLine, e);
+            return new ArrayList<>();
         }
-        // A command is diff-eligible purely by its arguments: a version, an old-version url, and a gitlab=<id>.
-        LOG.info("Diff: scanning {} command(s) of '{}' (need version + url + gitlab=<id>)",
-                task.commands.size(), task.taskLine);
-        for (TaskCommand command : task.commands) {
-            if (command == null) {
-                continue;
-            }
-            String name = command.command.name;
-            try {
-                String newVersion = parseStringFromArguments(command.command.arguments, VERSION_LIKE);
-                if (newVersion == null) {
-                    LOG.info("Diff: skip '{}' — no version argument", name);
-                    continue;
-                }
-                String linkForOldVersion = parseStringFromArguments(command.command.arguments, LINK_LIKE);
-                if (linkForOldVersion == null) {
-                    LOG.info("Diff: skip '{}' — no old-version url argument", name);
-                    continue;
-                }
-                Integer gitlabProject = parseGitlabProjectFromArguments(command.command.arguments);
-                if (gitlabProject == null) {
-                    LOG.info("Diff: skip '{}' — no gitlab=<id> argument", name);
-                    continue;
-                }
-                String oldVersion = getUrlContent(linkForOldVersion);
-                if (oldVersion == null || oldVersion.isEmpty()) {
-                    LOG.info("Diff: skip '{}' — old version is empty from {}", name, linkForOldVersion);
-                    continue;
-                }
-                LOG.info("Diff: include '{}' — gitlab={}, {} -> {}, agents={}",
-                        name, gitlabProject, oldVersion, newVersion, Arrays.toString(command.agents.getIds()));
-                diffTasks.add(new DiffTask(command.agents.getIds(),
-                        gitlabProject,
-                        task.taskLine,
-                        oldVersion,
-                        newVersion));
-            } catch (Exception e) {
-                LOG.error("Diff: can't build diff task for command '{}'", name, e);
-            }
+    }
+
+    /** The deploy version is the first parameter of the task line ("&lt;alias&gt; &lt;version&gt; ..."). */
+    private static String taskVersion(String taskLine) {
+        if (taskLine == null) {
+            return null;
         }
-        LOG.info("Diff: {} diff task(s) built for '{}'", diffTasks.size(), task.taskLine);
-        return diffTasks;
+        String[] tokens = taskLine.trim().split("\\s+");
+        return tokens.length >= 2 ? tokens[1] : null;
     }
 
     Map<DiffKey, DiffTask> aggregate(List<DiffTask> tasks) {
@@ -276,27 +262,6 @@ public class DiffServiceImpl implements DiffService {
         Matcher m = REDMINE_ISSUE_LIKE.matcher(message);
         if (m.find()) {
             return Integer.parseInt(m.group(1));
-        }
-        return null;
-    }
-
-    private Integer parseGitlabProjectFromArguments(List<String> arguments) {
-        if (arguments == null || arguments.isEmpty()) return null;
-        for (String s : arguments) {
-            Matcher m = GITLAB_PROJECT_LIKE.matcher(s);
-            if (m.matches()) {
-                return Integer.parseInt(m.group(1));
-            }
-        }
-        return null;
-    }
-
-    private String parseStringFromArguments(List<String> arguments, Pattern pattern) {
-        if (arguments == null || arguments.isEmpty()) return null;
-        for (String s : arguments) {
-            if (pattern.matcher(s).matches()) {
-                return s;
-            }
         }
         return null;
     }
