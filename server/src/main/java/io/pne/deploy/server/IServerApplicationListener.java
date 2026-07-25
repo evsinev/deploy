@@ -7,7 +7,7 @@ public interface IServerApplicationListener {
 
     void didStarted();
 
-    <T extends IAgentClientMessage> void didReceiveMessage(T aMessage);
+    <T extends IAgentClientMessage> void didReceiveMessage(String aAgentId, T aMessage);
 
     void didStartFailed(Throwable cause);
 }

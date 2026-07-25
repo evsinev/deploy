@@ -63,8 +63,8 @@ public class TestServerApplicationListener implements IServerApplicationListener
     }
 
     @Override
-    public <T extends IAgentClientMessage> void didReceiveMessage(T aMessage) {
-        LOG.debug("didReceiveMessage: {}", aMessage);
+    public <T extends IAgentClientMessage> void didReceiveMessage(String aAgentId, T aMessage) {
+        LOG.debug("didReceiveMessage from {}: {}", aAgentId, aMessage);
         received.add(aMessage);
     }
 

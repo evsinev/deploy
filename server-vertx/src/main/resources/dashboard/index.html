@@ -161,8 +161,17 @@
                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.7; }
         .logline:hover { background: var(--card-head); }
         .log-time { flex: 0 0 auto; color: var(--argnum); font-variant-numeric: tabular-nums; }
+        .log-agent { flex: 0 0 auto; color: var(--accent); }
         .log-id { flex: 0 0 auto; color: var(--muted); }
         .log-msg { min-width: 0; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+
+        /* server log screen */
+        .log-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 340px; }
+        .log-view { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 0; background: var(--bg); }
+        .log-stream { display: flex; flex-direction: column; }
+        .log-row { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.55;
+                   white-space: pre-wrap; word-break: break-word; padding: 0 16px; color: var(--fg); }
+        .log-row:hover { background: var(--card-head); }
 
         /* ---- Config screen ---- */
         .cfg-root { display: flex; flex-direction: column; gap: 16px; }
@@ -277,6 +286,7 @@
         <button class="tab active" data-screen="live">Live</button>
         <button class="tab" data-screen="config">Config</button>
         <button class="tab" data-screen="aliases">Aliases</button>
+        <button class="tab" data-screen="log">Log</button>
         <button class="tab theme-toggle" id="theme-btn" type="button" title="Toggle light / dark theme" aria-label="Toggle theme">&#9680;</button>
     </nav>
 
@@ -323,6 +333,15 @@
         </div>
     </section>
 
+    <section id="screen-log" class="screen" hidden>
+        <section class="card flush log-card">
+            <div class="card-head">Server log</div>
+            <div class="log-view" hx-ext="sse" sse-connect="{{BASE}}/log/events">
+                <div class="log-stream" sse-swap="logline" hx-swap="beforeend"></div>
+            </div>
+        </section>
+    </section>
+
     <script>
         (function () {
             var root = document.documentElement;
@@ -367,7 +386,7 @@
 
         (function () {
             var tabs    = document.querySelectorAll('.tab');
-            var screens = { live: 'screen-live', config: 'screen-config', aliases: 'screen-aliases' };
+            var screens = { live: 'screen-live', config: 'screen-config', aliases: 'screen-aliases', log: 'screen-log' };
             tabs.forEach(function (tab) {
                 tab.addEventListener('click', function () {
                     if (!tab.getAttribute('data-screen')) { return; }
@@ -445,6 +464,24 @@
                 t.classList.toggle('active');
                 apply();
             });
+        })();
+
+        (function () {
+            var view = document.querySelector('#screen-log .log-view');
+            var stream = document.querySelector('#screen-log .log-stream');
+            if (!view || !stream) { return; }
+            var MAX_ROWS = 1000;
+            stream.addEventListener('htmx:afterSwap', function () {
+                while (stream.children.length > MAX_ROWS) { stream.removeChild(stream.firstChild); }
+                var nearBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 60;
+                if (nearBottom) { view.scrollTop = view.scrollHeight; }
+            });
+            var logTab = document.querySelector('.tab[data-screen="log"]');
+            if (logTab) {
+                logTab.addEventListener('click', function () {
+                    setTimeout(function () { view.scrollTop = view.scrollHeight; }, 0);
+                });
+            }
         })();
     </script>
 </body>

@@ -73,7 +73,8 @@ public class WebSocketVerticle extends AbstractVerticle {
 
                     connections.addAgent(aSocket);
 
-                    aSocket.frameHandler(serverWebSocketFrameHandler);
+                    String agentId = connections.getAgentId(aSocket);
+                    aSocket.frameHandler(frame -> serverWebSocketFrameHandler.onFrame(agentId, frame));
 
                     aSocket.closeHandler(aVoid -> {
                         connections.removeAgent(aSocket);

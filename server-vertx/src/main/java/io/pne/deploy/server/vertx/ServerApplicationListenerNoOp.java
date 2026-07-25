@@ -19,8 +19,8 @@ public class ServerApplicationListenerNoOp implements IServerApplicationListener
     }
 
     @Override
-    public <T extends IAgentClientMessage> void didReceiveMessage(T aMessage) {
-        LOG.info("Received message: {}", aMessage);
+    public <T extends IAgentClientMessage> void didReceiveMessage(String aAgentId, T aMessage) {
+        LOG.info("Received message from {}: {}", aAgentId, aMessage);
     }
 
     @Override

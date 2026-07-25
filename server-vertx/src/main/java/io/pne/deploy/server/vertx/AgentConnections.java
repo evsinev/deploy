@@ -30,7 +30,7 @@ public class AgentConnections {
         LOG.info("Agent disconnected: {}", agentId);
     }
 
-    private String getAgentId(ServerWebSocket aSocket) {
+    public String getAgentId(ServerWebSocket aSocket) {
         PathParameters pathParameters = new PathParameters(aSocket.path());
         return pathParameters.getLast();
     }

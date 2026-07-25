@@ -19,8 +19,8 @@ public class AgentLogBuffer {
         this.capacity = Math.max(1, aCapacity);
     }
 
-    public synchronized void add(String aCommandId, String aMessage) {
-        lines.addLast(new LogLine(System.currentTimeMillis(), aCommandId, aMessage));
+    public synchronized void add(String aAgentId, String aCommandId, String aMessage) {
+        lines.addLast(new LogLine(System.currentTimeMillis(), aAgentId, aCommandId, aMessage));
         while (lines.size() > capacity) {
             lines.removeFirst();
         }
@@ -36,7 +36,7 @@ public class AgentLogBuffer {
         return out;
     }
 
-    /** One captured log line. {@code commandId} correlates lines of one command; there is no agent id. */
-    public record LogLine(long epochMs, String commandId, String message) {
+    /** One captured log line. {@code agentId} is the source agent; {@code commandId} correlates lines of one command. */
+    public record LogLine(long epochMs, String agentId, String commandId, String message) {
     }
 }

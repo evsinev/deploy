@@ -102,7 +102,7 @@ public class VertxServerApplication {
                 this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
                 null, new AgentLogBuffer(200),
                 buildConfigReport(redmineConfig, aConfig, dashboardConfig), aConfig.getAliasesDir(),
-                dashboardConfig.path(), dashboardConfig.refreshMs());
+                dashboardConfig.path(), dashboardConfig.refreshMs(), "");
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
@@ -158,7 +158,7 @@ public class VertxServerApplication {
                 this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
                 metrics, agentLogBuffer,
                 buildConfigReport(redmineConfig, config, dashboardConfig), config.getAliasesDir(),
-                dashboardConfig.path(), dashboardConfig.refreshMs());
+                dashboardConfig.path(), dashboardConfig.refreshMs(), dashboardConfig.serverLogFile());
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;

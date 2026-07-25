@@ -34,7 +34,7 @@ public class TestServerApplicationListener implements IServerApplicationListener
         }
     }
 
-    public <T extends IAgentClientMessage> void didReceiveMessage(T aMessage) {
+    public <T extends IAgentClientMessage> void didReceiveMessage(String aAgentId, T aMessage) {
         messages.add(aMessage);
     }
 

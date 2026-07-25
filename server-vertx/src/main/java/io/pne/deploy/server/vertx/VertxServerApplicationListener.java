@@ -72,10 +72,10 @@ public class VertxServerApplicationListener implements IServerApplicationListene
     }
 
     @Override
-    public <T extends IAgentClientMessage> void didReceiveMessage(T aMessage) {
+    public <T extends IAgentClientMessage> void didReceiveMessage(String aAgentId, T aMessage) {
         // Capture agent command output for the dashboard; connect/disconnect are socket events, not messages.
         if (agentLogBuffer != null && aMessage instanceof RunAgentCommandLog log) {
-            agentLogBuffer.add(log.commandId, log.message);
+            agentLogBuffer.add(aAgentId, log.commandId, log.message);
         }
     }
 
