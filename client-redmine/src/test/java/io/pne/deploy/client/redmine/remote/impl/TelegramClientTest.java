@@ -17,14 +17,17 @@ import java.nio.file.Files;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -137,6 +140,42 @@ public class TelegramClientTest {
         verify(service, times(10)).sendMessage(any()); // Backoff.MAX_ATTEMPTS
         assertEquals(0, dir.listFiles((d, n) -> n.endsWith(".json")).length);       // removed from active spool
         assertEquals(1, new File(dir, "dead").listFiles((d, n) -> n.endsWith(".json")).length); // moved to dead-letter
+    }
+
+    @Test
+    public void closeAbortsInFlightRetryPromptly() throws Exception {
+        File dir = tmp.newFolder("close");
+        // a generic failure (not a 429) would otherwise back off exponentially for minutes
+        when(service.sendMessage(any())).thenThrow(new RuntimeException("connection refused"));
+
+        TelegramClient failing = new TelegramClient(service, 0L, dir);
+        AtomicReference<RuntimeException> thrown = new AtomicReference<>();
+        Thread caller = new Thread(() -> {
+            try {
+                failing.sendMessage(1L, "boom", null);
+            } catch (RuntimeException e) {
+                thrown.set(e);
+            }
+        }, "test-caller");
+        caller.start();
+
+        // the worker has failed once and is now in the (long) backoff sleep
+        verify(service, timeout(2000).atLeastOnce()).sendMessage(any());
+
+        long start = System.currentTimeMillis();
+        failing.close();          // interrupts the worker -> aborts the backoff
+        caller.join(3000);
+        long elapsed = System.currentTimeMillis() - start;
+
+        assertFalse("sendMessage caller must return after close()", caller.isAlive());
+        assertTrue("close() should abort the retry storm promptly, took " + elapsed + "ms", elapsed < 2000);
+        assertTrue("caller should observe a failure", thrown.get() != null);
+
+        // on shutdown the op is kept for replay, not dead-lettered
+        File[] dead = new File(dir, "dead").listFiles((d, n) -> n.endsWith(".json"));
+        assertTrue("op must not be dead-lettered on shutdown", dead == null || dead.length == 0);
+        assertEquals("op stays in the active spool for replay", 1,
+                dir.listFiles((d, n) -> n.endsWith(".json")).length);
     }
 
     private static TelegramMessage message(long aId) {
