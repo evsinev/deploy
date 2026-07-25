@@ -11,6 +11,14 @@
             --bg: #f4f5f7; --card: #ffffff; --fg: #1c1e21; --muted: #6b7280;
             --border: #e2e4e8; --accent: #2563eb; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
             --track: #eceef1; --fill: #2563eb;
+            /* derived from the base vars so both light and dark themes adapt */
+            --card-head:   color-mix(in srgb, var(--card) 55%, var(--bg));
+            --code-bg:     color-mix(in srgb, var(--bg) 92%, #000);
+            --code-border: color-mix(in srgb, var(--border) 85%, var(--fg));
+            --chip-border: color-mix(in srgb, var(--border) 82%, var(--fg));
+            --hover-border:color-mix(in srgb, var(--border) 78%, var(--fg));
+            --label:       color-mix(in srgb, var(--muted) 78%, var(--bg));
+            --argnum:      color-mix(in srgb, var(--muted) 58%, var(--bg));
         }
         @media (prefers-color-scheme: dark) {
             :root {
@@ -96,17 +104,63 @@
         .cfg-group:first-child { margin-top: 0; }
 
         /* aliases screen */
-        .aliases-layout { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-        .aliases-list-pane { flex: 0 0 200px; }
-        #alias-detail { flex: 1 1 320px; }
-        .alias-list { display: flex; flex-direction: column; gap: 6px; }
+        .aliases-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
+        .aliases-list-pane { min-width: 0; }
+        @media (max-width: 720px) { .aliases-layout { grid-template-columns: 1fr; } }
+
+        .alias-side { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+                      display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 24px; }
+        @media (max-width: 720px) { .alias-side { position: static; } }
+        .alias-side-head { padding: 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .alias-side-row { display: flex; align-items: center; justify-content: space-between; }
+        .alias-side-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+        .alias-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+                       background: var(--track); padding: 1px 7px; border-radius: 999px; }
+        .alias-filter { box-sizing: border-box; width: 100%; padding: 7px 10px; border-radius: 8px;
+                        border: 1px solid var(--border); background: var(--bg); color: var(--fg); font: inherit; font-size: 13px; outline: none; }
+        .alias-filter:focus { border-color: var(--accent); }
+        .alias-list { padding: 8px; display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 220px); overflow-y: auto; }
+        @media (max-width: 720px) { .alias-list { max-height: none; } }
         .alias-item { text-align: left; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit;
-                      color: var(--fg); background: var(--card); border: 1px solid var(--border); }
-        .alias-item:hover { border-color: var(--accent); }
-        .alias-cmd { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-        .chip { display: inline-block; padding: 1px 8px; margin: 0 4px 4px 0; border-radius: 999px; font-size: 12px; background: var(--track); }
-        .raw { margin-top: 8px; }
-        pre { overflow-x: auto; background: var(--track); padding: 10px; border-radius: 8px; font-size: 12px; }
+                      display: flex; flex-direction: column; gap: 2px; border: 1px solid transparent; background: transparent;
+                      transition: border-color .12s ease; }
+        .alias-item:hover { border-color: var(--hover-border); }
+        .alias-item.active { background: var(--track); border-color: var(--accent); }
+        .alias-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+                      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .alias-sub { color: var(--argnum); font-size: 11px; font-variant-numeric: tabular-nums; }
+        .alias-nomatch { display: none; color: var(--label); font-size: 12px; padding: 8px 10px; }
+
+        .alias-detail { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        .alias-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+        .alias-title { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 19px; font-weight: 600; }
+        .alias-rawbtn { padding: 5px 12px; border-radius: 7px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+                        color: var(--muted); background: transparent; border: 1px solid var(--border);
+                        transition: border-color .12s ease, color .12s ease; }
+        .alias-rawbtn:hover { color: var(--fg); border-color: var(--hover-border); }
+        .cmd-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .cmd-head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border);
+                    background: var(--card-head); flex-wrap: wrap; }
+        .cmd-num { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 6px; background: var(--border); color: var(--muted);
+                   font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+        .cmd-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--label); font-weight: 700; }
+        .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+        .chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; padding: 1px 9px; border-radius: 999px;
+                background: var(--track); border: 1px solid var(--chip-border); color: var(--fg); }
+        .cmd-body { padding: 12px; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 12px; align-items: start; }
+        .cmd-body .cmd-label { padding-top: 5px; }
+        .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--fg);
+                background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 7px; padding: 5px 10px;
+                overflow-x: auto; white-space: pre; }
+        .args { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .arg { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+        .arg-i { flex: 0 0 auto; color: var(--argnum); font-size: 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                 font-variant-numeric: tabular-nums; padding-top: 1px; }
+        .arg .code { flex: 1 1 auto; min-width: 0; padding: 4px 10px; }
+        .raw-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+        .raw-card pre { margin: 0; overflow-x: auto; background: var(--code-bg); border: 1px solid var(--code-border); padding: 12px;
+                        border-radius: 8px; font-size: 12px; line-height: 1.65; color: var(--fg);
+                        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     </style>
 </head>
 <body hx-ext="sse" sse-connect="{{BASE}}/events">
@@ -148,7 +202,7 @@
     <section id="screen-aliases" class="screen" hidden>
         <div class="aliases-layout">
             <div class="aliases-list-pane" hx-get="{{BASE}}/aliases" hx-trigger="load"><span class="muted">loading&hellip;</span></div>
-            <div id="alias-detail" class="card"><span class="muted">select an alias&hellip;</span></div>
+            <div id="alias-detail" class="alias-detail"><span class="muted">select an alias&hellip;</span></div>
         </div>
     </section>
 
@@ -175,6 +229,34 @@
                         document.getElementById(screens[key]).hidden = (key !== want);
                     });
                 });
+            });
+        })();
+
+        (function () {
+            var scr = document.getElementById('screen-aliases');
+            if (!scr) { return; }
+            // client-side filter of the alias list by name substring
+            scr.addEventListener('input', function (e) {
+                if (!e.target.classList || !e.target.classList.contains('alias-filter')) { return; }
+                var q = e.target.value.trim().toLowerCase();
+                var items = scr.querySelectorAll('.alias-item');
+                var shown = 0;
+                items.forEach(function (it) {
+                    var nameEl = it.querySelector('.alias-name');
+                    var name = (nameEl ? nameEl.textContent : '').toLowerCase();
+                    var match = !q || name.indexOf(q) >= 0;
+                    it.style.display = match ? '' : 'none';
+                    if (match) { shown++; }
+                });
+                var nomatch = scr.querySelector('.alias-nomatch');
+                if (nomatch) { nomatch.style.display = (shown === 0 && items.length > 0) ? 'block' : 'none'; }
+            });
+            // highlight the selected alias
+            scr.addEventListener('click', function (e) {
+                var btn = e.target.closest ? e.target.closest('.alias-item') : null;
+                if (!btn) { return; }
+                scr.querySelectorAll('.alias-item.active').forEach(function (a) { a.classList.remove('active'); });
+                btn.classList.add('active');
             });
         })();
     </script>

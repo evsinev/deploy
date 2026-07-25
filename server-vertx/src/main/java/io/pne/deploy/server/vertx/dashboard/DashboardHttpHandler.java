@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -67,6 +68,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final String issuePath;
     private final String configPath;
     private final String aliasesPath;
+    private final String aliasPath;
 
     private final Buffer indexHtml;
     private final Buffer htmxJs = readResource("/dashboard/htmx.min.js");
@@ -103,6 +105,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.issuePath   = basePath + "/issue";
         this.configPath  = basePath + "/config";
         this.aliasesPath = basePath + "/aliases";
+        this.aliasPath   = basePath + "/alias";
 
         this.indexHtml = Buffer.buffer(readResourceString("/dashboard/index.html").replace("{{BASE}}", basePath));
     }
@@ -127,8 +130,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.config(configEntries)));
         } else if (aliasesPath.equals(path)) {
             handleAliasList(aRequest);
-        } else if (path.startsWith(aliasesPath + "/")) {
-            handleAliasDetail(aRequest, path.substring(aliasesPath.length() + 1));
+        } else if (aliasPath.equals(path)) {
+            handleAliasDetail(aRequest, aRequest.getParam("name"));
         } else if (basePath.equals(path) || (basePath + "/").equals(path)) {
             serve(aRequest, "text/html; charset=utf-8", indexHtml);
         } else {
@@ -137,19 +140,29 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     }
 
     private void handleAliasList(HttpServerRequest aRequest) {
-        List<String> names = new ArrayList<>();
+        List<DashboardView.AliasInfo> aliases = new ArrayList<>();
         String[] files = aliasesDir == null ? null : aliasesDir.list((dir, name) -> name.endsWith(".yml"));
         if (files != null) {
+            Arrays.sort(files);
             for (String file : files) {
-                names.add(file.substring(0, file.length() - ".yml".length()));
+                String name = file.substring(0, file.length() - ".yml".length());
+                aliases.add(new DashboardView.AliasInfo(name, commandCount(new File(aliasesDir, file))));
             }
-            names.sort(String::compareTo);
         }
-        serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.aliasList(names, basePath)));
+        serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(DashboardView.aliasSidebar(aliases, basePath)));
+    }
+
+    private static int commandCount(File aFile) {
+        try {
+            AliasDescription description = new Yaml().loadAs(Files.readString(aFile.toPath()), AliasDescription.class);
+            return description == null || description.commands == null ? 0 : description.commands.size();
+        } catch (IOException | RuntimeException e) {
+            return 0;
+        }
     }
 
     private void handleAliasDetail(HttpServerRequest aRequest, String aName) {
-        if (aliasesDir == null || !ALIAS_NAME.matcher(aName).matches()) {
+        if (aliasesDir == null || aName == null || !ALIAS_NAME.matcher(aName).matches()) {
             aRequest.response().setStatusCode(400).end("bad alias name\n");
             return;
         }

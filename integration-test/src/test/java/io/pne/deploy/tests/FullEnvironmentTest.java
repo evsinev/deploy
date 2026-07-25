@@ -39,7 +39,7 @@ public class FullEnvironmentTest {
 
             // Aliases screen lists the demo alias and renders its definition.
             assertTrue(env.httpGet("/deploy/dashboard/aliases").contains("deploy-demo"));
-            assertTrue(env.httpGet("/deploy/dashboard/aliases/deploy-demo").contains("echo"));
+            assertTrue(env.httpGet("/deploy/dashboard/alias?name=deploy-demo").contains("echo"));
         }
     }
 }
