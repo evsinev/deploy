@@ -1,5 +1,11 @@
 package io.pne.deploy.server.vertx.metrics;
 
+import io.micrometer.core.instrument.MockClock;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.distribution.HistogramSnapshot;
+import io.micrometer.core.instrument.distribution.ValueAtPercentile;
+import io.micrometer.core.instrument.simple.SimpleConfig;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
@@ -7,6 +13,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.function.LongConsumer;
 
 import static org.junit.Assert.assertEquals;
@@ -44,5 +52,31 @@ public class QueueMetricsTest {
 
         assertEquals(1L, registry.get("deploy_queue_send_latency").tag("queue", "telegram").timer().count());
         assertTrue(registry.scrape().contains("deploy_queue_send_latency_seconds_bucket"));
+    }
+
+    @Test
+    public void sendLatencyMaxAndPercentilesDoNotDecayToZero() {
+        MockClock clock = new MockClock();
+        SimpleMeterRegistry registry = new SimpleMeterRegistry(SimpleConfig.DEFAULT, clock);
+        LongConsumer recorder = QueueMetrics.sendLatencyRecorder(registry, "telegram");
+
+        recorder.accept(120_000_000L); // 120 ms
+
+        // Advance far beyond the default 2-minute distribution-statistic window; with the fix the
+        // window does not rotate, so max/percentiles keep the recorded value instead of decaying to 0.
+        clock.add(Duration.ofMinutes(5));
+
+        Timer timer = registry.find("deploy_queue_send_latency").tag("queue", "telegram").timer();
+        HistogramSnapshot snap = timer.takeSnapshot();
+
+        assertTrue("max must not decay to 0", snap.max(TimeUnit.MILLISECONDS) > 0.0);
+
+        double p95 = 0.0;
+        for (ValueAtPercentile v : snap.percentileValues()) {
+            if (Math.abs(v.percentile() - 0.95) < 1e-6) {
+                p95 = v.value(TimeUnit.MILLISECONDS);
+            }
+        }
+        assertTrue("p95 must not decay to 0, was " + p95, p95 > 0.0);
     }
 }

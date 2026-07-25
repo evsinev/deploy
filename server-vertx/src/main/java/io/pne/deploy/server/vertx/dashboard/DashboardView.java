@@ -33,7 +33,7 @@ public final class DashboardView {
             sb.append("<p class=\"muted\">no agents connected</p>");
         } else {
             sb.append("<ul>");
-            for (String agent : aAgents) {
+            for (String agent : new java.util.TreeSet<>(aAgents)) { // alphabetical
                 sb.append("<li><code>").append(esc(agent)).append("</code></li>");
             }
             sb.append("</ul>");
