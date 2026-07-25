@@ -71,6 +71,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final String configPath;
     private final String aliasesPath;
     private final String aliasPath;
+    private final String logPath;
     private final String logEventsPath;
 
     private final Buffer indexHtml;
@@ -112,6 +113,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.configPath  = basePath + "/config";
         this.aliasesPath = basePath + "/aliases";
         this.aliasPath   = basePath + "/alias";
+        this.logPath       = basePath + "/log";
         this.logEventsPath = basePath + "/log/events";
 
         this.indexHtml = Buffer.buffer(readResourceString("/dashboard/index.html").replace("{{BASE}}", basePath));
@@ -139,6 +141,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             handleAliasList(aRequest);
         } else if (aliasPath.equals(path)) {
             handleAliasDetail(aRequest, aRequest.getParam("name"));
+        } else if (logPath.equals(path)) {
+            handleLog(aRequest);
         } else if (logEventsPath.equals(path)) {
             handleLogEvents(aRequest);
         } else if (basePath.equals(path) || (basePath + "/").equals(path)) {
@@ -280,7 +284,33 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         aRequest.connection().closeHandler(aVoid -> vertx.cancelTimer(timerId));
     }
 
-    /** SSE tail of the configured server log file: the last 300 lines on connect, then appended lines each tick. */
+    /** Initial Log-screen content: the last 300 lines, or a plain reason when there is nothing to show. */
+    private void handleLog(HttpServerRequest aRequest) {
+        vertx.<String>executeBlocking(() -> {
+            List<String> rows = new ServerLogTailer(new File(serverLogFile == null ? "" : serverLogFile)).lastLines(300);
+            return logRows(rows.isEmpty() ? List.of(logDiagnostic()) : rows);
+        }, false).onComplete(ar -> {
+            String html = ar.succeeded() ? ar.result() : logRows(List.of(logDiagnostic()));
+            serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(html));
+        });
+    }
+
+    /** Why the Log screen has nothing to show, so it is never silently blank. */
+    private String logDiagnostic() {
+        if (serverLogFile == null || serverLogFile.isBlank()) {
+            return "server log is not configured (SERVER_LOG_FILE)";
+        }
+        File file = new File(serverLogFile);
+        if (!file.exists()) {
+            return "log file " + serverLogFile + " does not exist";
+        }
+        if (!file.canRead()) {
+            return "cannot read log file " + serverLogFile;
+        }
+        return "log file " + serverLogFile + " is empty";
+    }
+
+    /** SSE tail: only the lines appended since connect (the initial view is served by GET {base}/log). */
     private void handleLogEvents(HttpServerRequest aRequest) {
         HttpServerResponse response = aRequest.response();
         response.setChunked(true);
@@ -288,24 +318,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         response.putHeader("Cache-Control", "no-cache");
         response.putHeader("Connection", "keep-alive");
 
-        if (serverLogFile == null || serverLogFile.isBlank()) {
-            writeEvent(response, "logline", "<div class=\"log-row\">server log is not configured (SERVER_LOG_FILE)</div>");
-            response.end();
-            return;
-        }
-
-        ServerLogTailer tailer = new ServerLogTailer(new File(serverLogFile));
-        long[] offset = {0};
-
-        vertx.<List<String>>executeBlocking(() -> {
-            List<String> initial = tailer.lastLines(300);
-            offset[0] = tailer.size();
-            return initial;
-        }, false).onComplete(ar -> {
-            if (ar.succeeded() && !response.closed() && !response.ended()) {
-                writeEvent(response, "logline", logRows(ar.result()));
-            }
-        });
+        ServerLogTailer tailer = new ServerLogTailer(new File(serverLogFile == null ? "" : serverLogFile));
+        long[] offset = {tailer.size()}; // continue from the current end; GET /log already showed the tail
 
         long timerId = vertx.setPeriodic(refreshMs, id -> {
             if (response.closed() || response.ended()) {

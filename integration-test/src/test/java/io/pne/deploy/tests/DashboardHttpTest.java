@@ -73,6 +73,12 @@ public class DashboardHttpTest {
             assertTrue("proxy-rewritten GET must not be 405, got: " + rewritten, rewritten.startsWith("HTTP/1.1 200"));
             assertTrue("GET with body should enqueue the id, got: " + rewritten, rewritten.contains("#888"));
 
+            // 3c. the Log screen initial content always renders a reason instead of a silent blank
+            HttpResponse<String> log = client.send(get("/deploy/dashboard/log"), ofString());
+            assertEquals(200, log.statusCode());
+            assertTrue("log should explain why it is empty, got: " + log.body(),
+                    log.body().contains("server log is not configured"));
+
             // 4. the live SSE stream — first snapshot (all cards) must arrive immediately
             HttpResponse<InputStream> events = client.send(get("/deploy/dashboard/events"), ofInputStream());
             assertEquals(200, events.statusCode());
