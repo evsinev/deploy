@@ -263,22 +263,30 @@ public class RemoteRedmine4_2_10ServiceImpl implements IRemoteRedmineService {
         }
     }
 
-    private ImmutableRedmineIssue mapIssue(RedmineIssueData issue) {
+    // Null-safe: an arbitrary issue (e.g. one referenced from a commit message for the diff) may omit
+    // custom_fields / assigned_to / etc. in the Redmine JSON, while RedmineIssue requires every field.
+    static RedmineIssue mapIssue(RedmineIssueData issue) {
         Map<String, String> customFields = new HashMap<>();
-        for (CustomFields redmineCustomField : issue.getCustomFields()) {
-            customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
+        if (issue.getCustomFields() != null) {
+            for (CustomFields redmineCustomField : issue.getCustomFields()) {
+                customFields.put(redmineCustomField.getName(), redmineCustomField.getValue());
+            }
         }
+        var status   = issue.getStatus();
+        var project  = issue.getProject();
+        var author   = issue.getAuthor();
+        var assignee = issue.getAssigned_to();
         return ImmutableRedmineIssue.builder()
                 .issueId        ( issue.getId())
-                .description    ( issue.getDescription())
-                .subject        ( issue.getSubject())
-                .statusName     ( issue.getStatus().getName())
-                .statusId       ( issue.getStatus().getId())
-                .projectId      ( issue.getProject().getId())
-                .projectName    ( issue.getProject().getName())
+                .description    ( issue.getDescription() == null ? "" : issue.getDescription())
+                .subject        ( issue.getSubject() == null ? "" : issue.getSubject())
+                .statusName     ( status == null ? "" : status.getName())
+                .statusId       ( status == null ? 0  : status.getId())
+                .projectId      ( project == null ? 0  : project.getId())
+                .projectName    ( project == null ? "" : project.getName())
                 .customFields   ( customFields)
-                .assigneeName   ( issue.getAssigned_to().getName())
-                .creatorName    ( issue.getAuthor().getName())
+                .assigneeName   ( assignee == null ? "" : assignee.getName())
+                .creatorName    ( author == null ? "" : author.getName())
                 .build();
     }
 
