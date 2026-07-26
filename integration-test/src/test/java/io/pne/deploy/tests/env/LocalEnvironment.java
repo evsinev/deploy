@@ -147,6 +147,7 @@ public class LocalEnvironment implements AutoCloseable {
                     + "  versionUrl: " + oldVersionUrl + "\n"
                     + "  gitlabProjectId: 42\n"
                     + "  agent: agent-1\n"
+                    + "  newVersionArg: 1\n"
                     + "commands:\n"
                     + "- agents: agent-1\n"
                     + "  name: echo\n"

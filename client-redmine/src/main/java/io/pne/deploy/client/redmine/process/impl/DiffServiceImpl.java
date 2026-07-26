@@ -85,7 +85,7 @@ public class DiffServiceImpl implements DiffService {
             return new ArrayList<>();
         }
         TaskDiff diff = task.diff;
-        String newVersion = taskVersion(task.taskLine);
+        String newVersion = taskVersion(task.taskLine, diff.getNewVersionArg());
         if (newVersion == null) {
             LOG.info("Diff: skip '{}' — no version in the task line", task.taskLine);
             return new ArrayList<>();
@@ -104,13 +104,24 @@ public class DiffServiceImpl implements DiffService {
         return diffTasks;
     }
 
-    /** The deploy version is the first parameter of the task line ("&lt;alias&gt; &lt;version&gt; ..."). */
-    private static String taskVersion(String taskLine) {
+    /**
+     * The new version is the {@code argIndex}-th task-line argument (1-based; {@code tokens[0]} is the alias name,
+     * so argument N is {@code tokens[N]}). {@code argIndex == 0} means the diff config has no {@code newVersionArg}.
+     */
+    private static String taskVersion(String taskLine, int argIndex) {
+        if (argIndex <= 0) {
+            LOG.error("Diff: skip '{}' — newVersionArg is not set (0)", taskLine);
+            return null;
+        }
         if (taskLine == null) {
             return null;
         }
         String[] tokens = taskLine.trim().split("\\s+");
-        return tokens.length >= 2 ? tokens[1] : null;
+        if (tokens.length <= argIndex) {
+            LOG.error("Diff: skip '{}' — no argument #{} in the task line", taskLine, argIndex);
+            return null;
+        }
+        return tokens[argIndex];
     }
 
     Map<DiffKey, DiffTask> aggregate(List<DiffTask> tasks) {
