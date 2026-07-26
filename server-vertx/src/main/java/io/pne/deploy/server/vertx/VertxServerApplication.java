@@ -88,6 +88,7 @@ public class VertxServerApplication {
         Gson                   gson         = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses       response         = new CommandResponses();
         VersionResponses       versionResponses = new VersionResponses();
+        AgentRegistry          agentRegistry    = new AgentRegistry();
         ITaskExecutionListener taskListener = new TaskExecutionListenerLogger();
 
         this.vertx = Vertx.vertx();
@@ -100,12 +101,12 @@ public class VertxServerApplication {
         StatusHttpHandler    statusHttpHandler    = new StatusHttpHandler(agentConnections, pendingIssues);
         IDashboardConfig     dashboardConfig      = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
-                this.vertx, agentConnections, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
+                this.vertx, agentConnections, agentRegistry, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
                 null, new AgentLogBuffer(200),
                 buildConfigReport(redmineConfig, aConfig, dashboardConfig), aConfig.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), "");
 
-        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, versionResponses, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
+        this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, versionResponses, agentRegistry, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
         this.serverListener = serverListener;
         this.telegramClient = null;
     }
@@ -116,6 +117,7 @@ public class VertxServerApplication {
         Gson                      gson              = new GsonBuilder().setPrettyPrinting().create();
         CommandResponses          response          = new CommandResponses();
         VersionResponses          versionResponses  = new VersionResponses();
+        AgentRegistry             agentRegistry     = new AgentRegistry();
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
 
@@ -158,12 +160,12 @@ public class VertxServerApplication {
         dashboardQueues.put("redmine",  redmine.getSpool());
         IDashboardConfig dashboardConfig = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
-                this.vertx, agentConnections, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
+                this.vertx, agentConnections, agentRegistry, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
                 metrics, agentLogBuffer,
                 buildConfigReport(redmineConfig, config, dashboardConfig), config.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), dashboardConfig.serverLogFile());
 
-        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, versionResponses, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
+        this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, versionResponses, agentRegistry, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
         this.serverListener = serverListener;
         this.telegramClient = telegramClient;
     }

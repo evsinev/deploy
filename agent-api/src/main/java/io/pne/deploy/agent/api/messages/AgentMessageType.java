@@ -8,6 +8,7 @@ public enum AgentMessageType {
     , RUN_COMMAND_LOG      (3, RunAgentCommandLog.class    )
     , GET_VERSION_REQUEST  (4, GetVersionRequest.class     )
     , GET_VERSION_RESPONSE (5, GetVersionResponse.class    )
+    , AGENT_INFO           (6, AgentInfo.class             )
     ;
 
     public final byte id;

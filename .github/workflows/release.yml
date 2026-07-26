@@ -19,7 +19,7 @@ jobs:
           cache: maven
 
       - name: Build fat jars
-        run: mvn -B -ntp package
+        run: mvn -B -ntp package -Ddeploy.agent.version=${GITHUB_REF_NAME}
 
       - name: Stage release artifacts
         run: |

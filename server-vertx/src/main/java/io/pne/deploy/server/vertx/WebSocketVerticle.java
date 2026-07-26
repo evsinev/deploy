@@ -13,6 +13,8 @@ import io.vertx.core.Promise;
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.net.SocketAddress;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -23,6 +25,7 @@ public class WebSocketVerticle extends AbstractVerticle {
 
     private final ServerWebSocketFrameHandler serverWebSocketFrameHandler;
     private final AgentConnections            connections;
+    private final AgentRegistry               agentRegistry;
     private final int                         port;
     private       HttpServer                  httpServer;
     private final IDeployService              deployService;
@@ -39,6 +42,7 @@ public class WebSocketVerticle extends AbstractVerticle {
             , Gson aGson
             , CommandResponses aCommandResponses
             , VersionResponses aVersionResponses
+            , AgentRegistry    aAgentRegistry
             , IDeployService   aDeploService
             , Executor         aCommandExecutor
             , IRedmineRemoteConfig aRedmineConfig
@@ -48,9 +52,10 @@ public class WebSocketVerticle extends AbstractVerticle {
             , Handler<HttpServerRequest> aMetricsHttpHandler
             , DashboardHttpHandler aDashboardHttpHandler
     ) {
-        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aVersionResponses, aListener);
+        this.serverWebSocketFrameHandler = new ServerWebSocketFrameHandler(aServerListener, aGson, aCommandResponses, aVersionResponses, aAgentRegistry, aListener);
         port = aPort;
         connections = aConnections;
+        agentRegistry = aAgentRegistry;
         deployService = aDeploService;
         commandExecutor = aCommandExecutor;
         redmineConfig = aRedmineConfig;
@@ -75,10 +80,12 @@ public class WebSocketVerticle extends AbstractVerticle {
                     connections.addAgent(aSocket);
 
                     String agentId = connections.getAgentId(aSocket);
+                    agentRegistry.onConnect(agentId, ipOf(aSocket));
                     aSocket.frameHandler(frame -> serverWebSocketFrameHandler.onFrame(agentId, frame));
 
                     aSocket.closeHandler(aVoid -> {
                         connections.removeAgent(aSocket);
+                        agentRegistry.onDisconnect(agentId);
                         LOG.debug("CLOSED");
                     });
 
@@ -108,6 +115,11 @@ public class WebSocketVerticle extends AbstractVerticle {
                         aStartFuture.complete();
                     }
                 });
+    }
+
+    private static String ipOf(ServerWebSocket aSocket) {
+        SocketAddress address = aSocket.remoteAddress();
+        return address == null ? null : address.host();
     }
 
     @Override
