@@ -6,11 +6,13 @@ import com.payneteasy.http.client.api.*;
 import com.payneteasy.http.client.impl.HttpClientImpl;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.IRemoteGitlabService;
-import io.pne.deploy.client.redmine.remote.data_model.Commit;
+import io.pne.deploy.client.redmine.remote.data_model.DiffCommit;
 import io.pne.deploy.client.redmine.remote.data_model.GitlabDiffData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,20 +47,32 @@ public class RemoteGitlabServiceImpl implements IRemoteGitlabService {
     }
 
     @Override
-    public List<String> getTagDiff(DiffTask diffTask) {
+    public List<DiffCommit> getTagDiff(DiffTask diffTask) {
         LOG.info("getTagDiff({})", diffTask);
         GitlabDiffData gitlabDiffData = fetchGitlabDiffData(diffTask);
-        List<String> messages = new ArrayList<>();
+        List<DiffCommit> commits = new ArrayList<>();
         if (gitlabDiffData == null || gitlabDiffData.getCommits() == null || gitlabDiffData.getCommits().isEmpty()) {
-            return messages;
+            return commits;
         }
         return gitlabDiffData.getCommits()
                 .stream()
-                .map(Commit::getMessage)
-                .map(s-> s == null ? null : s.trim())
-                .filter(s -> s != null && !s.isEmpty())
-                .filter(s -> !s.contains("[maven-release-plugin][skip ci]"))
+                .filter(c -> c != null && c.getMessage() != null && !c.getMessage().trim().isEmpty())
+                .filter(c -> !c.getMessage().contains("[maven-release-plugin][skip ci]"))
+                .map(c -> new DiffCommit(c.getMessage().trim(), parseDate(c.getCommitterDate())))
                 .collect(Collectors.toList());
+    }
+
+    /** GitLab commit dates are ISO-8601 with an offset (e.g. {@code 2026-07-20T12:34:56.000+03:00}); null on absent/bad. */
+    private static LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value).toLocalDate();
+        } catch (RuntimeException e) {
+            LOG.warn("Gitlab compare: can't parse commit date '{}'", value);
+            return null;
+        }
     }
 
     private GitlabDiffData fetchGitlabDiffData(DiffTask diffTask) {

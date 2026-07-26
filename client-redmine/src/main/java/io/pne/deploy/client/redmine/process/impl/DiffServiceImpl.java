@@ -7,6 +7,7 @@ import io.pne.deploy.client.redmine.process.data_model.DiffTask;
 import io.pne.deploy.client.redmine.remote.IRemoteGitlabService;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
+import io.pne.deploy.client.redmine.remote.data_model.DiffCommit;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.impl.RemoteGitlabServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
@@ -63,11 +64,14 @@ public class DiffServiceImpl implements DiffService {
         List<String> fullTelegramMessage = new ArrayList<>();
 
         for (DiffTask diffTask : aggregated.values()) {
-            List<String> diffs = gitlab.getTagDiff(diffTask);
+            List<DiffCommit> diffs = gitlab.getTagDiff(diffTask);
             LOG.info("Diff: {} commit(s) for {} ({} -> {}), gitlab project {}",
                     diffs == null ? 0 : diffs.size(), diffTask.getIdsString(),
                     diffTask.getOldVersion(), diffTask.getNewVersion(), diffTask.getGitlabProject());
             List<DiffLink> diffLinks = mapDiffIssues(diffs, subjectCache);
+            // Newest change first; both the Redmine table and the Telegram list consume this same order.
+            diffLinks.sort(Comparator.comparing(DiffLink::getCommitDate,
+                    Comparator.nullsLast(Comparator.reverseOrder())));
 
             fullRedmineMessage.append(constructRedmineMessage(diffTask, diffLinks)).append("\n");
             fullTelegramMessage.addAll(constructTelegramMessage(diffTask, diffLinks));
@@ -141,14 +145,16 @@ public class DiffServiceImpl implements DiffService {
         return aggregated;
     }
 
-    List<DiffLink> mapDiffIssues(List<String> diffs, Map<Integer, String> subjectCache) {
+    List<DiffLink> mapDiffIssues(List<DiffCommit> diffs, Map<Integer, String> subjectCache) {
         List<DiffLink> diffLinks = new ArrayList<>();
         if (diffs == null) return diffLinks;
 
-        for (String diff : diffs) {
+        for (DiffCommit diff : diffs) {
+            String message = diff.getMessage();
             DiffLink diffLink = new DiffLink();
-            diffLink.setCommitMessage(diff);
-            Integer redmineIssueId = parseRedmineIssueIdFromCommitMessage(diff);
+            diffLink.setCommitMessage(message);
+            diffLink.setCommitDate(diff.getDate());
+            Integer redmineIssueId = parseRedmineIssueIdFromCommitMessage(message);
             diffLink.setRedmineIssueId(redmineIssueId);
 
             if (redmineIssueId != null) {
@@ -174,27 +180,35 @@ public class DiffServiceImpl implements DiffService {
         StringBuilder sb = new StringBuilder();
         List<Integer> addedIssues = new ArrayList<>();
         sb.append("*").append(task.getIdsString()).append("* (").append(task.getOldVersion()).append(" → ").append(task.getNewVersion()).append(")\n\n");
-        sb.append("Changes:\n");
+        sb.append("|_. Date |_. Issue |_. Subject |\n");
         for (DiffLink diff : diffLinks) {
             if (diff.getRedmineIssueId() != null && diff.getRedmineIssueId() != 0 && addedIssues.contains(diff.getRedmineIssueId())) {
                 continue;
             } else {
                 addedIssues.add(diff.getRedmineIssueId());
             }
-            sb.append("# ");
+            String date = diff.getCommitDate() == null ? "" : diff.getCommitDate().toString();
+            String issueCell;
+            String subject;
             if (diff.getRedmineIssueId() != null) {
-                sb.append("#").append(diff.getRedmineIssueId()).append(" - ");
-                if (diff.getRedmineIssueSubject() != null) {
-                    sb.append(diff.getRedmineIssueSubject().trim());
-                } else {
-                    sb.append(diff.getCommitMessage());
-                }
+                issueCell = "#" + diff.getRedmineIssueId();
+                subject = diff.getRedmineIssueSubject() != null ? diff.getRedmineIssueSubject().trim() : diff.getCommitMessage();
             } else {
-                sb.append("No Issue - ").append(diff.getCommitMessage());
+                issueCell = "";
+                subject = diff.getCommitMessage();
             }
-            sb.append("\n");
+            sb.append("| ").append(textileCell(date))
+                    .append(" | ").append(textileCell(issueCell))
+                    .append(" | ").append(textileCell(subject))
+                    .append(" |\n");
         }
         return sb.toString();
+    }
+
+    /** Make text safe for a single Textile table cell: no pipes (they end the cell) and no line breaks (they end the row). */
+    private static String textileCell(String s) {
+        if (s == null) return "";
+        return s.replace("|", "&#124;").replaceAll("\\s*[\\r\\n]+\\s*", " ").trim();
     }
 
     List<String> constructTelegramMessage(DiffTask task, List<DiffLink> diffLinks) {
@@ -234,6 +248,9 @@ public class DiffServiceImpl implements DiffService {
     private String buildTelegramLine(DiffLink diffLink) {
         StringBuilder sb = new StringBuilder();
         sb.append("• ");
+        if (diffLink.getCommitDate() != null) {
+            sb.append(diffLink.getCommitDate()).append(" — ");
+        }
 
         Integer issueId = diffLink.getRedmineIssueId();
         if (issueId != null && issueId != 0) {

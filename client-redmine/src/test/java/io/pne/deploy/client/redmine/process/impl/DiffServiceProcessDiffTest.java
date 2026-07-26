@@ -1,6 +1,7 @@
 package io.pne.deploy.client.redmine.process.impl;
 
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
+import io.pne.deploy.client.redmine.remote.data_model.DiffCommit;
 import io.pne.deploy.client.redmine.remote.IRemoteGitlabService;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
@@ -13,6 +14,7 @@ import io.pne.deploy.server.api.task.TaskParameters;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -48,22 +50,31 @@ public class DiffServiceProcessDiffTest {
         when(issue.subject()).thenReturn("Fix the bug");
         when(redmine.getIssue(119126L)).thenReturn(issue);
         when(gitlab.getTagDiff(any(DiffTask.class)))
-                .thenReturn(Arrays.asList("#119126 fix the bug", "chore: cleanup"));
+                .thenReturn(Arrays.asList(
+                        new DiffCommit("chore: cleanup", LocalDate.of(2026, 7, 18)),
+                        new DiffCommit("#119126 fix the bug", LocalDate.of(2026, 7, 20))));
 
         DiffTask task = new DiffTask(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
         diffService.processDiff(singletonList(task), 42);
 
         ArgumentCaptor<String> comment = ArgumentCaptor.forClass(String.class);
         verify(redmine).enqueueAddComment(eq(42), comment.capture());
-        assertTrue("redmine comment: " + comment.getValue(),
-                comment.getValue().contains("#119126 - Fix the bug"));
-        assertTrue(comment.getValue().contains("No Issue - chore: cleanup"));
+        String redmineComment = comment.getValue();
+        assertTrue("redmine comment: " + redmineComment,
+                redmineComment.contains("|_. Date |_. Issue |_. Subject |"));
+        assertTrue(redmineComment, redmineComment.contains("| 2026-07-20 | #119126 | Fix the bug |"));
+        assertTrue(redmineComment, redmineComment.contains("| 2026-07-18 |  | chore: cleanup |"));
+        // Newest first: the 2026-07-20 row precedes the 2026-07-18 row.
+        assertTrue("expected desc date order in: " + redmineComment,
+                redmineComment.indexOf("2026-07-20") < redmineComment.indexOf("2026-07-18"));
 
         ArgumentCaptor<List> telegramMessages = ArgumentCaptor.forClass(List.class);
         verify(telegram).sendMessages(telegramMessages.capture());
         String joined = telegramMessages.getValue().toString();
-        assertTrue("telegram messages: " + joined, joined.contains("#119126 - Fix the bug"));
-        assertTrue(joined.contains("No Issue - chore: cleanup"));
+        // The issue line prefixes the date, then wraps "#id - subject" in an <a> tag.
+        assertTrue("telegram messages: " + joined, joined.contains("2026-07-20 — <a href="));
+        assertTrue(joined, joined.contains("#119126 - Fix the bug"));
+        assertTrue(joined, joined.contains("2026-07-18 — No Issue - chore: cleanup"));
     }
 
     @Test

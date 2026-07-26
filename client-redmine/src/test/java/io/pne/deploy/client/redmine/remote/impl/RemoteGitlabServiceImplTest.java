@@ -28,7 +28,9 @@ public class RemoteGitlabServiceImplTest {
         IRedmineRemoteConfig config = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
         IRemoteGitlabService gitlabService = new RemoteGitlabServiceImpl(config);
         DiffTask diffTask = new DiffTask(new String[0], 1, "test", "1", "2");
-        System.out.println(String.join("\\=,\\=", gitlabService.getTagDiff(diffTask)));
+        System.out.println(gitlabService.getTagDiff(diffTask).stream()
+                .map(c -> c.getDate() + " " + c.getMessage())
+                .collect(java.util.stream.Collectors.joining("\\=,\\=")));
     }
 
     @Test

@@ -3,12 +3,14 @@ package io.pne.deploy.client.redmine.process.impl;
 import io.pne.deploy.client.redmine.process.data_model.DiffKey;
 import io.pne.deploy.client.redmine.process.data_model.DiffLink;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
+import io.pne.deploy.client.redmine.remote.data_model.DiffCommit;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import io.pne.deploy.server.api.IAgentVersionReader;
 import org.junit.Test;
 
+import java.time.LocalDate;
 import java.util.*;
 
 import static com.payneteasy.startup.parameters.StartupParametersFactory.getStartupParameters;
@@ -59,7 +61,10 @@ public class DiffServiceImplTest {
         when(redmine.getIssue(119126L)).thenReturn(issue);
 
         List<DiffLink> links = diffService.mapDiffIssues(
-                Arrays.asList("#119126 did stuff", "no issue here"), new HashMap<>());
+                Arrays.asList(
+                        new DiffCommit("#119126 did stuff", LocalDate.of(2026, 7, 20)),
+                        new DiffCommit("no issue here", null)),
+                new HashMap<>());
 
         assertEquals(2, links.size());
 
@@ -67,6 +72,7 @@ public class DiffServiceImplTest {
         assertEquals(Integer.valueOf(119126), withIssue.getRedmineIssueId());
         assertEquals("Fix the thing", withIssue.getRedmineIssueSubject());
         assertTrue(withIssue.getRedmineUrl().endsWith("/issues/119126"));
+        assertEquals(LocalDate.of(2026, 7, 20), withIssue.getCommitDate());
 
         DiffLink noIssue = links.get(1);
         assertNull(noIssue.getRedmineIssueId());
@@ -91,8 +97,10 @@ public class DiffServiceImplTest {
                 noIssueLink("chore: bump deps")));
 
         assertTrue(msg.contains("(1.0.0 → 1.1.0)"));
-        assertEquals(1, countOccurrences(msg, "#119126 - "));
-        assertTrue(msg.contains("No Issue - chore: bump deps"));
+        assertTrue(msg.contains("|_. Date |_. Issue |_. Subject |"));
+        assertEquals(1, countOccurrences(msg, "| #119126 |"));
+        assertTrue(msg.contains("Subj A"));
+        assertTrue(msg.contains("| chore: bump deps |"));
     }
 
     // --- constructTelegramMessage (normal path) ---
