@@ -27,11 +27,17 @@ public class FullEnvironmentTest {
             assertTrue("Telegram sendMessage should be delivered",
                     env.telegram().await(r -> "POST".equals(r.method) && r.path.contains("/sendMessage"), 25_000));
 
-            // The dashboard streams the agents' command output (echo) as an SSE 'logs' card.
-            String frames = env.readDashboardEvents("deployed", 10_000);
-            assertTrue("dashboard should stream an 'logs' event, got: " + frames, frames.contains("event: logs"));
-            assertTrue("agent echo output should appear in the logs card, got: " + frames, frames.contains("deployed"));
-            // queues + latency are merged into one 'delivery' fragment
+            // The agents' command output (echo "deployed") is retained in the agent-log buffer and
+            // served by GET /agentlog (the buffer already holds it by the time the deploy is DONE).
+            String agentLog = "";
+            long deadline = System.currentTimeMillis() + 10_000;
+            while (System.currentTimeMillis() < deadline && !agentLog.contains("deployed")) {
+                agentLog = env.httpGet("/deploy/dashboard/agentlog");
+                if (!agentLog.contains("deployed")) { Thread.sleep(200); }
+            }
+            assertTrue("agent echo output should appear in the agent log, got: " + agentLog, agentLog.contains("deployed"));
+            // queues + latency are merged into one 'delivery' fragment on the live SSE stream
+            String frames = env.readDashboardEvents("event: delivery", 10_000);
             assertTrue("dashboard should stream a 'delivery' event, got: " + frames, frames.contains("event: delivery"));
 
             // Config screen lists env vars but masks secrets.

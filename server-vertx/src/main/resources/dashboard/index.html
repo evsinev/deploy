@@ -38,7 +38,7 @@
         body {
             margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
             font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            min-height: 100vh; display: flex; flex-direction: column;
+            height: 100dvh; overflow: hidden; display: flex; flex-direction: column;
         }
         h1 { font-size: 20px; margin: 0 0 12px; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
@@ -150,8 +150,16 @@
         table.delivery tbody tr:last-child td { border-bottom: 0; }
 
         /* ---- Live: Agent logs ---- */
-        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 340px; margin-top: 16px; }
+        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 120px; margin-top: 16px; }
         .logs-head { text-transform: uppercase; }
+        /* follow/tail toggle in a log card head */
+        .follow-btn { margin-left: auto; padding: 4px 10px; border-radius: 8px; cursor: pointer; font: inherit;
+                      font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0;
+                      color: var(--muted); background: transparent; border: 1px solid var(--border); }
+        .follow-btn.active { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent);
+                             border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+        .logs-head .follow-btn, .log-card .card-head .follow-btn { margin-left: auto; }
+        .logs-head .streaming { margin-left: 12px; }
         .streaming { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
                      color: var(--ok); text-transform: none; letter-spacing: 0; }
         .streaming .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
@@ -166,7 +174,7 @@
         .log-msg { min-width: 0; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
 
         /* server log screen */
-        .log-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 340px; }
+        .log-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 120px; }
         .log-view { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 0; background: var(--bg); }
         .log-stream { display: flex; flex-direction: column; }
         .log-row { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.55;
@@ -265,6 +273,8 @@
                    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
         .cmd-body { padding: 12px; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px 12px; align-items: start; }
         .cmd-body .cmd-label { padding-top: 5px; }
+        .diff-card .cmd-body { grid-template-columns: max-content minmax(0, 1fr); }
+        .diff-card .cmd-label { white-space: nowrap; }
         .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--fg);
                 background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 7px; padding: 5px 10px;
                 overflow-x: auto; white-space: pre; }
@@ -318,8 +328,13 @@
         </section>
 
         <section class="card flush logs-card">
-            <div class="card-head logs-head"><span>Agent logs</span><span class="streaming"><span class="dot"></span>streaming</span></div>
-            <div class="logs-body" sse-swap="logs"><span class="muted" style="display:block; padding:12px 16px">connecting&hellip;</span></div>
+            <div class="card-head logs-head"><span>Agent logs</span>
+                <button type="button" class="follow-btn active" data-follow>following</button>
+                <span class="streaming"><span class="dot"></span>streaming</span></div>
+            <div class="logs-body log-view" sse-connect="{{BASE}}/agentlog/events">
+                <div class="log-stream logbox" hx-get="{{BASE}}/agentlog" hx-trigger="load"><span class="muted" style="display:block; padding:8px 16px">loading&hellip;</span></div>
+                <div class="log-tail logbox" sse-swap="agentlogline" hx-swap="beforeend"></div>
+            </div>
         </section>
     </section>
 
@@ -343,7 +358,8 @@
 
     <section id="screen-log" class="screen" hidden>
         <section class="card flush log-card">
-            <div class="card-head">Server log</div>
+            <div class="card-head"><span>Server log</span>
+                <button type="button" class="follow-btn active" data-follow>following</button></div>
             <div class="log-view" sse-connect="{{BASE}}/log/events">
                 <div class="log-stream" hx-get="{{BASE}}/log" hx-trigger="load"><span class="muted" style="display:block; padding:8px 16px">loading&hellip;</span></div>
                 <div class="log-tail" sse-swap="logline" hx-swap="beforeend"></div>
@@ -475,22 +491,34 @@
             });
         })();
 
+        // Tail-follow for both log views: while the follow button is active we pin the view to the
+        // bottom on every new line; when it is off we never touch scrollTop, so the user scrolls freely.
         (function () {
-            var view = document.querySelector('#screen-log .log-view');
-            var tail = document.querySelector('#screen-log .log-tail');
-            if (!view) { return; }
             var MAX_ROWS = 1000;
-            view.addEventListener('htmx:afterSwap', function () {
-                if (tail) { while (tail.children.length > MAX_ROWS) { tail.removeChild(tail.firstChild); } }
-                var nearBottom = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
-                if (nearBottom) { view.scrollTop = view.scrollHeight; }
-            });
-            var logTab = document.querySelector('.tab[data-screen="log"]');
-            if (logTab) {
-                logTab.addEventListener('click', function () {
-                    setTimeout(function () { view.scrollTop = view.scrollHeight; }, 0);
+            function wire(view, tab) {
+                if (!view) { return; }
+                var tail = view.querySelector('.log-tail');
+                var btn  = view.closest('.card').querySelector('[data-follow]');
+                function following() { return !btn || btn.classList.contains('active'); }
+                function toBottom() { view.scrollTop = view.scrollHeight; }
+                view.addEventListener('htmx:afterSwap', function () {
+                    if (tail) { while (tail.children.length > MAX_ROWS) { tail.removeChild(tail.firstChild); } }
+                    if (following()) { toBottom(); }
                 });
+                if (btn) {
+                    btn.addEventListener('click', function () {
+                        btn.classList.toggle('active');
+                        btn.textContent = following() ? 'following' : 'paused';
+                        if (following()) { toBottom(); }
+                    });
+                }
+                if (tab) {
+                    var tabBtn = document.querySelector('.tab[data-screen="' + tab + '"]');
+                    if (tabBtn) { tabBtn.addEventListener('click', function () { setTimeout(function () { if (following()) { toBottom(); } }, 0); }); }
+                }
             }
+            wire(document.querySelector('#screen-log .log-view'), 'log');
+            wire(document.querySelector('#screen-live .logs-card .log-view'), null);
         })();
     </script>
 </body>

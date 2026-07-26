@@ -58,7 +58,7 @@ public class RemoteGitlabServiceImpl implements IRemoteGitlabService {
                 .stream()
                 .filter(c -> c != null && c.getMessage() != null && !c.getMessage().trim().isEmpty())
                 .filter(c -> !c.getMessage().contains("[maven-release-plugin][skip ci]"))
-                .map(c -> new DiffCommit(c.getMessage().trim(), parseDate(c.getCommitterDate())))
+                .map(c -> new DiffCommit(c.getMessage().trim(), parseDate(c.getCommittedDate())))
                 .collect(Collectors.toList());
     }
 

@@ -75,6 +75,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     private final String aliasPath;
     private final String logPath;
     private final String logEventsPath;
+    private final String agentLogPath;
+    private final String agentLogEventsPath;
 
     private final Buffer indexHtml;
     private final Buffer htmxJs = readResource("/dashboard/htmx.min.js");
@@ -119,6 +121,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         this.aliasPath   = basePath + "/alias";
         this.logPath       = basePath + "/log";
         this.logEventsPath = basePath + "/log/events";
+        this.agentLogPath       = basePath + "/agentlog";
+        this.agentLogEventsPath = basePath + "/agentlog/events";
 
         this.indexHtml = Buffer.buffer(readResourceString("/dashboard/index.html").replace("{{BASE}}", basePath));
     }
@@ -149,6 +153,10 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             handleLog(aRequest);
         } else if (logEventsPath.equals(path)) {
             handleLogEvents(aRequest);
+        } else if (agentLogPath.equals(path)) {
+            handleAgentLog(aRequest);
+        } else if (agentLogEventsPath.equals(path)) {
+            handleAgentLogEvents(aRequest);
         } else if (basePath.equals(path) || (basePath + "/").equals(path)) {
             serve(aRequest, "text/html; charset=utf-8", indexHtml);
         } else {
@@ -345,6 +353,38 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
         aRequest.connection().closeHandler(aVoid -> vertx.cancelTimer(timerId));
     }
 
+    /** Initial Agent-logs content: the most recent lines oldest-first, or a placeholder when empty. */
+    private void handleAgentLog(HttpServerRequest aRequest) {
+        String rows = DashboardView.agentLogRows(logBuffer.tail(200));
+        String html = rows.isEmpty() ? "<p class=\"muted\" style=\"padding:8px 16px\">no logs yet</p>" : rows;
+        serve(aRequest, "text/html; charset=utf-8", Buffer.buffer(html));
+    }
+
+    /** SSE tail: only the agent-log lines appended since connect (the initial view is served by GET {base}/agentlog). */
+    private void handleAgentLogEvents(HttpServerRequest aRequest) {
+        HttpServerResponse response = aRequest.response();
+        response.setChunked(true);
+        response.putHeader("Content-Type", "text/event-stream");
+        response.putHeader("Cache-Control", "no-cache");
+        response.putHeader("Connection", "keep-alive");
+
+        long[] cursor = {logBuffer.lastSeq()}; // continue past what GET {base}/agentlog already showed
+
+        long timerId = vertx.setPeriodic(refreshMs, id -> {
+            if (response.closed() || response.ended()) {
+                vertx.cancelTimer(id);
+                return;
+            }
+            List<AgentLogBuffer.LogLine> fresh = logBuffer.since(cursor[0]);
+            if (!fresh.isEmpty()) {
+                cursor[0] = fresh.get(fresh.size() - 1).seq();
+                writeEvent(response, "agentlogline", DashboardView.agentLogRows(fresh));
+            }
+        });
+
+        aRequest.connection().closeHandler(aVoid -> vertx.cancelTimer(timerId));
+    }
+
     private static String logRows(List<String> aLines) {
         StringBuilder sb = new StringBuilder();
         for (String line : aLines) {
@@ -368,7 +408,6 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             writeEvent(aResponse, "status", DashboardView.status(taskStatusSupplier.get(), redmineBaseUrl));
             writeEvent(aResponse, "issues", DashboardView.issues(issueSnapshot));
             writeEvent(aResponse, "delivery", DashboardView.delivery(queues, latencySnapshot()));
-            writeEvent(aResponse, "logs", DashboardView.logs(logBuffer.snapshot(50)));
             return true;
         } catch (RuntimeException e) {
             LOG.debug("SSE client gone, stopping stream: {}", e.toString());

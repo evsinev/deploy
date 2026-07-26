@@ -4,6 +4,7 @@ import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.service.impl.alias.AliasCommand;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
+import io.pne.deploy.server.service.impl.alias.AliasDiff;
 import io.pne.deploy.server.vertx.status.model.TaskState;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import org.junit.Rule;
@@ -181,24 +182,24 @@ public class DashboardViewTest {
     }
 
     @Test
-    public void logsRenderMessagesNewestFirstAndEscape() {
+    public void agentLogRowsRenderMessagesOldestFirstAndEscape() {
         AgentLogBuffer buffer = new AgentLogBuffer(10);
         buffer.add("dui-1", "cmd-123456789", "first line");
         buffer.add("dui-1", "cmd-123456789", "<script>bad</script>");
 
-        String html = DashboardView.logs(buffer.snapshot(10));
+        String html = DashboardView.agentLogRows(buffer.tail(10));
         assertTrue(html, html.contains("first line"));
         assertTrue(html, html.contains("dui-1")); // source agent is shown
         assertTrue(html, html.contains("&lt;script&gt;bad&lt;/script&gt;"));
         assertFalse(html, html.contains("<script>bad"));
-        assertTrue(html, html.contains("logbox"));
-        // newest first: the escaped script line (added last) appears before "first line"
-        assertTrue(html.indexOf("bad") < html.indexOf("first line"));
+        assertTrue(html, html.contains("logline"));
+        // oldest first: "first line" (added first) appears before the escaped script line (added last)
+        assertTrue(html.indexOf("first line") < html.indexOf("bad"));
     }
 
     @Test
-    public void logsEmptyShowsPlaceholder() {
-        assertTrue(DashboardView.logs(new java.util.ArrayList<>()).contains("no logs yet"));
+    public void agentLogRowsEmptyIsBlank() {
+        assertEquals("", DashboardView.agentLogRows(new java.util.ArrayList<>()));
     }
 
     @Test
@@ -253,6 +254,46 @@ public class DashboardViewTest {
         assertFalse(html, html.contains("<hi>"));
         assertTrue(html, html.contains("show yaml"));
         assertTrue(html, html.contains("cmd-card"));
+    }
+
+    @Test
+    public void aliasDetailRendersDiffCardWhenPresent() {
+        AliasCommand command = new AliasCommand();
+        command.agents = "dui-1";
+        command.name = "./bin/redeploy.sh";
+        command.arguments = List.of("$1");
+        AliasDiff diff = new AliasDiff();
+        diff.enabled = true;
+        diff.versionUrl = "http://h/version.txt?filter=<v>";
+        diff.gitlabProjectId = 114;
+        diff.agent = "dui-1";
+        diff.newVersionArg = 1;
+        AliasDescription description = new AliasDescription();
+        description.commands = List.of(command);
+        description.diff = diff;
+
+        String html = DashboardView.aliasDetail("msk-sandbox-ui", description, "diff: {}");
+        assertTrue(html, html.contains(">diff<"));
+        assertTrue(html, html.contains("version url"));
+        assertTrue(html, html.contains("gitlab project"));
+        assertTrue(html, html.contains("new version arg"));
+        assertTrue(html, html.contains("114"));
+        assertTrue(html, html.contains("true"));
+        assertTrue(html, html.contains("filter=&lt;v&gt;"));
+        assertFalse(html, html.contains("filter=<v>"));
+    }
+
+    @Test
+    public void aliasDetailOmitsDiffCardWhenAbsent() {
+        AliasCommand command = new AliasCommand();
+        command.agents = "dui-1";
+        command.name = "./bin/redeploy.sh";
+        command.arguments = List.of("$1");
+        AliasDescription description = new AliasDescription();
+        description.commands = List.of(command);
+
+        String html = DashboardView.aliasDetail("plain", description, "commands: []");
+        assertFalse(html, html.contains("version url"));
     }
 
     @Test

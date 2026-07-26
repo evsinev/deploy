@@ -4,6 +4,7 @@ import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.service.impl.alias.AliasCommand;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
+import io.pne.deploy.server.service.impl.alias.AliasDiff;
 import io.pne.deploy.server.vertx.status.model.TaskState;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 
@@ -176,13 +177,14 @@ public final class DashboardView {
         return aClass == null ? "<td>" + aValue + "</td>" : "<td class=\"" + aClass + "\">" + aValue + "</td>";
     }
 
-    /** Recent agent command-output log lines (newest first). Connect/disconnect are not shown. */
-    public static String logs(List<AgentLogBuffer.LogLine> aLines) {
-        if (aLines.isEmpty()) {
-            return "<p class=\"muted\">no logs yet</p>";
-        }
+    /**
+     * Agent command-output log rows, in the order given (the dashboard passes them oldest-first and
+     * appends them at the bottom of the log view). Returns the bare {@code .logline} rows with no
+     * wrapper so the same fragment works for both the initial load and each streamed increment;
+     * empty string when there are no lines. Connect/disconnect are not shown.
+     */
+    public static String agentLogRows(List<AgentLogBuffer.LogLine> aLines) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"logbox\">");
         for (AgentLogBuffer.LogLine line : aLines) {
             String time = LOG_TIME.format(Instant.ofEpochMilli(line.epochMs()).atZone(ZoneId.systemDefault()));
             sb.append("<div class=\"logline\"><span class=\"log-time\">").append(time).append("</span>")
@@ -191,7 +193,6 @@ public final class DashboardView {
               .append("<span class=\"log-msg\">").append(esc(line.message())).append("</span>")
               .append("</div>");
         }
-        sb.append("</div>");
         return sb.toString();
     }
 
@@ -330,6 +331,23 @@ public final class DashboardView {
               .append("r.hidden=!r.hidden;this.textContent=r.hidden?'show yaml':'hide yaml';\">show yaml</button>");
         }
         sb.append("</div>");
+
+        if (aDescription != null && aDescription.diff != null) {
+            AliasDiff d = aDescription.diff;
+            sb.append("<section class=\"cmd-card diff-card\"><div class=\"cmd-head\">")
+              .append("<span class=\"cmd-label\">diff</span></div><div class=\"cmd-body\">");
+            sb.append("<span class=\"cmd-label\">enabled</span><code class=\"code\">")
+              .append(d.enabled).append("</code>");
+            sb.append("<span class=\"cmd-label\">version url</span><code class=\"code\">")
+              .append(esc(d.versionUrl)).append("</code>");
+            sb.append("<span class=\"cmd-label\">gitlab project</span><code class=\"code\">")
+              .append(d.gitlabProjectId).append("</code>");
+            sb.append("<span class=\"cmd-label\">agent</span><code class=\"code\">")
+              .append(esc(d.agent)).append("</code>");
+            sb.append("<span class=\"cmd-label\">new version arg</span><code class=\"code\">")
+              .append(d.newVersionArg).append("</code>");
+            sb.append("</div></section>");
+        }
 
         if (aDescription == null || aDescription.commands == null || aDescription.commands.isEmpty()) {
             sb.append("<p class=\"muted\">no commands / could not parse</p>");

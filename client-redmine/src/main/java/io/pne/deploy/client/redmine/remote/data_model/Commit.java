@@ -26,8 +26,8 @@ public class Commit {
     private String committerName;
     @SerializedName("committer_email")
     private String committerEmail;
-    @SerializedName("committer_date")
-    private String committerDate;
+    @SerializedName("committed_date")
+    private String committedDate;
     @SerializedName("web_url")
     private String webUrl;
 }

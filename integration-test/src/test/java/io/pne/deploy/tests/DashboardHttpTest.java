@@ -79,11 +79,17 @@ public class DashboardHttpTest {
             assertTrue("log should explain why it is empty, got: " + log.body(),
                     log.body().contains("server log is not configured"));
 
+            // 3d. the agent-log initial content renders a placeholder instead of a silent blank
+            HttpResponse<String> agentLog = client.send(get("/deploy/dashboard/agentlog"), ofString());
+            assertEquals(200, agentLog.statusCode());
+            assertTrue("agent log should show a placeholder when empty, got: " + agentLog.body(),
+                    agentLog.body().contains("no logs yet"));
+
             // 4. the live SSE stream — first snapshot (all cards) must arrive immediately
             HttpResponse<InputStream> events = client.send(get("/deploy/dashboard/events"), ofInputStream());
             assertEquals(200, events.statusCode());
             assertTrue(events.headers().firstValue("content-type").orElse("").startsWith("text/event-stream"));
-            String frames = readUntil(events.body(), "event: logs"); // last event in a snapshot
+            String frames = readUntil(events.body(), "event: delivery"); // last event in a snapshot
             assertTrue("SSE should push an 'agents' event, got: " + frames, frames.contains("event: agents"));
             assertTrue("SSE should push a merged 'delivery' event, got: " + frames, frames.contains("event: delivery"));
             assertTrue("SSE frames should carry data lines", frames.contains("data:"));

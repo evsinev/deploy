@@ -41,6 +41,20 @@ public class RemoteGitlabServiceImplTest {
     }
 
     @Test
+    public void parsesCommittedDateFromCompareResponse() throws Exception {
+        String body = "{\"commits\":[{\"message\":\"fix stuff\","
+                + "\"committed_date\":\"2026-07-20T12:34:56.000+03:00\"}]}";
+        IHttpClient client = mock(IHttpClient.class);
+        when(client.send(any(), any())).thenReturn(response(200, body));
+        RemoteGitlabServiceImpl svc = new RemoteGitlabServiceImpl(GITLAB_URL, "key", client);
+
+        var commits = svc.getTagDiff(new DiffTask(new String[0], 114, "t", "1", "2"));
+        assertEquals(1, commits.size());
+        assertEquals("fix stuff", commits.get(0).getMessage());
+        assertEquals(java.time.LocalDate.of(2026, 7, 20), commits.get(0).getDate());
+    }
+
+    @Test
     public void nonOkResponseThrowsWithStatusAndBody() throws Exception {
         IHttpClient client = mock(IHttpClient.class);
         when(client.send(any(), any())).thenReturn(response(404, "{\"error\":\"404 Not Found\"}"));
