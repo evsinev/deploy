@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.distribution.ValueAtPercentile;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.AgentConnections;
+import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.vertx.status.model.TaskStatus;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -52,6 +53,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
 
     private final Vertx                        vertx;
     private final AgentConnections             agents;
+    private final AgentRegistry                agentRegistry;
     private final Collection<Long>             pendingIssues;
     private final Map<String, PersistentSpool> queues;
     private final Supplier<TaskStatus>         taskStatusSupplier;
@@ -81,6 +83,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     public DashboardHttpHandler(
             Vertx aVertx
             , AgentConnections aAgents
+            , AgentRegistry aAgentRegistry
             , Collection<Long> aPendingIssues
             , Map<String, PersistentSpool> aQueues
             , Supplier<TaskStatus> aTaskStatusSupplier
@@ -94,6 +97,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     ) {
         this.vertx              = aVertx;
         this.agents             = aAgents;
+        this.agentRegistry      = aAgentRegistry;
         this.pendingIssues      = aPendingIssues;
         this.queues             = aQueues;
         this.taskStatusSupplier = aTaskStatusSupplier;
@@ -360,6 +364,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             writeEvent(aResponse, "service", DashboardView.service(
                     ManagementFactory.getRuntimeMXBean().getUptime(), heapUsed, runtime.maxMemory(), agentSnapshot.size()));
             writeEvent(aResponse, "agents", DashboardView.agents(agentSnapshot));
+            writeEvent(aResponse, "agentsDetail", DashboardView.agentDetails(agentRegistry.snapshot(), System.currentTimeMillis()));
             writeEvent(aResponse, "status", DashboardView.status(taskStatusSupplier.get(), redmineBaseUrl));
             writeEvent(aResponse, "issues", DashboardView.issues(issueSnapshot));
             writeEvent(aResponse, "delivery", DashboardView.delivery(queues, latencySnapshot()));

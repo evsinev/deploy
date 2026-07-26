@@ -86,6 +86,13 @@
     </dependencies>
 
     <build>
+        <resources>
+            <!-- Filter agent-version.properties so ${deploy.agent.version} is baked in at build time. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>

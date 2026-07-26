@@ -1,6 +1,7 @@
 package io.pne.deploy.server.vertx.dashboard;
 
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
+import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.service.impl.alias.AliasCommand;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.status.model.TaskState;
@@ -51,6 +52,48 @@ public class DashboardViewTest {
     public void agentsEmptyShowsPlaceholder() {
         String html = DashboardView.agents(emptySet());
         assertTrue(html, html.contains("no agents connected"));
+    }
+
+    @Test
+    public void agentDetailsRendersAllFieldsForConnectedAgent() {
+        long connectedAt = 1_000L;
+        long now = connectedAt + 65_000L; // 1m 5s uptime
+        AgentRegistry.AgentRecord record = new AgentRegistry.AgentRecord(
+                "host-a", "10.0.0.5", connectedAt, now, AgentRegistry.Status.CONNECTED,
+                "1.0-15", 5L * 1024 * 1024, 10L * 1024 * 1024);
+        String html = DashboardView.agentDetails(List.of(record), now);
+        assertTrue(html, html.contains("host-a"));
+        assertTrue(html, html.contains("10.0.0.5"));
+        assertTrue(html, html.contains("1m 5s"));
+        assertTrue(html, html.contains("5.0 MiB / 10.0 MiB"));
+        assertTrue(html, html.contains("1.0-15"));
+        assertTrue(html, html.contains("badge ok"));
+        assertTrue(html, html.contains("connected"));
+    }
+
+    @Test
+    public void agentDetailsEmptyCellsAndDisconnectedBadgeForMissingData() {
+        AgentRegistry.AgentRecord record = new AgentRegistry.AgentRecord(
+                "host-b", null, 0, 5_000L, AgentRegistry.Status.DISCONNECTED, null, null, null);
+        String html = DashboardView.agentDetails(List.of(record), 10_000L);
+        assertTrue(html, html.contains("host-b"));
+        assertTrue(html, html.contains("&mdash;"));      // ip / version / heap / uptime all missing
+        assertTrue(html, html.contains("badge bad"));
+        assertTrue(html, html.contains("disconnected"));
+    }
+
+    @Test
+    public void agentDetailsEscapesFields() {
+        AgentRegistry.AgentRecord record = new AgentRegistry.AgentRecord(
+                "<x>", "<ip>", 0, 0, AgentRegistry.Status.CONNECTED, "<v>", 1L, 2L);
+        String html = DashboardView.agentDetails(List.of(record), 0L);
+        assertTrue(html, html.contains("&lt;x&gt;"));
+        assertFalse(html, html.contains("<x>"));
+    }
+
+    @Test
+    public void agentDetailsEmptyShowsPlaceholder() {
+        assertTrue(DashboardView.agentDetails(new ArrayList<>(), 0L).contains("no agents"));
     }
 
     @Test

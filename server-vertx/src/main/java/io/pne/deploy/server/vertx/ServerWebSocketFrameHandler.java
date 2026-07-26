@@ -1,6 +1,7 @@
 package io.pne.deploy.server.vertx;
 
 import com.google.gson.Gson;
+import io.pne.deploy.agent.api.messages.AgentInfo;
 import io.pne.deploy.agent.api.messages.AgentMessageType;
 import io.pne.deploy.agent.api.messages.IAgentClientMessage;
 import io.pne.deploy.agent.api.messages.GetVersionResponse;
@@ -25,14 +26,16 @@ public class ServerWebSocketFrameHandler {
     private final IServerApplicationListener serverListener;
     private final CommandResponses           commandResponses;
     private final VersionResponses           versionResponses;
+    private final AgentRegistry              agentRegistry;
     private final ITaskExecutionListener     listener;
 
 
-    public ServerWebSocketFrameHandler(IServerApplicationListener aServerListener, Gson aGson, CommandResponses aResponses, VersionResponses aVersionResponses, ITaskExecutionListener aListener) {
+    public ServerWebSocketFrameHandler(IServerApplicationListener aServerListener, Gson aGson, CommandResponses aResponses, VersionResponses aVersionResponses, AgentRegistry aAgentRegistry, ITaskExecutionListener aListener) {
         gson = aGson;
         serverListener = aServerListener;
         commandResponses = aResponses;
         versionResponses = aVersionResponses;
+        agentRegistry = aAgentRegistry;
         listener = aListener;
     }
 
@@ -69,6 +72,10 @@ public class ServerWebSocketFrameHandler {
             case GET_VERSION_RESPONSE:
                 GetVersionResponse versionResponse = (GetVersionResponse) message;
                 versionResponses.addResponse(versionResponse.requestId, versionResponse);
+                break;
+
+            case AGENT_INFO:
+                agentRegistry.onInfo(aAgentId, (AgentInfo) message);
                 break;
 
             default:

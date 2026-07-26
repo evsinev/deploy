@@ -1,6 +1,7 @@
 package io.pne.deploy.server.vertx.dashboard;
 
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
+import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.service.impl.alias.AliasCommand;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.vertx.status.model.TaskState;
@@ -40,6 +41,44 @@ public final class DashboardView {
             sb.append("</div>");
         }
         return sb.toString();
+    }
+
+    /**
+     * Per-agent details table (name, ip, uptime, heap, version, status). IP/uptime/status are server-derived;
+     * version and heap are pushed by the agent. {@code aNowMs} computes the connection uptime. Missing data is
+     * rendered as an empty ({@code &mdash;}) cell.
+     */
+    public static String agentDetails(List<AgentRegistry.AgentRecord> aAgents, long aNowMs) {
+        if (aAgents == null || aAgents.isEmpty()) {
+            return "<p class=\"muted\">no agents</p>";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"delivery-wrap\"><table class=\"delivery agents-table\"><thead><tr>")
+          .append("<th class=\"l\">name</th><th class=\"l\">ip</th><th>uptime</th><th>heap</th>")
+          .append("<th class=\"l\">version</th><th>status</th>")
+          .append("</tr></thead><tbody>");
+        for (AgentRegistry.AgentRecord agent : aAgents) {
+            boolean connected  = agent.status == AgentRegistry.Status.CONNECTED;
+            String  uptime     = connected ? formatDuration(Math.max(0, aNowMs - agent.connectedAtMs)) : "&mdash;";
+            String  heap       = agent.heapUsed != null && agent.heapMax != null
+                    ? formatBytes(agent.heapUsed) + " / " + formatBytes(agent.heapMax) : "&mdash;";
+            String  badgeClass = connected ? "ok" : "bad";
+            String  badgeText  = connected ? "connected" : "disconnected";
+            sb.append("<tr>")
+              .append("<td class=\"l\">").append(cell(agent.agentId)).append("</td>")
+              .append("<td class=\"l\">").append(cell(agent.ip)).append("</td>")
+              .append("<td>").append(uptime).append("</td>")
+              .append("<td>").append(heap).append("</td>")
+              .append("<td class=\"l\">").append(cell(agent.version)).append("</td>")
+              .append("<td><span class=\"badge ").append(badgeClass).append("\">").append(badgeText).append("</span></td>")
+              .append("</tr>");
+        }
+        sb.append("</tbody></table></div>");
+        return sb.toString();
+    }
+
+    private static String cell(String aValue) {
+        return aValue == null || aValue.isBlank() ? "&mdash;" : esc(aValue);
     }
 
     /** The last task pushed by the execution listener (nullable). {@code aRedmineBaseUrl} links the issue id. */

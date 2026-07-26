@@ -284,6 +284,7 @@
     <div id="sse-status" class="banner" hidden>&#9888; Not connected to backend (SSE) &mdash; retrying&hellip;</div>
     <nav class="tabs">
         <button class="tab active" data-screen="live">Live</button>
+        <button class="tab" data-screen="agents">Agents</button>
         <button class="tab" data-screen="config">Config</button>
         <button class="tab" data-screen="aliases">Aliases</button>
         <button class="tab" data-screen="log">Log</button>
@@ -319,6 +320,13 @@
         <section class="card flush logs-card">
             <div class="card-head logs-head"><span>Agent logs</span><span class="streaming"><span class="dot"></span>streaming</span></div>
             <div class="logs-body" sse-swap="logs"><span class="muted" style="display:block; padding:12px 16px">connecting&hellip;</span></div>
+        </section>
+    </section>
+
+    <section id="screen-agents" class="screen" hidden>
+        <section class="card flush agents-detail-card">
+            <div class="card-head">Agents</div>
+            <div class="agents-detail-body" sse-swap="agentsDetail"><span class="muted" style="display:block; padding:12px 16px">connecting&hellip;</span></div>
         </section>
     </section>
 
@@ -387,7 +395,7 @@
 
         (function () {
             var tabs    = document.querySelectorAll('.tab');
-            var screens = { live: 'screen-live', config: 'screen-config', aliases: 'screen-aliases', log: 'screen-log' };
+            var screens = { live: 'screen-live', agents: 'screen-agents', config: 'screen-config', aliases: 'screen-aliases', log: 'screen-log' };
             tabs.forEach(function (tab) {
                 tab.addEventListener('click', function () {
                     if (!tab.getAttribute('data-screen')) { return; }

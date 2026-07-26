@@ -8,6 +8,7 @@ import com.payneteasy.websocket.WebSocketHandshakeRequest;
 import com.payneteasy.websocket.WebSocketSession;
 import io.pne.deploy.agent.api.IAgentChannelService;
 import io.pne.deploy.agent.api.IAgentService;
+import io.pne.deploy.agent.api.messages.AgentInfo;
 import io.pne.deploy.agent.api.messages.RunAgentCommandLog;
 import io.pne.deploy.agent.service.IAgentApplicationListener;
 import io.pne.deploy.agent.service.IAgentStartupParameters;
@@ -62,6 +63,7 @@ public class WebSocketAgentApplication {
         while(!currentThread().isInterrupted()) {
             try {
                 session = connectToServer();
+                queue.enqueue(buildAgentInfo());
                 agentListener.didConnected();
                 try {
                     session.startAndWait(webSocketListener);
@@ -100,6 +102,13 @@ public class WebSocketAgentApplication {
                 LOG.error("Could not close session", e);
             }
         }
+    }
+
+    /** Snapshot pushed to the server right after connecting: baked version + current JVM heap. */
+    private static AgentInfo buildAgentInfo() {
+        Runtime runtime = getRuntime();
+        long    heapUsed = runtime.totalMemory() - runtime.freeMemory();
+        return new AgentInfo(AgentVersion.get(), heapUsed, runtime.maxMemory());
     }
 
     private WebSocketSession connectToServer() throws IOException {
