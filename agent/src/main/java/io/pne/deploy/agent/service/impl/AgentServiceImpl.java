@@ -8,6 +8,7 @@ import io.pne.deploy.agent.service.log.IAgentLogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class AgentServiceImpl implements IAgentService {
         Process process;
 
         try {
+            ensureExecutable(aCommand.command.name);
             process = new ProcessBuilder(createCommandWithArguments(aCommand.command)).start();
         } catch (IOException e) {
             throw new AgentCommandException("Can't start command", e);
@@ -75,5 +77,28 @@ public class AgentServiceImpl implements IAgentService {
         ret.add(aCommand.name);
         ret.addAll(aCommand.arguments);
         return ret;
+    }
+
+    /**
+     * Deploy often strips the execute bit off scripts. When argv[0] is a {@code .sh} file that exists but isn't
+     * executable, add the owner execute bit so the direct {@code exec} can launch it (the script still needs a shebang).
+     */
+    private void ensureExecutable(String aName) {
+        if (aName == null || !aName.endsWith(".sh")) {
+            return;
+        }
+        File file = new File(aName);
+        if (!file.isFile()) {
+            LOG.debug("Script {} not found as a file, running as-is", aName);
+            return;
+        }
+        if (file.canExecute()) {
+            return;
+        }
+        if (file.setExecutable(true)) {
+            LOG.info("Added execute bit to {}", aName);
+        } else {
+            LOG.warn("Could not add execute bit to {} (running anyway)", aName);
+        }
     }
 }
