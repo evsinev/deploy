@@ -15,5 +15,6 @@ public class TaskDiff {
     String  versionUrl;
     int     gitlabProjectId;
     String  agent;
+    int     newVersionArg; // 1-based index of the task-line argument that carries the new version
 
 }

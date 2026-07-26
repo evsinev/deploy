@@ -73,9 +73,10 @@ public class DiffServiceProcessDiffTest {
     }
 
     /**
-     * The diff is driven by {@code task.diff} (versionUrl / gitlabProjectId / agent), not by command arguments;
-     * newVersion is the first parameter of the task line. The old version is fetched through the agent
-     * (the deploy-server can't reach the firewalled versionUrl), so the reader is mocked here.
+     * The diff is driven by {@code task.diff} (versionUrl / gitlabProjectId / agent / newVersionArg), not by command
+     * arguments; newVersion is the task-line argument at index {@code diff.newVersionArg} (1 = the first argument).
+     * The old version is fetched through the agent (the deploy-server can't reach the firewalled versionUrl), so the
+     * reader is mocked here.
      */
     @Test
     public void getCurrentVersionUsesTaskDiff() {
@@ -83,7 +84,7 @@ public class DiffServiceProcessDiffTest {
         when(reader.readVersion("agent-1", versionUrl)).thenReturn("3.36.16-42");
 
         TaskDiff diff = TaskDiff.builder()
-                .enabled(true).versionUrl(versionUrl).gitlabProjectId(42).agent("agent-1").build();
+                .enabled(true).versionUrl(versionUrl).gitlabProjectId(42).agent("agent-1").newVersionArg(1).build();
         Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
                 Collections.emptyList(), "demo 3.36.16-100", 168059, diff);
 
@@ -107,5 +108,43 @@ public class DiffServiceProcessDiffTest {
                 Collections.emptyList(), "demo 1.2.3", 1,
                 TaskDiff.builder().enabled(false).versionUrl("http://x").gitlabProjectId(1).build());
         assertTrue(diffService.getCurrentVersion(disabled).isEmpty());
+    }
+
+    @Test
+    public void getCurrentVersionPicksTheConfiguredArgumentIndex() {
+        String versionUrl = "http://firewalled.example/version";
+        when(reader.readVersion("agent-1", versionUrl)).thenReturn("3.36.16-42");
+
+        TaskDiff diff = TaskDiff.builder()
+                .enabled(true).versionUrl(versionUrl).gitlabProjectId(42).agent("agent-1").newVersionArg(2).build();
+        Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
+                Collections.emptyList(), "demo skip 3.36.16-100", 168059, diff);
+
+        List<DiffTask> diffTasks = diffService.getCurrentVersion(task);
+
+        assertEquals(1, diffTasks.size());
+        assertEquals("3.36.16-100", diffTasks.get(0).getNewVersion()); // 2nd argument, not the 1st ("skip")
+    }
+
+    @Test
+    public void getCurrentVersionWithoutNewVersionArgIsSkipped() {
+        TaskDiff diff = TaskDiff.builder() // newVersionArg defaults to 0
+                .enabled(true).versionUrl("http://x").gitlabProjectId(42).agent("agent-1").build();
+        Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
+                Collections.emptyList(), "demo 3.36.16-100", 1, diff);
+
+        assertTrue(diffService.getCurrentVersion(task).isEmpty());
+        verifyNoInteractions(reader);
+    }
+
+    @Test
+    public void getCurrentVersionWithArgIndexOutOfRangeIsSkipped() {
+        TaskDiff diff = TaskDiff.builder()
+                .enabled(true).versionUrl("http://x").gitlabProjectId(42).agent("agent-1").newVersionArg(5).build();
+        Task task = new Task(TaskId.generateTaskId(), new TaskParameters(),
+                Collections.emptyList(), "demo 3.36.16-100", 1, diff); // only tokens[0..1]
+
+        assertTrue(diffService.getCurrentVersion(task).isEmpty());
+        verifyNoInteractions(reader);
     }
 }

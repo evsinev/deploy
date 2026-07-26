@@ -6,4 +6,5 @@ public class AliasDiff {
     public String  versionUrl;
     public int     gitlabProjectId;
     public String  agent;
+    public int     newVersionArg; // 1-based index of the task-line argument that carries the new version
 }
