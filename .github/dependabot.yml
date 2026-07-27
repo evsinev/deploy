@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # micrometer 1.13+ moved io.micrometer.prometheus.* to io.micrometer.prometheusmetrics.* (see CLAUDE.md)
+      - dependency-name: "io.micrometer:*"
+        versions: [">= 1.13.0"]
     groups:
       maven-minor-patch:
         update-types:
