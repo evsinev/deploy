@@ -17,6 +17,7 @@ import io.pne.deploy.server.api.task.TaskDiff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -178,31 +179,57 @@ public class DiffServiceImpl implements DiffService {
 
     String constructRedmineMessage(DiffTask task, List<DiffLink> diffLinks) {
         StringBuilder sb = new StringBuilder();
-        List<Integer> addedIssues = new ArrayList<>();
         sb.append("*").append(task.getIdsString()).append("* (").append(task.getOldVersion()).append(" → ").append(task.getNewVersion()).append(")\n\n");
-        sb.append("|_. Date |_. Issue |_. Subject |\n");
-        for (DiffLink diff : diffLinks) {
-            if (diff.getRedmineIssueId() != null && diff.getRedmineIssueId() != 0 && addedIssues.contains(diff.getRedmineIssueId())) {
-                continue;
-            } else {
-                addedIssues.add(diff.getRedmineIssueId());
+        sb.append("|_. Issue |_. Subject |\n");
+        // One colspan-2 header row per date, its commits listed underneath.
+        for (Map.Entry<LocalDate, List<DiffLink>> group : groupByDate(dedupByIssue(diffLinks)).entrySet()) {
+            sb.append("|\\2. *").append(dateLabel(group.getKey())).append("* |\n");
+            for (DiffLink diff : group.getValue()) {
+                String issueCell;
+                String subject;
+                if (diff.getRedmineIssueId() != null) {
+                    issueCell = "#" + diff.getRedmineIssueId();
+                    subject = diff.getRedmineIssueSubject() != null ? diff.getRedmineIssueSubject().trim() : diff.getCommitMessage();
+                } else {
+                    issueCell = "";
+                    subject = diff.getCommitMessage();
+                }
+                sb.append("| ").append(textileCell(issueCell))
+                        .append(" | ").append(textileCell(subject))
+                        .append(" |\n");
             }
-            String date = diff.getCommitDate() == null ? "" : diff.getCommitDate().toString();
-            String issueCell;
-            String subject;
-            if (diff.getRedmineIssueId() != null) {
-                issueCell = "#" + diff.getRedmineIssueId();
-                subject = diff.getRedmineIssueSubject() != null ? diff.getRedmineIssueSubject().trim() : diff.getCommitMessage();
-            } else {
-                issueCell = "";
-                subject = diff.getCommitMessage();
-            }
-            sb.append("| ").append(textileCell(date))
-                    .append(" | ").append(textileCell(issueCell))
-                    .append(" | ").append(textileCell(subject))
-                    .append(" |\n");
         }
         return sb.toString();
+    }
+
+    /** Keep the first commit per non-null, non-zero Redmine issue id; all no-issue commits are kept. */
+    private static List<DiffLink> dedupByIssue(List<DiffLink> diffLinks) {
+        List<DiffLink> result = new ArrayList<>();
+        Set<Integer> seen = new HashSet<>();
+        for (DiffLink diff : diffLinks) {
+            Integer issueId = diff.getRedmineIssueId();
+            if (issueId != null && issueId != 0 && !seen.add(issueId)) {
+                continue;
+            }
+            result.add(diff);
+        }
+        return result;
+    }
+
+    /**
+     * Bucket the commits by date, preserving the caller's (newest-first, nulls-last) order both for the
+     * group order and within each group. The {@code null} date key groups undated commits (rendered last).
+     */
+    private static Map<LocalDate, List<DiffLink>> groupByDate(List<DiffLink> diffLinks) {
+        Map<LocalDate, List<DiffLink>> groups = new LinkedHashMap<>();
+        for (DiffLink diff : diffLinks) {
+            groups.computeIfAbsent(diff.getCommitDate(), k -> new ArrayList<>()).add(diff);
+        }
+        return groups;
+    }
+
+    private static String dateLabel(LocalDate date) {
+        return date == null ? "(no date)" : date.toString();
     }
 
     /** Make text safe for a single Textile table cell: no pipes (they end the cell) and no line breaks (they end the row). */
@@ -221,23 +248,28 @@ public class DiffServiceImpl implements DiffService {
         String changesContTitle = "Changes (cont.):\n";
         List<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder(header).append(changesTitle);
-        Set<Integer> addedIssues = new HashSet<>();
-        for (DiffLink diffLink : diffLinks) {
-            Integer issueId = diffLink.getRedmineIssueId();
-            if (issueId != null && issueId != 0 && !addedIssues.add(issueId)) {
-                continue;
-            }
-            String line = buildTelegramLine(diffLink);
-
-            if (current.length() + line.length() > TG_SAFE_MAX) {
+        // Commits grouped by date: each date is a plain header line, its bullets listed underneath.
+        for (Map.Entry<LocalDate, List<DiffLink>> group : groupByDate(dedupByIssue(diffLinks)).entrySet()) {
+            String dateHeader = dateLabel(group.getKey()) + "\n";
+            if (current.length() + dateHeader.length() > TG_SAFE_MAX) {
                 result.add(current.toString());
                 current = new StringBuilder(header).append(changesContTitle);
             }
-            if (current.length() + line.length() > TG_SAFE_MAX) {
-                int budget = TG_SAFE_MAX - current.length();
-                line = budget > 1 ? line.substring(0, budget - 1) + "\n" : "\n";
+            current.append(dateHeader);
+            for (DiffLink diffLink : group.getValue()) {
+                String line = buildTelegramLine(diffLink);
+
+                if (current.length() + line.length() > TG_SAFE_MAX) {
+                    result.add(current.toString());
+                    // Repeat the date header so bullets are never orphaned from their date after a split.
+                    current = new StringBuilder(header).append(changesContTitle).append(dateHeader);
+                }
+                if (current.length() + line.length() > TG_SAFE_MAX) {
+                    int budget = TG_SAFE_MAX - current.length();
+                    line = budget > 1 ? line.substring(0, budget - 1) + "\n" : "\n";
+                }
+                current.append(line);
             }
-            current.append(line);
         }
         if (current.length() > 0) {
             result.add(current.toString());
@@ -248,9 +280,6 @@ public class DiffServiceImpl implements DiffService {
     private String buildTelegramLine(DiffLink diffLink) {
         StringBuilder sb = new StringBuilder();
         sb.append("• ");
-        if (diffLink.getCommitDate() != null) {
-            sb.append(diffLink.getCommitDate()).append(" — ");
-        }
 
         Integer issueId = diffLink.getRedmineIssueId();
         if (issueId != null && issueId != 0) {

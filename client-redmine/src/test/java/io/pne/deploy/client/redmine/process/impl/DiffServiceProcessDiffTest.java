@@ -60,21 +60,24 @@ public class DiffServiceProcessDiffTest {
         ArgumentCaptor<String> comment = ArgumentCaptor.forClass(String.class);
         verify(redmine).enqueueAddComment(eq(42), comment.capture());
         String redmineComment = comment.getValue();
+        // Commits are grouped by date under colspan-2 header rows; the table has just Issue | Subject.
         assertTrue("redmine comment: " + redmineComment,
-                redmineComment.contains("|_. Date |_. Issue |_. Subject |"));
-        assertTrue(redmineComment, redmineComment.contains("| 2026-07-20 | #119126 | Fix the bug |"));
-        assertTrue(redmineComment, redmineComment.contains("| 2026-07-18 |  | chore: cleanup |"));
-        // Newest first: the 2026-07-20 row precedes the 2026-07-18 row.
+                redmineComment.contains("|_. Issue |_. Subject |"));
+        assertTrue(redmineComment, redmineComment.contains("|\\2. *2026-07-20* |"));
+        assertTrue(redmineComment, redmineComment.contains("| #119126 | Fix the bug |"));
+        assertTrue(redmineComment, redmineComment.contains("|\\2. *2026-07-18* |"));
+        assertTrue(redmineComment, redmineComment.contains("|  | chore: cleanup |"));
+        // Newest first: the 2026-07-20 group precedes the 2026-07-18 group.
         assertTrue("expected desc date order in: " + redmineComment,
                 redmineComment.indexOf("2026-07-20") < redmineComment.indexOf("2026-07-18"));
 
         ArgumentCaptor<List> telegramMessages = ArgumentCaptor.forClass(List.class);
         verify(telegram).sendMessages(telegramMessages.capture());
         String joined = telegramMessages.getValue().toString();
-        // The issue line prefixes the date, then wraps "#id - subject" in an <a> tag.
-        assertTrue("telegram messages: " + joined, joined.contains("2026-07-20 — <a href="));
+        // Each date is a plain header line; bullets underneath carry no date prefix.
+        assertTrue("telegram messages: " + joined, joined.contains("2026-07-20\n• <a href="));
         assertTrue(joined, joined.contains("#119126 - Fix the bug"));
-        assertTrue(joined, joined.contains("2026-07-18 — No Issue - chore: cleanup"));
+        assertTrue(joined, joined.contains("2026-07-18\n• No Issue - chore: cleanup"));
     }
 
     @Test

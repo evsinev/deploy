@@ -97,10 +97,49 @@ public class DiffServiceImplTest {
                 noIssueLink("chore: bump deps")));
 
         assertTrue(msg.contains("(1.0.0 → 1.1.0)"));
-        assertTrue(msg.contains("|_. Date |_. Issue |_. Subject |"));
+        assertTrue(msg.contains("|_. Issue |_. Subject |"));
+        assertTrue(msg, msg.contains("|\\2. *(no date)* |")); // undated commits grouped under one header
         assertEquals(1, countOccurrences(msg, "| #119126 |"));
         assertTrue(msg.contains("Subj A"));
         assertTrue(msg.contains("| chore: bump deps |"));
+    }
+
+    // --- grouping by date ---
+
+    @Test
+    public void constructRedmineMessageGroupsCommitsByDate() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
+
+        String msg = diffService.constructRedmineMessage(t, Arrays.asList(
+                dated(20260720, "first on the 20th"),
+                dated(20260720, "second on the 20th"),
+                dated(20260719, "on the 19th")));
+
+        // One colspan header per date (the same date is not repeated), newest first.
+        assertEquals(1, countOccurrences(msg, "|\\2. *2026-07-20* |"));
+        assertEquals(1, countOccurrences(msg, "|\\2. *2026-07-19* |"));
+        assertTrue(msg, msg.indexOf("2026-07-20") < msg.indexOf("2026-07-19"));
+        assertTrue(msg.contains("| first on the 20th |"));
+        assertTrue(msg.contains("| second on the 20th |"));
+    }
+
+    @Test
+    public void constructTelegramMessageGroupsCommitsByDate() {
+        DiffTask t = task(new String[]{"host-1"}, 1, "svc", "1.0.0", "1.1.0");
+
+        List<String> chunks = diffService.constructTelegramMessage(t, Arrays.asList(
+                dated(20260720, "first on the 20th"),
+                dated(20260720, "second on the 20th"),
+                dated(20260719, "on the 19th")));
+
+        assertEquals(1, chunks.size());
+        String msg = chunks.get(0);
+        // The date appears once as a header line, not on each bullet.
+        assertEquals(1, countOccurrences(msg, "2026-07-20\n"));
+        assertEquals(1, countOccurrences(msg, "2026-07-19\n"));
+        assertTrue(msg, msg.indexOf("2026-07-20") < msg.indexOf("2026-07-19"));
+        assertTrue(msg.contains("• No Issue - first on the 20th"));
+        assertTrue(msg.contains("• No Issue - second on the 20th"));
     }
 
     // --- constructTelegramMessage (normal path) ---
@@ -114,6 +153,7 @@ public class DiffServiceImplTest {
         List<String> chunks = diffService.constructTelegramMessage(t, Collections.singletonList(l));
 
         assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).contains("(no date)")); // undated commit still grouped under a header
         assertTrue(chunks.get(0).contains("<a href=\"https://redmine.example/issues/119126\">"));
         assertTrue(chunks.get(0).contains("#119126 - Fix"));
     }
@@ -198,6 +238,13 @@ public class DiffServiceImplTest {
     private static DiffLink noIssueLink(String commitMessage) {
         DiffLink l = new DiffLink();
         l.setCommitMessage(commitMessage);
+        return l;
+    }
+
+    /** A no-issue commit dated with a compact {@code yyyyMMdd} literal, e.g. {@code 20260720}. */
+    private static DiffLink dated(int yyyymmdd, String commitMessage) {
+        DiffLink l = noIssueLink(commitMessage);
+        l.setCommitDate(LocalDate.of(yyyymmdd / 10000, (yyyymmdd / 100) % 100, yyyymmdd % 100));
         return l;
     }
 
