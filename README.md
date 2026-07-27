@@ -1,5 +1,7 @@
 # deploy
 
+📖 **Documentation:** https://evsinev.github.io/deploy/
+
 A small deployment-orchestration server. A central **Vert.x** process accepts **WebSocket agents**
 running on target hosts and dispatches shell commands to them. Deployments are driven from
 **Redmine** issues: an issue is validated by a script, its GitLab diff is posted back as a comment

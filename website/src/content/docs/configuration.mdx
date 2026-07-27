@@ -1,0 +1,70 @@
+---
+title: Configuration
+description: Every environment variable the server and agent read, with defaults and meaning.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+All configuration is supplied through **environment variables**. The server resolves them at
+startup through three independent config interfaces; the agent reads two variables directly.
+Defaults are shown in the tables below.
+
+<Aside type="danger" title="Secrets">
+`REDMINE_API_ACCESS_KEY`, `GITLAB_API_KEY`, and `TELEGRAM_TOKEN` are secrets — provide them via
+the environment, never commit them. The tracked `test.env` file currently contains a
+live-looking Redmine URL and key; treat it as compromised — rotate it and keep real credentials
+out of version control.
+</Aside>
+
+## Server
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `VERTX_SERVER_PORT` | `8080` | HTTP/WebSocket listen port (bound to `127.0.0.1`). |
+| `VERTX_ALIASES_DIR` | `./aliases` | Directory of deploy alias `*.yml` files. |
+
+## Dashboard
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `DASHBOARD_PATH` | `/deploy/dashboard` | Dashboard base path. |
+| `DASHBOARD_REFRESH_MS` | `2000` | SSE push interval (ms). |
+| `SERVER_LOG_FILE` | `/var/log/deploy-server-1/current` | Server log file tailed on the dashboard's **Log** screen; set it blank to disable that screen. |
+
+## Redmine / GitLab / Telegram / queue
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `REDMINE_URL` | `""` | Redmine base URL. |
+| `REDMINE_API_ACCESS_KEY` | `""` | Redmine API key (**secret**). |
+| `REDMINE_STATUS_ACCEPT_ID` | `1` | Status id: accepted. |
+| `REDMINE_STATUS_PROCESSING_ID` | `2` | Status id: in progress. |
+| `REDMINE_STATUS_DONE_ID` | `3` | Status id: done. |
+| `REDMINE_STATUS_FAILED_ID` | `6` | Status id: failed. |
+| `REDMINE_CONNECT_TIMEOUT` | `120` | Connect timeout (s). |
+| `REDMINE_READ_TIMEOUT` | `120` | Read timeout (s). |
+| `REDMINE_CALLBACK_URI` | `""` | HTTP URI matched for the Redmine webhook. |
+| `ISSUE_VALIDATION_SCRIPT` | `""` | Path to a JS file validating each issue (Nashorn). |
+| `STATUS_PAGE_PATH` | `/deploy/status` | Status endpoint path prefix. |
+| `QUEUE_DIR` | `./queue` | Durable spool root (`redmine/` and `telegram/` subdirs). |
+| `GITLAB_URL` | `""` | GitLab base URL. |
+| `GITLAB_API_KEY` | `""` | GitLab API key (**secret**). |
+| `TELEGRAM_ENABLED` | `false` | Enable Telegram notifications. |
+| `TELEGRAM_CHAT_ID` | `0` | Target Telegram chat id. |
+| `TELEGRAM_TOKEN` | `""` | Telegram bot token (**secret**). |
+| `TELEGRAM_URL` | `https://api.telegram.org/bot` | Telegram Bot API base URL (override for a proxy or a mock). |
+
+## Agent
+
+The agent reads exactly two variables, both **required** — the process throws on startup if
+either is missing or blank:
+
+| Env var | Meaning |
+|---|---|
+| `SERVER_BASE_URL` | WebSocket base URL; `AGENT_ID` is appended, so it should end with `/`. |
+| `AGENT_ID` | Agent identity (the last path segment the server keys on). |
+
+<Aside type="tip">
+The dashboard's **Config** screen renders the effective value of every one of these variables at
+runtime (with secrets masked), so you can confirm what the running server actually picked up.
+</Aside>

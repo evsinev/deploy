@@ -1,0 +1,97 @@
+---
+title: Installation & running
+description: Build the deploy server and agent with JDK 21, then run them.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Requirements
+
+- **JDK 21** — the Maven compiler `source`/`target` is 21; building on an older JDK fails.
+- Maven — the repo ships a wrapper (`./mvnw`) pinned to Maven 3.9.4, so a local Maven is optional.
+
+## Build
+
+```bash
+./mvnw -B -ntp verify      # or: mvn -B -ntp verify
+```
+
+This is the same command CI runs. It produces two runnable **fat jars** (built by the
+`maven-assembly-plugin`):
+
+- **Server** — `server-vertx/target/server-vertx-1.0-SNAPSHOT-jar-with-dependencies.jar`
+  (main class `io.pne.deploy.server.vertx.VertxServerApplication`).
+- **Agent** — `agent-websocket/target/agent-websocket-1.0-SNAPSHOT-jar-with-dependencies.jar`
+  (main class `io.pne.deploy.agent.websocket.WebSocketAgentApplication`).
+
+To run a single test across the reactor:
+
+```bash
+mvn -B -ntp test -Dtest=DashboardViewTest#latencyRendersPercentileBars \
+    -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+`-Dsurefire.failIfNoSpecifiedTests=false` is required with `-Dtest=` so modules that don't
+contain the named test don't fail the run.
+
+## Run the server
+
+```bash
+java -jar server-vertx/target/server-vertx-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+The server is configured entirely through environment variables — see
+[Configuration](./configuration/) for the full list. A minimal local run needs no variables at
+all (it binds `127.0.0.1:8080`, reads aliases from `./aliases`, and serves the dashboard at
+`/deploy/dashboard`).
+
+<Aside type="caution">
+The server binds to <code>127.0.0.1</code> only and no endpoint is authenticated. For remote
+access, put it behind a reverse proxy that adds authentication.
+</Aside>
+
+## Run an agent
+
+Agents run on your target hosts and connect back to the server over a WebSocket.
+
+```bash
+SERVER_BASE_URL=ws://server-host:8080/ AGENT_ID=web-01 \
+  java -jar agent-websocket/target/agent-websocket-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+Both variables are **required** — the process throws on startup if either is missing:
+
+| Env var | Meaning |
+|---|---|
+| `SERVER_BASE_URL` | WebSocket base URL; `AGENT_ID` is appended to it to form the connect URL, so it should end with `/`. |
+| `AGENT_ID` | Agent identity — the last path segment the server keys the connection on. |
+
+The agent reconnects automatically (1&nbsp;s backoff) on any disconnect. The built-in `localhost`
+agent id is served in-process by the server and needs no external agent — handy for testing an
+alias without deploying a real agent.
+
+## Run from a release
+
+Every git tag publishes a [GitHub Release](https://github.com/evsinev/deploy/releases) with both
+jars attached, so you can skip building:
+
+<Steps>
+
+1. Download `deploy-server-<tag>.jar` and `deploy-agent-<tag>.jar` from the release.
+
+2. Run them with the same configuration as above:
+
+   ```bash
+   java -jar deploy-server-<tag>.jar   # env config as in Configuration
+   SERVER_BASE_URL=ws://server-host:8080/ AGENT_ID=web-01 java -jar deploy-agent-<tag>.jar
+   ```
+
+</Steps>
+
+Pushing a tag triggers `.github/workflows/release.yml`, which builds the fat jars on JDK 21 and
+attaches them to the release:
+
+```bash
+git tag 1.0-24
+git push origin 1.0-24
+```

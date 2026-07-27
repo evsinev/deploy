@@ -1,0 +1,38 @@
+/* Loading-skeleton polish for astro-mermaid: show a shimmer until the SVG is rendered. */
+pre.mermaid:not([data-processed]) {
+	display: block;
+	min-height: 220px;
+	border-radius: 0.5rem;
+	background: linear-gradient(
+		100deg,
+		var(--sl-color-gray-6) 30%,
+		var(--sl-color-gray-5) 50%,
+		var(--sl-color-gray-6) 70%
+	);
+	background-size: 200% 100%;
+	animation: mermaid-shimmer 1.4s ease-in-out infinite;
+	color: transparent;
+}
+
+pre.mermaid[data-processed] {
+	animation: mermaid-fade-in 0.3s ease-in;
+	background: none;
+}
+
+@keyframes mermaid-shimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+@keyframes mermaid-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
