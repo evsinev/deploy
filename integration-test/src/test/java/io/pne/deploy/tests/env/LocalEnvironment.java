@@ -109,7 +109,7 @@ public class LocalEnvironment implements AutoCloseable {
                 req.response().end("1.2.2\n"); // first line = old version
             } else if (path.contains("/repository/compare")) {
                 req.response().putHeader("Content-Type", "application/json")
-                        .end("{\"commits\":[{\"message\":\"deploy demo build\"}]}");
+                        .end("{\"commits\":[{\"message\":\"deploy demo build #1001\",\"committed_date\":\"2026-07-20T12:34:56.000+03:00\"}]}");
             } else {
                 req.response().setStatusCode(404).end("not found\n");
             }
