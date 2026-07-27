@@ -17,7 +17,7 @@ One series per durable queue, tagged `queue="telegram"` or `queue="redmine"`:
 | `deploy_queue_deadlettered_total` | counter | Operations moved to dead-letter since start. |
 | `deploy_queue_send_latency` | timer histogram | Latency of a successful send/edit call (p50/p95/p99). |
 
-These are the same numbers shown on the dashboard's [Delivery card](../guides/dashboard/#live-cards).
+These are the same numbers shown on the dashboard's [Delivery card](/deploy/guides/dashboard/#live-cards).
 
 ## JVM & process metrics
 

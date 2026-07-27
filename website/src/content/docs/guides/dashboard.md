@@ -14,7 +14,7 @@ The top navigation has five screens plus a light/dark theme toggle:
 - **Live** — the operational overview (cards described below).
 - **Agents** — a per-agent table: name, ip, connection uptime, heap, agent-reported version,
   and connected/disconnected status.
-- **Config** — the effective value of every [configuration variable](../configuration/) at
+- **Config** — the effective value of every [configuration variable](/deploy/configuration/) at
   runtime, with secrets masked.
 - **Aliases** — the list of alias files and, for a selected alias, its commands
   (`agents` / `name` / `arguments`) plus the raw YAML.

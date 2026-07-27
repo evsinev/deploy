@@ -55,7 +55,7 @@ diff:                     # optional — post a GitLab diff to Redmine/Telegram 
 ```
 
 Each entry under `commands` becomes a shell command run on every listed agent (see
-[Writing commands](./writing-commands/)). The special agent id `localhost` runs in-process on the
+[Writing commands](/deploy/guides/writing-commands/)). The special agent id `localhost` runs in-process on the
 server.
 
 ## Example
@@ -106,5 +106,5 @@ The field is `newVersionArg` (1-based; the alias name is token 0, so the first p
 index 1). There is no `versionArg` field.
 :::
 
-See the [Redmine workflow](./redmine-workflow/) for how the diff is rendered and how issue
+See the [Redmine workflow](/deploy/guides/redmine-workflow/) for how the diff is rendered and how issue
 status transitions during a deploy.

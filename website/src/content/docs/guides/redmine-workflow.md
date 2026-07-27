@@ -26,7 +26,7 @@ script must return a boolean:
 ## 3. Parse the deploy request
 
 The first line in the issue **description** that starts with `> deploy` is parsed as an
-[alias invocation](./writing-aliases/#invoking-an-alias). For example:
+[alias invocation](/deploy/guides/writing-aliases/#invoking-an-alias). For example:
 
 ```
 > deploy proc 3.33-40
@@ -36,7 +36,7 @@ runs the `proc` alias with `$1 = 3.33-40`.
 
 ## 4. GitLab diff (optional)
 
-If the alias has an [`diff` block](./writing-aliases/#example-with-a-diff-block) with
+If the alias has an [`diff` block](/deploy/guides/writing-aliases/#example-with-a-diff-block) with
 `enabled: true`, the server fetches the GitLab compare between the current version (read from an
 agent via `versionUrl`) and the new version (invocation argument `newVersionArg`). It then:
 
@@ -59,7 +59,7 @@ Every outbound Redmine mutation and Telegram message is written to a durable dis
 `QUEUE_DIR` **before** it is sent, then retried with backoff. Operations that keep failing are
 moved to a `dead/` sub-directory (dead-lettering) so they stop being retried but are kept for
 inspection. Queue depths and send latency are visible on the dashboard's **Delivery** card and
-exported as [metrics](../reference/metrics/).
+exported as [metrics](/deploy/reference/metrics/).
 
 ## Telegram
 

@@ -81,7 +81,7 @@ the helpers, so adapt the jar path and arguments to your hosts.
 
 ## Related: the diff version reader
 
-The optional [alias `diff` block](./writing-aliases/#example-with-a-diff-block) reads the current
+The optional [alias `diff` block](/deploy/guides/writing-aliases/#example-with-a-diff-block) reads the current
 version through an agent from an HTTP `versionUrl` (the same idea as `WaitUrl`/`CheckVersion`,
 but performed server-side to build the GitLab compare). Expose a plain-text version endpoint on
 each service and point `versionUrl` at it.

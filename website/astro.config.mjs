@@ -16,8 +16,7 @@ export default defineConfig({
 			description:
 				'Deployment-orchestration server: WebSocket agents, Redmine-driven deploys, aliases, durable queues, live dashboard',
 			customCss: ['./src/styles/mermaid.css'],
-			// Relative links resolve correctly under the `/deploy` base; still validate they point somewhere real.
-			plugins: [starlightLinksValidator({ errorOnRelativeLinks: false })],
+			plugins: [starlightLinksValidator()],
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/evsinev/deploy' },
 			],

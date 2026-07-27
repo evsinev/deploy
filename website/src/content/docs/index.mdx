@@ -6,7 +6,7 @@ hero:
   tagline: Redmine-driven deployments dispatched to WebSocket agents, with durable notification queues and a live dashboard.
   actions:
     - text: Get started
-      link: ./installation/
+      link: /deploy/installation/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
@@ -20,7 +20,7 @@ import { Card, CardGrid, Aside } from '@astrojs/starlight/components';
 **deploy** is a small deployment-orchestration server. A central **Vert.x** process accepts
 **WebSocket agents** running on target hosts and dispatches shell commands to them. Deployments
 are driven from **Redmine** issues: an issue is validated by a script, its GitLab diff is posted
-back as a comment (and to Telegram), the referenced deploy [alias](./guides/writing-aliases/) is
+back as a comment (and to Telegram), the referenced deploy [alias](/deploy/guides/writing-aliases/) is
 executed across agents, and the issue status is moved Accepted → Processing → Done/Failed.
 Outbound Redmine and Telegram calls go through durable, at-least-once disk queues with
 dead-lettering. The server exposes Prometheus metrics, a JSON status endpoint, and a live
@@ -71,16 +71,16 @@ flowchart LR
 
 <CardGrid>
   <Card title="Install & run" icon="rocket">
-    Build with JDK 21 and run the [server and agents](./installation/).
+    Build with JDK 21 and run the [server and agents](/deploy/installation/).
   </Card>
   <Card title="Configuration" icon="setting">
-    Every [environment variable](./configuration/), its default, and what it controls.
+    Every [environment variable](/deploy/configuration/), its default, and what it controls.
   </Card>
   <Card title="Write aliases" icon="document">
-    Define deploys as [alias YAML files](./guides/writing-aliases/).
+    Define deploys as [alias YAML files](/deploy/guides/writing-aliases/).
   </Card>
   <Card title="Write commands" icon="seti:shell">
-    What a [command](./guides/writing-commands/) is and the bundled helper CLIs.
+    What a [command](/deploy/guides/writing-commands/) is and the bundled helper CLIs.
   </Card>
 </CardGrid>
 
