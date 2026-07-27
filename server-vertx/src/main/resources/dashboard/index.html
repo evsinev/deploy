@@ -149,8 +149,13 @@
         table.delivery td.bad  { color: var(--bad); }
         table.delivery tbody tr:last-child td { border-bottom: 0; }
 
+        /* Fixed-height cards must not be shrunk (and clipped by overflow:hidden) when the logs card grows. */
+        .delivery-card { flex: 0 0 auto; }
+
         /* ---- Live: Agent logs ---- */
-        .logs-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 120px; margin-top: 16px; }
+        /* flex-basis 0 so the log stream fills only leftover space and scrolls internally, rather than
+           inflating the column and starving the delivery card above it. */
+        .logs-card { flex: 1 1 0; display: flex; flex-direction: column; min-height: 120px; margin-top: 16px; }
         .logs-head { text-transform: uppercase; }
         /* follow/tail toggle in a log card head */
         .follow-btn { margin-left: auto; padding: 4px 10px; border-radius: 8px; cursor: pointer; font: inherit;
