@@ -24,6 +24,7 @@ export default defineConfig({
 				{ label: 'Start here', items: ['index', 'installation', 'configuration'] },
 				{ label: 'Guides', items: [{ autogenerate: { directory: 'guides' } }] },
 				{ label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
+				{ label: 'Changelog', slug: 'changelog' },
 			],
 		}),
 	],
