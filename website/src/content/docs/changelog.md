@@ -7,9 +7,10 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
-## Unreleased
+## 1.0-24
 
 **Deploy review webhook at deploy start**
+([release](https://github.com/evsinev/deploy/releases/tag/1.0-24))
 
 A new outbound webhook notifies an external service the moment a deploy starts (the same moment as
 the 🛫 Telegram message), so the release can be analysed while it is still being rolled out:
