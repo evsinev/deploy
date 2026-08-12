@@ -53,6 +53,9 @@ public class AliasParser {
                 .gitlabProjectId(description.diff.gitlabProjectId)
                 .agent(description.diff.agent)
                 .newVersionArg(description.diff.newVersionArg)
+                .project(description.diff.project)
+                .app(description.diff.app)
+                .instance(description.diff.instance)
                 .build();
         return new Task(TaskId.generateTaskId(), new TaskParameters(), commands, aText, aIssueId, diff);
     }

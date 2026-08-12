@@ -13,12 +13,26 @@ public class DiffTask {
     private String oldVersion;
     private String newVersion;
 
+    // Deploy-review webhook identity, copied from the alias diff block; not part of DiffKey because
+    // they are constant for a given (task, gitlabProject) pair.
+    private String project;
+    private String app;
+    private String instance;
+
     public DiffTask(String[] ids, Integer gitlabProject, String task, String oldVersion, String newVersion) {
+        this(ids, gitlabProject, task, oldVersion, newVersion, null, null, null);
+    }
+
+    public DiffTask(String[] ids, Integer gitlabProject, String task, String oldVersion, String newVersion
+            , String project, String app, String instance) {
         this.ids = new HashSet<>(Arrays.asList(ids));
         this.gitlabProject = gitlabProject;
         this.task = task;
         this.oldVersion = oldVersion;
         this.newVersion = newVersion;
+        this.project = project;
+        this.app = app;
+        this.instance = instance;
     }
 
     public void addIds(Set<String> newIsd) {

@@ -8,7 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * End-to-end smoke test of the whole environment: boots the deploy-server, two websocket agents, and
- * Redmine/GitLab/Telegram HTTP mocks, then drives one Redmine issue through the full pipeline and
+ * Redmine/GitLab/Telegram/deploy-review HTTP mocks, then drives one Redmine issue through the full pipeline and
  * asserts every external system was exercised.
  */
 public class FullEnvironmentTest {
@@ -26,6 +26,13 @@ public class FullEnvironmentTest {
                     env.gitlab().await(r -> "GET".equals(r.method) && r.path.contains("/repository/compare"), 25_000));
             assertTrue("Telegram sendMessage should be delivered",
                     env.telegram().await(r -> "POST".equals(r.method) && r.path.contains("/sendMessage"), 25_000));
+            // Deploy-start webhook: sent at 🛫 with the identity from the alias diff block and both versions.
+            assertTrue("deploy-review webhook should be posted at deploy start",
+                    env.deployReview().await(r -> "POST".equals(r.method)
+                            && r.path.equals("/deploy-review")
+                            && r.body.contains("\"instance\":\"AMS-2\"")
+                            && r.body.contains("\"old_version\":\"1.2.2\"")
+                            && r.body.contains("\"new_version\":\"1.2.3\""), 25_000));
 
             // The agents' command output (echo "deployed") is retained in the agent-log buffer and
             // served by GET /agentlog (the buffer already holds it by the time the deploy is DONE).

@@ -1,0 +1,16 @@
+commands:
+- agents: localhost
+  name: echo
+  arguments:
+    - deploy
+    - $1
+
+diff:
+  enabled: true
+  versionUrl: http://127.0.0.1:8080/version
+  gitlabProjectId: 114
+  agent: localhost
+  newVersionArg: 1
+  project: payneteasy/paynet
+  app: ams2-paynet-proc
+  instance: AMS-2

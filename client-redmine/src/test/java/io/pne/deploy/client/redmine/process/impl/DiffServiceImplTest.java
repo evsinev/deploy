@@ -8,6 +8,10 @@ import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import io.pne.deploy.server.api.IAgentVersionReader;
+import io.pne.deploy.server.api.task.Task;
+import io.pne.deploy.server.api.task.TaskDiff;
+import io.pne.deploy.server.api.task.TaskId;
+import io.pne.deploy.server.api.task.TaskParameters;
 import org.junit.Test;
 
 import java.time.LocalDate;
@@ -50,6 +54,59 @@ public class DiffServiceImplTest {
     @Test
     public void aggregateNullIsEmpty() {
         assertTrue(diffService.aggregate(null).isEmpty());
+    }
+
+    // --- getCurrentVersion ---
+
+    @Test
+    public void getCurrentVersionCopiesDeployReviewIdentity() {
+        IAgentVersionReader versionReader = mock(IAgentVersionReader.class);
+        when(versionReader.readVersion("ams2-app", "http://version")).thenReturn("3.36.16-117");
+        DiffServiceImpl service = new DiffServiceImpl(redmine, getStartupParameters(IRedmineRemoteConfig.class), versionReader);
+
+        List<DiffTask> diffTasks = service.getCurrentVersion(deployTask("ams2-paynet-proc 3.36.16-118",
+                diffBuilder().project("payneteasy/paynet").app("ams2-paynet-proc").instance("AMS-2").build()));
+
+        assertEquals(1, diffTasks.size());
+        DiffTask diffTask = diffTasks.get(0);
+        assertEquals("payneteasy/paynet", diffTask.getProject());
+        assertEquals("ams2-paynet-proc", diffTask.getApp());
+        assertEquals("AMS-2", diffTask.getInstance());
+        assertEquals("3.36.16-117", diffTask.getOldVersion());
+        assertEquals("3.36.16-118", diffTask.getNewVersion());
+    }
+
+    @Test
+    public void appDefaultsToTheAliasName() {
+        IAgentVersionReader versionReader = mock(IAgentVersionReader.class);
+        when(versionReader.readVersion("ams2-app", "http://version")).thenReturn("3.36.16-117");
+        DiffServiceImpl service = new DiffServiceImpl(redmine, getStartupParameters(IRedmineRemoteConfig.class), versionReader);
+
+        List<DiffTask> diffTasks = service.getCurrentVersion(deployTask("ams2-paynet-proc 3.36.16-118",
+                diffBuilder().project("payneteasy/paynet").instance("AMS-2").build())); // no app
+
+        assertEquals("ams2-paynet-proc", diffTasks.get(0).getApp());
+    }
+
+    @Test
+    public void appNameFallbacks() {
+        assertEquals("configured", DiffServiceImpl.appName("alias 1.0", "configured"));
+        assertEquals("alias", DiffServiceImpl.appName("alias 1.0", " "));
+        assertEquals("alias", DiffServiceImpl.appName("  alias   1.0 ", null));
+        assertNull(DiffServiceImpl.appName(null, null));
+    }
+
+    private static TaskDiff.TaskDiffBuilder diffBuilder() {
+        return TaskDiff.builder()
+                .enabled(true)
+                .versionUrl("http://version")
+                .gitlabProjectId(114)
+                .agent("ams2-app")
+                .newVersionArg(1);
+    }
+
+    private static Task deployTask(String taskLine, TaskDiff diff) {
+        return new Task(TaskId.generateTaskId(), new TaskParameters(), new ArrayList<>(), taskLine, 42, diff);
     }
 
     // --- mapDiffIssues ---

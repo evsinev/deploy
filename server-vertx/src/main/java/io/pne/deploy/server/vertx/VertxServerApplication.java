@@ -6,7 +6,9 @@ import com.payneteasy.startup.parameters.StartupParametersFactory;
 import io.pne.deploy.client.redmine.process.impl.RedmineIssuesProcessServiceImpl;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
+import io.pne.deploy.client.redmine.remote.impl.IDeployReviewConfig;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
+import io.pne.deploy.client.redmine.remote.impl.RemoteDeployReviewServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteRedmine4_2_10ServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.RemoteTelegramServiceImpl;
 import io.pne.deploy.client.redmine.remote.impl.TelegramClient;
@@ -57,6 +59,9 @@ public class VertxServerApplication {
 
     private static final Logger LOG = LoggerFactory.getLogger(VertxServerApplication.class);
 
+    /** Queue name of the deploy-review webhook: the {@code QUEUE_DIR} sub-directory, metrics tag and dashboard row. */
+    private static final String DEPLOY_REVIEW_QUEUE = "deploy-review";
+
     private final Vertx                      vertx;
     private final WebSocketVerticle          verticle;
     private final IServerApplicationListener serverListener;
@@ -103,7 +108,8 @@ public class VertxServerApplication {
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, agentRegistry, pendingIssues, new LinkedHashMap<>(), statusHttpHandler::getLatestTaskStatus,
                 null, new AgentLogBuffer(200),
-                buildConfigReport(redmineConfig, aConfig, dashboardConfig), aConfig.getAliasesDir(),
+                buildConfigReport(redmineConfig, aConfig, dashboardConfig,
+                        StartupParametersFactory.getStartupParameters(IDeployReviewConfig.class)), aConfig.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), "");
 
         this.verticle       = new WebSocketVerticle(aConfig.getPort(), serverListener, agentConnections, gson, response, versionResponses, agentRegistry, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, event -> {}, dashboardHttpHandler);
@@ -121,12 +127,19 @@ public class VertxServerApplication {
         ArrayBlockingQueue<Long>  pendingIssues     = new ArrayBlockingQueue<>(1000);
         IRedmineRemoteConfig      redmineConfig     = StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class);
 
-        // Prometheus metrics for both durable queues (scraped at /metrics); recorders must exist before the queues.
+        IDeployReviewConfig       reviewConfig      = StartupParametersFactory.getStartupParameters(IDeployReviewConfig.class);
+
+        // Prometheus metrics for every durable queue (scraped at /metrics); recorders must exist before the queues.
         PrometheusMeterRegistry   metrics           = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         LongConsumer              telegramLatency   = QueueMetrics.sendLatencyRecorder(metrics, "telegram");
         LongConsumer              redmineLatency    = QueueMetrics.sendLatencyRecorder(metrics, "redmine");
+        LongConsumer              reviewLatency     = QueueMetrics.sendLatencyRecorder(metrics, DEPLOY_REVIEW_QUEUE);
 
         RemoteRedmine4_2_10ServiceImpl redmine      = new RemoteRedmine4_2_10ServiceImpl(redmineConfig, redmineLatency);
+        // Deploy-review webhook: nullable when disabled, same pattern as the Telegram task listener.
+        RemoteDeployReviewServiceImpl  deployReview = reviewConfig.isEnabled()
+                ? new RemoteDeployReviewServiceImpl(reviewConfig, new File(redmineConfig.queueDir(), DEPLOY_REVIEW_QUEUE), reviewLatency)
+                : null;
         IVertxServerConfiguration config            = StartupParametersFactory.getStartupParameters(IVertxServerConfiguration.class);
         StatusHttpHandler         statusHttpHandler = new StatusHttpHandler(agentConnections, pendingIssues);
         // Single Telegram client shared by both the live-status listener and the diff notifications,
@@ -137,6 +150,9 @@ public class VertxServerApplication {
 
         QueueMetrics.register(metrics, "telegram", telegramClient.getSpool());
         QueueMetrics.register(metrics, "redmine", redmine.getSpool());
+        if (deployReview != null) {
+            QueueMetrics.register(metrics, DEPLOY_REVIEW_QUEUE, deployReview.getSpool());
+        }
         new JvmMemoryMetrics().bindTo(metrics);
         new JvmGcMetrics().bindTo(metrics);
         new JvmThreadMetrics().bindTo(metrics);
@@ -149,7 +165,7 @@ public class VertxServerApplication {
         AgentLogBuffer agentLogBuffer = new AgentLogBuffer(200);
 
         AgentVersionReaderImpl versionReader = new AgentVersionReaderImpl(agentConnections, gson, versionResponses);
-        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram, versionReader);
+        RedmineIssuesProcessServiceImpl redmineIssuesProcessService = new RedmineIssuesProcessServiceImpl(redmine, deployService, redmineConfig, diffTelegram, versionReader, deployReview);
         VertxServerApplicationListener serverListener = new VertxServerApplicationListener(redmineIssuesProcessService, pendingIssues, agentLogBuffer);
 
         this.vertx          = Vertx.vertx();
@@ -158,11 +174,14 @@ public class VertxServerApplication {
         Map<String, PersistentSpool> dashboardQueues = new LinkedHashMap<>();
         dashboardQueues.put("telegram", telegramClient.getSpool());
         dashboardQueues.put("redmine",  redmine.getSpool());
+        if (deployReview != null) {
+            dashboardQueues.put(DEPLOY_REVIEW_QUEUE, deployReview.getSpool());
+        }
         IDashboardConfig dashboardConfig = StartupParametersFactory.getStartupParameters(IDashboardConfig.class);
         DashboardHttpHandler dashboardHttpHandler = new DashboardHttpHandler(
                 this.vertx, agentConnections, agentRegistry, pendingIssues, dashboardQueues, statusHttpHandler::getLatestTaskStatus,
                 metrics, agentLogBuffer,
-                buildConfigReport(redmineConfig, config, dashboardConfig), config.getAliasesDir(),
+                buildConfigReport(redmineConfig, config, dashboardConfig, reviewConfig), config.getAliasesDir(),
                 dashboardConfig.path(), dashboardConfig.refreshMs(), dashboardConfig.serverLogFile());
 
         this.verticle       = new WebSocketVerticle(config.getPort(), serverListener, agentConnections, gson, response, versionResponses, agentRegistry, deployService, Executors.newSingleThreadExecutor(), redmineConfig, pendingIssues, taskListener, statusHttpHandler, metricsHttpHandler, dashboardHttpHandler);
@@ -171,11 +190,12 @@ public class VertxServerApplication {
     }
 
     private static List<StartupConfigReport.Entry> buildConfigReport(
-            IRedmineRemoteConfig aRedmine, IVertxServerConfiguration aVertx, IDashboardConfig aDashboard) {
+            IRedmineRemoteConfig aRedmine, IVertxServerConfiguration aVertx, IDashboardConfig aDashboard, IDeployReviewConfig aReview) {
         return StartupConfigReport.of(List.of(
                 new StartupConfigReport.Group("Redmine / GitLab / Telegram", IRedmineRemoteConfig.class, aRedmine),
                 new StartupConfigReport.Group("Server", IVertxServerConfiguration.class, aVertx),
-                new StartupConfigReport.Group("Dashboard", IDashboardConfig.class, aDashboard)));
+                new StartupConfigReport.Group("Dashboard", IDashboardConfig.class, aDashboard),
+                new StartupConfigReport.Group("Deploy review webhook", IDeployReviewConfig.class, aReview)));
     }
 
     private ITaskExecutionListener createTaskListener(Consumer<TaskStatus> aConsumer, IRedmineRemoteConfig aConfig, TelegramClient aTelegramClient) {

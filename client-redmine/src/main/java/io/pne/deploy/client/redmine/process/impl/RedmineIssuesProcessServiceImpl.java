@@ -6,8 +6,10 @@ import io.pne.deploy.client.redmine.process.DiffService;
 import io.pne.deploy.client.redmine.process.IRedmineIssuesProcessService;
 import io.pne.deploy.client.redmine.process.ProcessRedmineIssueResult;
 import io.pne.deploy.client.redmine.process.data_model.DiffTask;
+import io.pne.deploy.client.redmine.remote.IRemoteDeployReviewService;
 import io.pne.deploy.client.redmine.remote.IRemoteRedmineService;
 import io.pne.deploy.client.redmine.remote.IRemoteTelegramService;
+import io.pne.deploy.client.redmine.remote.data_model.DeployReviewRequest;
 import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.client.redmine.remote.model.RedmineIssue;
 import io.pne.deploy.server.api.IAgentVersionReader;
@@ -34,6 +36,8 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
     private final ScriptEngine engine = new ScriptEngineManager().getEngineByName("nashorn");
     private final String issueValidationScript;
     private final DiffService diffService;
+    /** nullable: the deploy-review webhook is off unless DEPLOY_REVIEW_ENABLED is set. */
+    private final IRemoteDeployReviewService deployReview;
 
     /** Diff processing (GitLab compare + Redmine comment + Telegram) runs off the deploy thread on this queue. */
     private final ExecutorService diffExecutor = Executors.newSingleThreadExecutor(runnable -> {
@@ -44,9 +48,14 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
 
 
     public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram, IAgentVersionReader aVersionReader) {
+        this(redmine, deployService, aConfig, telegram, aVersionReader, null);
+    }
+
+    public RedmineIssuesProcessServiceImpl(IRemoteRedmineService redmine, IDeployService deployService, IRedmineRemoteConfig aConfig, IRemoteTelegramService telegram, IAgentVersionReader aVersionReader, IRemoteDeployReviewService aDeployReview) {
         this.redmine = redmine;
         this.deployService = deployService;
         this.diffService = new DiffServiceImpl(redmine, telegram, aConfig, aVersionReader);
+        this.deployReview = aDeployReview;
         issueValidationScript = aConfig.issueValidationScript();
     }
 
@@ -110,8 +119,41 @@ public class RedmineIssuesProcessServiceImpl implements IRedmineIssuesProcessSer
             }
         });
         redmine.enqueueChangeStatusFromAcceptedToProcessing(aIssue.issueId(), "Starting task" + formatTask(task));
+        sendDeployReview(diffTasks);
         deployService.runTask(task);
         redmine.enqueueChangeStatusToDone(aIssue.issueId(), "Task is DONE");
+    }
+
+    /**
+     * Notify the deploy-review webhook at deploy start (same moment as the 🛫 message): the analysis on the
+     * other side takes ~10 minutes and should finish around the time the rollout does. Enqueueing only ever
+     * writes to the local spool, but any failure here must not abort the deploy.
+     */
+    private void sendDeployReview(List<DiffTask> aDiffTasks) {
+        if (deployReview == null) {
+            return;
+        }
+        for (DiffTask diffTask : aDiffTasks) {
+            try {
+                if (isBlank(diffTask.getProject()) || isBlank(diffTask.getInstance())) {
+                    LOG.info("Deploy review: skip '{}' — alias diff has no project/instance", diffTask.getTask());
+                    continue;
+                }
+                DeployReviewRequest request = new DeployReviewRequest();
+                request.setProject(diffTask.getProject());
+                request.setApp(diffTask.getApp());
+                request.setInstance(diffTask.getInstance());
+                request.setOldVersion(diffTask.getOldVersion());
+                request.setNewVersion(diffTask.getNewVersion());
+                deployReview.enqueueDeployStarted(request);
+            } catch (Exception e) {
+                LOG.error("Deploy review: can't enqueue notification for '{}'", diffTask.getTask(), e);
+            }
+        }
+    }
+
+    private static boolean isBlank(String aValue) {
+        return aValue == null || aValue.isBlank();
     }
 
     private String formatTask(Task aTask) {

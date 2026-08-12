@@ -7,7 +7,9 @@ The server exposes Prometheus metrics at `/metrics` (exact path).
 
 ## Queue metrics
 
-One series per durable queue, tagged `queue="telegram"` or `queue="redmine"`:
+One series per durable queue, tagged `queue="telegram"`, `queue="redmine"` or — when the
+[deploy review webhook](/deploy/configuration/#deploy-review-webhook) is enabled —
+`queue="deploy-review"`:
 
 | Metric | Type | Meaning |
 |---|---|---|

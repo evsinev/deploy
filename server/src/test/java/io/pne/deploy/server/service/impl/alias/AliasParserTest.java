@@ -27,6 +27,26 @@ public class AliasParserTest {
     }
 
     @Test
+    public void parseAliasReadsDiffBlockIncludingDeployReviewIdentity() throws Exception {
+        AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
+        Task task = parser.parseAlias("ams2-paynet-proc 3.36.16-118", -3);
+
+        assertNotNull(task.diff);
+        assertTrue(task.diff.isEnabled());
+        assertEquals(114, task.diff.getGitlabProjectId());
+        assertEquals(1, task.diff.getNewVersionArg());
+        assertEquals("payneteasy/paynet", task.diff.getProject());
+        assertEquals("ams2-paynet-proc", task.diff.getApp());
+        assertEquals("AMS-2", task.diff.getInstance());
+    }
+
+    @Test
+    public void parseAliasWithoutDiffBlockHasNoDiff() throws Exception {
+        AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
+        assertNull(parser.parseAlias("proc 3.33-40", -3).diff);
+    }
+
+    @Test
     public void dump() {
         final DumperOptions dumperOptions = new DumperOptions();
         dumperOptions.setPrettyFlow(true);

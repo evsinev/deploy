@@ -7,4 +7,10 @@ public class AliasDiff {
     public int     gitlabProjectId;
     public String  agent;
     public int     newVersionArg; // 1-based index of the task-line argument that carries the new version
+
+    // Deploy-review webhook identity: GitLab project path (e.g. payneteasy/paynet), application name
+    // (defaults to the alias name when omitted) and the target instance (e.g. AMS-2).
+    public String  project;
+    public String  app;
+    public String  instance;
 }

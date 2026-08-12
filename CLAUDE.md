@@ -46,7 +46,9 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
   annotated `@AStartupParameter(name = "ENV_VAR", value = "default"[, maskVariable = true])`
   (`value` is always a String literal, even for `int`/`long`/`boolean`). Resolve at runtime with
   `StartupParametersFactory.getStartupParameters(SomeConfig.class)`. Each interface is independent.
-  The three interfaces: `IRedmineRemoteConfig`, `IVertxServerConfiguration`, `IDashboardConfig`.
+  The four interfaces: `IRedmineRemoteConfig`, `IVertxServerConfiguration`, `IDashboardConfig`,
+  `IDeployReviewConfig`. Adding one means also registering a `StartupConfigReport.Group` in
+  `VertxServerApplication.buildConfigReport`, or it won't show on the dashboard Config screen.
   The agent is the exception — plain `IAgentStartupParameters` read via `System.getenv`
   (`SERVER_BASE_URL`, `AGENT_ID`, both required).
 - **Parameter naming**: constructor/method parameters are prefixed `aXxx`; fields are unprefixed.
@@ -87,8 +89,12 @@ internal endpoint. It contains a hardcoded api-key — treat it as sensitive.
 - Dashboard (htmx + SSE): `server-vertx/.../dashboard/` (`DashboardHttpHandler`, `DashboardView`,
   `IDashboardConfig`, `resources/dashboard/`).
 - Metrics: `server-vertx/.../metrics/` (`QueueMetrics`, `MetricsHttpHandler`).
-- Durable queues: `client-redmine/.../remote/queue/PersistentSpool.java` (+ `Backoff`).
+- Durable queues: `client-redmine/.../remote/queue/PersistentSpool.java` (+ `Backoff`). Three spools
+  under `QUEUE_DIR`: `redmine/`, `telegram/`, `deploy-review/`. A new one needs
+  `QueueMetrics.sendLatencyRecorder` + `QueueMetrics.register` + a `dashboardQueues` entry.
 - Redmine/GitLab/Telegram: `client-redmine/.../process/impl/` and `client-redmine/.../remote/impl/`.
+- Deploy-review webhook: `client-redmine/.../remote/impl/RemoteDeployReviewServiceImpl.java`, enqueued
+  from `RedmineIssuesProcessServiceImpl.processIssue` just before `deployService.runTask` (the 🛫 moment).
 
 ## Don't
 
