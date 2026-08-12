@@ -105,8 +105,20 @@ public class DiffServiceImpl implements DiffService {
         LOG.info("Diff: '{}' — gitlabProjectId={}, {} -> {}, agent={}",
                 task.taskLine, diff.getGitlabProjectId(), oldVersion, newVersion, diff.getAgent());
         List<DiffTask> diffTasks = new ArrayList<>();
-        diffTasks.add(new DiffTask(agents, diff.getGitlabProjectId(), task.taskLine, oldVersion, newVersion));
+        diffTasks.add(new DiffTask(agents, diff.getGitlabProjectId(), task.taskLine, oldVersion, newVersion
+                , diff.getProject(), appName(task.taskLine, diff.getApp()), diff.getInstance()));
         return diffTasks;
+    }
+
+    /** Application name for the deploy-review webhook: the alias {@code app} if set, otherwise the alias name. */
+    static String appName(String taskLine, String configuredApp) {
+        if (configuredApp != null && !configuredApp.isBlank()) {
+            return configuredApp;
+        }
+        if (taskLine == null || taskLine.isBlank()) {
+            return null;
+        }
+        return taskLine.trim().split("\\s+")[0];
     }
 
     /**

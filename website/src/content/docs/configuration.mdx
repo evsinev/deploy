@@ -6,11 +6,11 @@ description: Every environment variable the server and agent read, with defaults
 import { Aside } from '@astrojs/starlight/components';
 
 All configuration is supplied through **environment variables**. The server resolves them at
-startup through three independent config interfaces; the agent reads two variables directly.
+startup through four independent config interfaces; the agent reads two variables directly.
 Defaults are shown in the tables below.
 
 <Aside type="danger" title="Secrets">
-`REDMINE_API_ACCESS_KEY`, `GITLAB_API_KEY`, and `TELEGRAM_TOKEN` are secrets — provide them via
+`REDMINE_API_ACCESS_KEY`, `GITLAB_API_KEY`, `TELEGRAM_TOKEN`, and `DEPLOY_REVIEW_TOKEN` are secrets — provide them via
 the environment, never commit them. The tracked `test.env` file currently contains a
 live-looking Redmine URL and key; treat it as compromised — rotate it and keep real credentials
 out of version control.
@@ -46,13 +46,47 @@ out of version control.
 | `REDMINE_CALLBACK_URI` | `""` | HTTP URI matched for the Redmine webhook. |
 | `ISSUE_VALIDATION_SCRIPT` | `""` | Path to a JS file validating each issue (Nashorn). |
 | `STATUS_PAGE_PATH` | `/deploy/status` | Status endpoint path prefix. |
-| `QUEUE_DIR` | `./queue` | Durable spool root (`redmine/` and `telegram/` subdirs). |
+| `QUEUE_DIR` | `./queue` | Durable spool root (`redmine/`, `telegram/` and `deploy-review/` subdirs). |
 | `GITLAB_URL` | `""` | GitLab base URL. |
 | `GITLAB_API_KEY` | `""` | GitLab API key (**secret**). |
 | `TELEGRAM_ENABLED` | `false` | Enable Telegram notifications. |
 | `TELEGRAM_CHAT_ID` | `0` | Target Telegram chat id. |
 | `TELEGRAM_TOKEN` | `""` | Telegram bot token (**secret**). |
 | `TELEGRAM_URL` | `https://api.telegram.org/bot` | Telegram Bot API base URL (override for a proxy or a mock). |
+
+## Deploy review webhook
+
+An outbound `POST` sent at **deploy start** so an external service can analyse the release while it
+is being rolled out. Disabled by default; when enabled, `DEPLOY_REVIEW_URL` must be set or the
+server fails fast at startup.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `DEPLOY_REVIEW_ENABLED` | `false` | Enable the deploy-start webhook. |
+| `DEPLOY_REVIEW_URL` | `""` | Endpoint the notification is posted to. |
+| `DEPLOY_REVIEW_TOKEN` | `""` | Bearer token sent in `Authorization` (**secret**). |
+| `DEPLOY_REVIEW_TIMEOUT_MS` | `20000` | Connect/read timeout (ms). |
+
+The request body carries the identity from the alias
+[`diff:` block](/deploy/guides/writing-aliases/#deploy-review-webhook) plus both versions:
+
+```json
+{
+  "project": "payneteasy/paynet",
+  "app": "ams2-paynet-proc",
+  "instance": "AMS-2",
+  "old_version": "3.36.16-117",
+  "new_version": "3.36.16-118",
+  "deployed_at": "2026-08-11T15:07:39Z"
+}
+```
+
+Delivery goes through a durable spool (`QUEUE_DIR/deploy-review`), so it survives a restart and is
+retried with backoff; it is **at-least-once**, which is safe because the receiver dedupes by
+version. `4xx` answers (bad token, bad version format) are dead-lettered immediately instead of
+being retried. The notification is only sent for aliases whose `diff:` block is enabled and carries
+`project` and `instance` — the plain `?command=run` path never reads the old version, so it sends
+nothing.
 
 ## Agent
 

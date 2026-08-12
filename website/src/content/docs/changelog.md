@@ -7,6 +7,25 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## Unreleased
+
+**Deploy review webhook at deploy start**
+
+A new outbound webhook notifies an external service the moment a deploy starts (the same moment as
+the 🛫 Telegram message), so the release can be analysed while it is still being rolled out:
+
+- Configured by [`DEPLOY_REVIEW_*`](/deploy/configuration/#deploy-review-webhook) — disabled by
+  default, so nothing changes unless you set `DEPLOY_REVIEW_ENABLED=true`.
+- Body is `{project, app, instance, old_version, new_version, deployed_at}`; the token travels in an
+  `Authorization: Bearer` header and is never logged or spooled.
+- `project`, `app` and `instance` come from three new fields in the alias
+  [`diff:` block](/deploy/guides/writing-aliases/#deploy-review-webhook); the versions are the ones
+  the diff already resolves, so the webhook fires only for aliases with `diff.enabled: true`.
+- Delivery is durable and at-least-once through a third spool (`QUEUE_DIR/deploy-review`), with
+  a `queue="deploy-review"` row on the dashboard **Delivery** card and in
+  [the queue metrics](/deploy/reference/metrics/#queue-metrics). `4xx` answers are dead-lettered
+  immediately instead of being retried.
+
 ## 1.0-23
 
 **Group diff commit messages by date in Telegram and Redmine**

@@ -32,7 +32,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Boots the ENTIRE deploy environment in one process — the deploy-server, two websocket deploy-agents,
- * and HTTP mocks for Redmine, GitLab and Telegram — wired together via system properties (which the
+ * and HTTP mocks for Redmine, GitLab, Telegram and the deploy-review webhook — wired together via
+ * system properties (which the
  * {@code @AStartupParameter} config layer reads before environment variables). Runnable from a
  * {@link #main(String[])} (IntelliJ, or {@code mvn exec:java}) and reusable from tests.
  *
@@ -50,10 +51,11 @@ public class LocalEnvironment implements AutoCloseable {
     // The line the pipeline looks for in the issue description (alias-line chars are restricted: no '/', ':', '=').
     private static final String DEPLOY_LINE = "> deploy " + ALIAS + " 1.2.3";
 
-    private final int serverPort   = Ports.free();
-    private final int redminePort  = Ports.free();
-    private final int gitlabPort   = Ports.free();
-    private final int telegramPort = Ports.free();
+    private final int serverPort       = Ports.free();
+    private final int redminePort      = Ports.free();
+    private final int gitlabPort       = Ports.free();
+    private final int telegramPort     = Ports.free();
+    private final int deployReviewPort = Ports.free();
 
     private final Vertx mockVertx = Vertx.vertx();
 
@@ -62,6 +64,7 @@ public class LocalEnvironment implements AutoCloseable {
     private HttpMock redmine;
     private HttpMock gitlab;
     private HttpMock telegram;
+    private HttpMock deployReview;
 
     private VertxServerApplication server;
 
@@ -73,8 +76,8 @@ public class LocalEnvironment implements AutoCloseable {
     private Path validationScript;
 
     public void start() throws Exception {
-        LOG.info("Starting local environment: server={} redmine={} gitlab={} telegram={}",
-                serverPort, redminePort, gitlabPort, telegramPort);
+        LOG.info("Starting local environment: server={} redmine={} gitlab={} telegram={} deploy-review={}",
+                serverPort, redminePort, gitlabPort, telegramPort, deployReviewPort);
 
         startMocks();
         writeTempFiles();
@@ -118,6 +121,11 @@ public class LocalEnvironment implements AutoCloseable {
         telegram = new HttpMock(mockVertx, "telegram", telegramPort, (req, body) ->
                 req.response().putHeader("Content-Type", "application/json")
                         .end("{\"ok\":true,\"result\":{\"message_id\":1}}"));
+
+        // Deploy-review webhook receiver: answers 202 like the real one (the analysis is asynchronous).
+        deployReview = new HttpMock(mockVertx, "deploy-review", deployReviewPort, (req, body) ->
+                req.response().setStatusCode(202).putHeader("Content-Type", "application/json")
+                        .end("{\"status\":\"accepted\",\"task_id\":\"t-1\"}"));
     }
 
     private static String issueJson(String aId) {
@@ -148,6 +156,9 @@ public class LocalEnvironment implements AutoCloseable {
                     + "  gitlabProjectId: 42\n"
                     + "  agent: agent-1\n"
                     + "  newVersionArg: 1\n"
+                    + "  project: payneteasy/paynet\n"
+                    + "  app: ams2-paynet-proc\n"
+                    + "  instance: AMS-2\n"
                     + "commands:\n"
                     + "- agents: agent-1\n"
                     + "  name: echo\n"
@@ -180,6 +191,9 @@ public class LocalEnvironment implements AutoCloseable {
         set("TELEGRAM_CHAT_ID",        "1");
         set("TELEGRAM_URL",            "http://127.0.0.1:" + telegramPort + "/bot");
         set("DASHBOARD_REFRESH_MS",    "1000");
+        set("DEPLOY_REVIEW_ENABLED",   "true");
+        set("DEPLOY_REVIEW_URL",       "http://127.0.0.1:" + deployReviewPort + "/deploy-review");
+        set("DEPLOY_REVIEW_TOKEN",     TOKEN);
     }
 
     private void set(String aName, String aValue) {
@@ -281,6 +295,7 @@ public class LocalEnvironment implements AutoCloseable {
     public HttpMock redmine()  { return redmine; }
     public HttpMock gitlab()   { return gitlab; }
     public HttpMock telegram() { return telegram; }
+    public HttpMock deployReview() { return deployReview; }
 
     @Override
     public void close() {
@@ -313,7 +328,8 @@ public class LocalEnvironment implements AutoCloseable {
         stopQuietly(redmine);
         stopQuietly(gitlab);
         stopQuietly(telegram);
-        redmine = gitlab = telegram = null;
+        stopQuietly(deployReview);
+        redmine = gitlab = telegram = deployReview = null;
 
         CountDownLatch closed = new CountDownLatch(1);
         mockVertx.close(ar -> closed.countDown());
@@ -385,6 +401,7 @@ public class LocalEnvironment implements AutoCloseable {
         System.out.println("   Redmine mock: http://127.0.0.1:" + env.redmine().port());
         System.out.println("   GitLab mock : http://127.0.0.1:" + env.gitlab().port());
         System.out.println("   Telegram mock: http://127.0.0.1:" + env.telegram().port());
+        System.out.println("   Deploy-review mock: http://127.0.0.1:" + env.deployReview().port());
         System.out.println("   Trigger     : " + base + "/?command=issue&issue_id=1001");
         System.out.println("=========================================================");
         System.out.println();

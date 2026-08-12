@@ -123,13 +123,28 @@ environment variables (defaults in parentheses):
 | `REDMINE_CALLBACK_URI` | `""` | HTTP URI matched for the Redmine webhook. |
 | `ISSUE_VALIDATION_SCRIPT` | `""` | Path to a JS file validating each issue (Nashorn). |
 | `STATUS_PAGE_PATH` | `/deploy/status` | Status endpoint path prefix. |
-| `QUEUE_DIR` | `./queue` | Durable spool root (`redmine/` and `telegram/` subdirs). |
+| `QUEUE_DIR` | `./queue` | Durable spool root (`redmine/`, `telegram/` and `deploy-review/` subdirs). |
 | `GITLAB_URL` | `""` | GitLab base URL. |
 | `GITLAB_API_KEY` | `""` | GitLab API key. |
 | `TELEGRAM_ENABLED` | `false` | Enable Telegram notifications. |
 | `TELEGRAM_CHAT_ID` | `0` | Target Telegram chat id. |
 | `TELEGRAM_TOKEN` | `""` | Telegram bot token (**secret**). |
 | `TELEGRAM_URL` | `https://api.telegram.org/bot` | Telegram Bot API base URL (override for a proxy or a mock). |
+
+**Deploy review webhook**
+
+An outbound `POST` sent at deploy start so an external service can analyse the release while it is
+being rolled out. Body: `{project, app, instance, old_version, new_version, deployed_at}`, with the
+token in `Authorization: Bearer …`. Delivery goes through a durable spool
+(`QUEUE_DIR/deploy-review`) and is at-least-once — the receiver dedupes by version. `4xx` answers
+are dead-lettered immediately rather than retried.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `DEPLOY_REVIEW_ENABLED` | `false` | Enable the deploy-start webhook. |
+| `DEPLOY_REVIEW_URL` | `""` | Endpoint the notification is posted to. |
+| `DEPLOY_REVIEW_TOKEN` | `""` | Bearer token (**secret**). |
+| `DEPLOY_REVIEW_TIMEOUT_MS` | `20000` | Connect/read timeout (ms). |
 
 ## Running an agent
 
@@ -169,7 +184,8 @@ All served by the single Vert.x server on `127.0.0.1:<VERTX_SERVER_PORT>`.
 ## Deploy aliases
 
 An alias is a YAML file `<VERTX_ALIASES_DIR>/<name>.yml`. Issues trigger a deploy via a
-`> deploy <alias …>` line in their description. Alias text is substituted with positional
+`> deploy <alias …>` line in their description. An optional `diff:` block enables the GitLab diff
+and, with `project`/`instance` set, the deploy-review webhook. Alias text is substituted with positional
 parameters `$1, $2, …` and `$ISSUE_ID`. Each command names the target `agents` (comma-separated
 ids), an executable `name`, and its `arguments`. Example (`server/src/test/resources/aliases/proc.yml`):
 
@@ -190,7 +206,7 @@ commands:
 
 ## Metrics
 
-Prometheus meters at `/metrics`, tagged `queue="telegram"` / `queue="redmine"`:
+Prometheus meters at `/metrics`, tagged `queue="telegram"` / `queue="redmine"` / `queue="deploy-review"`:
 
 - `deploy_queue_pending`, `deploy_queue_dead` (gauges)
 - `deploy_queue_sent_total`, `deploy_queue_deadlettered_total` (counters)
@@ -203,7 +219,8 @@ plus standard JVM (memory/GC/threads) and process metrics.
 - The server listens on loopback only and **no endpoint is authenticated** — the `run`/`issue`
   commands and the dashboard action can trigger deploys, so keep it local or behind an
   authenticating proxy.
-- Provide all secrets (`REDMINE_API_ACCESS_KEY`, `TELEGRAM_TOKEN`) via environment variables.
+- Provide all secrets (`REDMINE_API_ACCESS_KEY`, `TELEGRAM_TOKEN`, `DEPLOY_REVIEW_TOKEN`) via
+  environment variables.
   Note: the tracked `test.env` and `release-deploy-server.sh` currently contain plaintext secrets
   and should be rotated and removed from version control.
 

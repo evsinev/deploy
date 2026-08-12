@@ -52,6 +52,9 @@ diff:                     # optional — post a GitLab diff to Redmine/Telegram 
   gitlabProjectId: <int>
   agent: <id>            #   which agent fetches the current version
   newVersionArg: <int>   #   1-based index of the invocation argument carrying the NEW version
+  project: <path>        #   optional — GitLab project path for the deploy review webhook
+  app: <name>            #   optional — application name (defaults to the alias name)
+  instance: <name>       #   optional — target instance name
 ```
 
 Each entry under `commands` becomes a shell command run on every listed agent (see
@@ -108,3 +111,28 @@ index 1). There is no `versionArg` field.
 
 See the [Redmine workflow](/deploy/guides/redmine-workflow/) for how the diff is rendered and how issue
 status transitions during a deploy.
+
+## Deploy review webhook
+
+`project`, `app` and `instance` are only used by the
+[deploy review webhook](/deploy/configuration/#deploy-review-webhook), which fires at deploy start
+(the same moment as the 🛫 Telegram message). They name the deployed thing for the receiving
+service, since `gitlabProjectId` is a numeric id and the codebase has no other notion of an
+instance:
+
+```yaml
+diff:
+  enabled: true
+  versionUrl: http://ams2-app:8080/version
+  gitlabProjectId: 114
+  agent: ams2-app
+  newVersionArg: 1
+  project: payneteasy/paynet     # GitLab project path
+  app: ams2-paynet-proc          # optional; defaults to the alias name
+  instance: AMS-2                # target instance
+```
+
+The webhook reuses the versions the `diff:` block already resolves, so it is sent only when
+`diff.enabled` is `true` and both `project` and `instance` are set — otherwise the deploy runs
+exactly as before and the notification is skipped with a log line. `app` falls back to the alias
+name when omitted.
