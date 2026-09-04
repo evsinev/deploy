@@ -50,6 +50,8 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
 
     private static final String LATENCY_METER = "deploy_queue_send_latency";
     private static final Pattern ALIAS_NAME   = Pattern.compile("^[A-Za-z0-9._-]+$");
+    /** Idle gap after which a tail SSE stream sends a comment, well inside the 60 s nginx proxy_read_timeout default. */
+    private static final long    KEEPALIVE_MS = 15_000;
 
     private final Vertx                        vertx;
     private final AgentConnections             agents;
@@ -278,10 +280,7 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
 
     private void handleEvents(HttpServerRequest aRequest) {
         HttpServerResponse response = aRequest.response();
-        response.setChunked(true);
-        response.putHeader("Content-Type", "text/event-stream");
-        response.putHeader("Cache-Control", "no-cache");
-        response.putHeader("Connection", "keep-alive");
+        beginEventStream(response);
 
         if (!pushSnapshot(response)) {
             return;
@@ -325,13 +324,11 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     /** SSE tail: only the lines appended since connect (the initial view is served by GET {base}/log). */
     private void handleLogEvents(HttpServerRequest aRequest) {
         HttpServerResponse response = aRequest.response();
-        response.setChunked(true);
-        response.putHeader("Content-Type", "text/event-stream");
-        response.putHeader("Cache-Control", "no-cache");
-        response.putHeader("Connection", "keep-alive");
+        beginEventStream(response);
 
         ServerLogTailer tailer = new ServerLogTailer(new File(serverLogFile == null ? "" : serverLogFile));
-        long[] offset = {tailer.size()}; // continue from the current end; GET /log already showed the tail
+        long[] offset    = {tailer.size()}; // continue from the current end; GET /log already showed the tail
+        long[] lastWrite = {System.currentTimeMillis()};
 
         long timerId = vertx.setPeriodic(refreshMs, id -> {
             if (response.closed() || response.ended()) {
@@ -339,13 +336,16 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
                 return;
             }
             vertx.<ServerLogTailer.Chunk>executeBlocking(() -> tailer.readFrom(offset[0]), false).onComplete(ar -> {
-                if (ar.failed()) {
+                if (ar.failed() || response.closed() || response.ended()) {
                     return;
                 }
                 ServerLogTailer.Chunk chunk = ar.result();
                 offset[0] = chunk.offset();
-                if (!chunk.lines().isEmpty() && !response.closed() && !response.ended()) {
+                if (!chunk.lines().isEmpty()) {
                     writeEvent(response, "logline", logRows(chunk.lines()));
+                    lastWrite[0] = System.currentTimeMillis();
+                } else {
+                    keepAlive(response, lastWrite);
                 }
             });
         });
@@ -363,12 +363,10 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
     /** SSE tail: only the agent-log lines appended since connect (the initial view is served by GET {base}/agentlog). */
     private void handleAgentLogEvents(HttpServerRequest aRequest) {
         HttpServerResponse response = aRequest.response();
-        response.setChunked(true);
-        response.putHeader("Content-Type", "text/event-stream");
-        response.putHeader("Cache-Control", "no-cache");
-        response.putHeader("Connection", "keep-alive");
+        beginEventStream(response);
 
-        long[] cursor = {logBuffer.lastSeq()}; // continue past what GET {base}/agentlog already showed
+        long[] cursor    = {logBuffer.lastSeq()}; // continue past what GET {base}/agentlog already showed
+        long[] lastWrite = {System.currentTimeMillis()};
 
         long timerId = vertx.setPeriodic(refreshMs, id -> {
             if (response.closed() || response.ended()) {
@@ -379,6 +377,9 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
             if (!fresh.isEmpty()) {
                 cursor[0] = fresh.get(fresh.size() - 1).seq();
                 writeEvent(response, "agentlogline", DashboardView.agentLogRows(fresh));
+                lastWrite[0] = System.currentTimeMillis();
+            } else {
+                keepAlive(response, lastWrite);
             }
         });
 
@@ -442,6 +443,33 @@ public class DashboardHttpHandler implements Handler<HttpServerRequest> {
                     snap.count(), snap.mean(TimeUnit.MILLISECONDS), p50, p95, p99, snap.max(TimeUnit.MILLISECONDS)));
         }
         return stats;
+    }
+
+    /**
+     * Starts an SSE response. The {@code : connected} comment is written at once so the status line and headers
+     * leave the socket immediately — Vert.x only flushes them with the first body write, and a reverse proxy
+     * (nginx {@code proxy_read_timeout}, 60 s by default) gives up on an upstream that stays silent until the
+     * first real event. {@code X-Accel-Buffering: no} stops nginx from buffering the stream.
+     */
+    private static void beginEventStream(HttpServerResponse aResponse) {
+        aResponse.setChunked(true);
+        aResponse.putHeader("Content-Type", "text/event-stream; charset=utf-8");
+        aResponse.putHeader("Cache-Control", "no-cache");
+        aResponse.putHeader("Connection", "keep-alive");
+        aResponse.putHeader("X-Accel-Buffering", "no");
+        aResponse.write(": connected\n\n");
+    }
+
+    /**
+     * Writes a {@code : keepalive} comment when nothing has been sent for {@link #KEEPALIVE_MS}, so an idle tail
+     * stream never trips a proxy idle timeout. Comments are ignored by EventSource clients.
+     */
+    private static void keepAlive(HttpServerResponse aResponse, long[] aLastWrite) {
+        long now = System.currentTimeMillis();
+        if (now - aLastWrite[0] >= KEEPALIVE_MS) {
+            aResponse.write(": keepalive\n\n");
+            aLastWrite[0] = now;
+        }
     }
 
     /** SSE frame: an {@code event:} line, one {@code data:} line per source line, and a blank separator. */
