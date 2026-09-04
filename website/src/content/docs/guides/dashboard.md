@@ -43,3 +43,24 @@ reverse proxy may rewrite the POST to a GET without breaking it.
 The dashboard is not authenticated and can trigger deploys (enqueue issues). Keep it on loopback
 or behind an authenticating reverse proxy.
 :::
+
+## Behind a reverse proxy
+
+The live cards, the **Log** tail and the **Agent logs** tail are Server-Sent Events streams
+(`{DASHBOARD_PATH}/events`, `/log/events`, `/agentlog/events`). Each stream flushes its response
+headers immediately with a `: connected` comment, sends a `: keepalive` comment after 15&nbsp;s of
+silence, and sets `X-Accel-Buffering: no`, so nginx defaults (`proxy_read_timeout 60s`,
+`proxy_buffering on`) work without tuning. A minimal location:
+
+```nginx
+location /deploy {
+    proxy_pass http://127.0.0.1:9090;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_buffering off;     # optional: X-Accel-Buffering already disables it per response
+}
+```
+
+If the deploy server sits behind a second proxy, that proxy must also pass the stream through
+unbuffered (honour `X-Accel-Buffering` or set `proxy_buffering off`), or events arrive in bursts.
+

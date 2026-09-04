@@ -93,6 +93,18 @@ public class DashboardHttpTest {
             assertTrue("SSE should push an 'agents' event, got: " + frames, frames.contains("event: agents"));
             assertTrue("SSE should push a merged 'delivery' event, got: " + frames, frames.contains("event: delivery"));
             assertTrue("SSE frames should carry data lines", frames.contains("data:"));
+
+            // 5. the tail streams must flush their headers at once even when there is nothing to tail yet —
+            //    otherwise a reverse proxy times out "while reading response header" and the client loops
+            for (String tail : new String[]{"/deploy/dashboard/agentlog/events", "/deploy/dashboard/log/events"}) {
+                HttpResponse<InputStream> stream = client.send(get(tail), ofInputStream());
+                assertEquals(tail, 200, stream.statusCode());
+                assertTrue(tail, stream.headers().firstValue("content-type").orElse("").startsWith("text/event-stream"));
+                assertEquals(tail, "no", stream.headers().firstValue("x-accel-buffering").orElse(""));
+                String opening = readUntil(stream.body(), ": connected");
+                assertTrue(tail + " should open with a comment that flushes the headers, got: " + opening,
+                        opening.contains(": connected"));
+            }
         } finally {
             server.stop();
         }

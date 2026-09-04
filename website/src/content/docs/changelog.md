@@ -7,6 +7,17 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-25
+
+**Dashboard SSE streams survive a reverse proxy**
+
+The `/log/events` and `/agentlog/events` tails used to send nothing — not even the response
+headers — until the first new line appeared, so nginx logged
+`upstream timed out (110) while reading response header from upstream` every 60&nbsp;s on a quiet
+server and the browser reconnected in a loop. All three dashboard streams now flush their headers
+at once with a `: connected` comment, send a `: keepalive` comment after 15&nbsp;s of silence, and
+set `X-Accel-Buffering: no`. See [Behind a reverse proxy](/deploy/guides/dashboard/#behind-a-reverse-proxy).
+
 ## 1.0-24
 
 **Deploy review webhook at deploy start**
