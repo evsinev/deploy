@@ -55,8 +55,8 @@ public final class VersionChecks {
      * @throws IOException           the current version cannot be read
      * @throws IllegalStateException the new version is older than the current one
      */
-    public static void checkNotOlder(String aVersionUrl, String aNewVersion, Consumer<String> aLog) throws IOException {
-        String currentVersion = VersionFetcher.fetch(aVersionUrl);
+    public static void checkNotOlder(String aVersionUrl, String aNewVersion, int aTimeoutSeconds, Consumer<String> aLog) throws IOException {
+        String currentVersion = VersionFetcher.fetch(aVersionUrl, aTimeoutSeconds);
         aLog.accept("current version is " + currentVersion);
 
         int compareResult = compareVersions(aNewVersion, currentVersion);

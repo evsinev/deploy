@@ -132,9 +132,16 @@ public class SignalServiceStep implements IStep {
             Thread.currentThread().interrupt();
             throw new StepExecutionException("Interrupted while signalling " + service, e);
         } finally {
-            if (process.isAlive()) {
-                process.destroyForcibly();
-            }
+            stop(process);
+            reader.interrupt();
+        }
+    }
+
+    /** Stops the control program and anything it left running, which could otherwise hold the output open. */
+    private static void stop(Process aProcess) {
+        aProcess.descendants().forEach(ProcessHandle::destroyForcibly);
+        if (aProcess.isAlive()) {
+            aProcess.destroyForcibly();
         }
     }
 

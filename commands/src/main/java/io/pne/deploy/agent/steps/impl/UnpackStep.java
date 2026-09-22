@@ -118,6 +118,9 @@ public class UnpackStep implements IStep {
         long bytes   = 0;
 
         try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(aArchive))) {
+            // Anything that is not a zip yields no entries at all. Without this the unpack would "succeed" and,
+            // in the replacing modes, leave the destination empty where a deployment used to be.
+
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 entries++;
@@ -133,6 +136,10 @@ public class UnpackStep implements IStep {
 
                 if (entry.isDirectory()) {
                     createDirectoryInside(aArchive, boundary, resolved, entry.getName());
+                    // A directory entry may still carry data. Read it through the same limit, or a single
+                    // highly compressed entry could be unpacked without ever being counted.
+                    bytes += FileOperations.copyLimited(zip, OutputStream.nullOutputStream(),
+                            policy.getMaxUnpackBytes() - bytes);
                     continue;
                 }
 
@@ -142,19 +149,28 @@ public class UnpackStep implements IStep {
             }
         }
 
+        if (entries == 0) {
+            throw new StepExecutionException("Archive " + aArchive + " contains no entries; it is empty or not a zip");
+        }
         aContext.log("unpacked " + entries + " entry(ies), " + bytes + " byte(s) into " + aTarget);
     }
 
     /**
-     * Creates a directory of the archive and checks where it really ended up. A link already present in the
-     * destination would otherwise redirect everything written below it.
+     * Creates a directory of the archive, having first worked out where it would really land. A link already
+     * present in the destination would otherwise redirect everything written below it - and checking only after
+     * creating would leave those directories behind on the far side of the link.
      */
     private static void createDirectoryInside(Path aArchive, Path aBoundary, Path aDirectory, String aEntryName)
             throws IOException, StepExecutionException {
-        Files.createDirectories(aDirectory);
-        if (!aDirectory.toRealPath().startsWith(aBoundary)) {
-            throw new StepExecutionException(outsideMessage(aArchive, aBoundary, aEntryName));
+        try {
+            Path resolved = PathGuard.canonicalize("unpack", "archive entry", aDirectory.toString());
+            if (!resolved.startsWith(aBoundary)) {
+                throw new StepExecutionException(outsideMessage(aArchive, aBoundary, aEntryName));
+            }
+        } catch (StepValidationException e) {
+            throw new StepExecutionException(outsideMessage(aArchive, aBoundary, aEntryName) + ": " + e.getMessage(), e);
         }
+        Files.createDirectories(aDirectory);
     }
 
     /**
@@ -174,10 +190,10 @@ public class UnpackStep implements IStep {
         if (aRemainingBytes <= 0) {
             throw new IOException("Refusing to unpack more bytes than the policy allows");
         }
-        if (Files.isSymbolicLink(aTarget)) {
-            Files.delete(aTarget);
-        }
-        if (Files.exists(aTarget, LinkOption.NOFOLLOW_LINKS) && !aTarget.toRealPath().startsWith(aBoundary)) {
+        boolean targetIsLink = Files.isSymbolicLink(aTarget);
+        if (!targetIsLink
+                && Files.exists(aTarget, LinkOption.NOFOLLOW_LINKS)
+                && !aTarget.toRealPath().startsWith(aBoundary)) {
             throw new StepExecutionException(outsideMessage(aArchive, aBoundary, aEntryName));
         }
 
@@ -186,6 +202,11 @@ public class UnpackStep implements IStep {
             long written;
             try (OutputStream out = Files.newOutputStream(temp)) {
                 written = FileOperations.copyLimited(aZip, out, aRemainingBytes);
+            }
+            // Only now that the replacement exists: a link here is replaced rather than written through, and a
+            // failure above leaves whatever was there untouched.
+            if (targetIsLink) {
+                Files.delete(aTarget);
             }
             FileOperations.moveInto(temp, aTarget);
             return written;

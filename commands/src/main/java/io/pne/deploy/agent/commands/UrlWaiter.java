@@ -15,6 +15,12 @@ public final class UrlWaiter {
     private UrlWaiter() {
     }
 
+    /** Never let one attempt outlast the whole wait. */
+    private static int attemptTimeoutSeconds(long aEndTime) {
+        long remaining = Math.max(1L, (aEndTime - System.currentTimeMillis()) / 1000L);
+        return (int) Math.min(remaining, Integer.MAX_VALUE);
+    }
+
     public static void waitFor(
               String           aUrl
             , String           aExpectedContent
@@ -30,7 +36,7 @@ public final class UrlWaiter {
 
         while (System.currentTimeMillis() < endTime) {
             try {
-                String content = VersionFetcher.fetch(aUrl);
+                String content = VersionFetcher.fetch(aUrl, attemptTimeoutSeconds(endTime));
                 lastContent = content;
                 if (aExpectedContent.equals(content)) {
                     aLog.accept(aUrl + " reports " + content);

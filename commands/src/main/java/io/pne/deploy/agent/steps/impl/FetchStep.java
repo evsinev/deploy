@@ -1,5 +1,6 @@
 package io.pne.deploy.agent.steps.impl;
 
+import io.pne.deploy.agent.commands.StreamDeadline;
 import io.pne.deploy.agent.steps.IStep;
 import io.pne.deploy.agent.steps.StepContext;
 import io.pne.deploy.agent.steps.StepExecutionException;
@@ -91,13 +92,17 @@ public class FetchStep implements IStep {
             HttpResponse<InputStream> response = aContext.getHttpClient()
                     .send(request, HttpResponse.BodyHandlers.ofInputStream());
 
-            if (response.statusCode() != expectStatus) {
-                throw new StepExecutionException("GET " + uri + " answered " + response.statusCode()
-                        + " but " + expectStatus + " was expected: " + firstBytes(response.body()));
-            }
+            // The stream is closed from another thread once the deadline passes, which is the only thing that
+            // unblocks a read waiting on a source that has stopped sending.
+            try (StreamDeadline ignored = StreamDeadline.closeAt(response.body(), deadline)) {
+                if (response.statusCode() != expectStatus) {
+                    throw new StepExecutionException("GET " + uri + " answered " + response.statusCode()
+                            + " but " + expectStatus + " was expected: " + firstBytes(response.body()));
+                }
 
-            long size = store(response.body(), target, policy.getMaxFetchBytes(), deadline);
-            aContext.log("stored " + size + " byte(s) into " + target);
+                long size = store(response.body(), target, policy.getMaxFetchBytes(), deadline);
+                aContext.log("stored " + size + " byte(s) into " + target);
+            }
 
         } catch (StepValidationException e) {
             throw new StepExecutionException(e.getMessage(), e);

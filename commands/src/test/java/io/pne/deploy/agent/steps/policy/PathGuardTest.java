@@ -7,6 +7,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -112,6 +113,23 @@ public class PathGuardTest {
                 allowed.resolve("link/version.txt").toString());
 
         assertEquals(real.resolve("version.txt"), checked);
+    }
+
+    @Test
+    public void resolvesARelativeLinkAgainstTheDirectoryThatHoldsIt() throws Exception {
+        Path root    = folder.getRoot().toPath().toRealPath();
+        Path allowed = Files.createDirectories(root.resolve("allowed"));
+        Path real    = Files.createDirectories(allowed.resolve("real/sub"));
+        Files.createSymbolicLink(allowed.resolve("alias"), real);
+        Files.createSymbolicLink(real.resolve("link"), Paths.get("../version.txt"));
+
+        StepPolicy policy = policyWithWriteRoot(allowed);
+
+        // Reached through 'alias', the link still points at the file next to its own directory.
+        Path checked = PathGuard.checkWritable(policy, "write-file", "path",
+                allowed.resolve("alias/link").toString());
+
+        assertEquals(real.getParent().resolve("version.txt"), checked);
     }
 
     @Test

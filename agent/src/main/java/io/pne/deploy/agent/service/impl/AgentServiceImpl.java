@@ -128,9 +128,9 @@ public class AgentServiceImpl implements IAgentService {
     }
 
     /**
-     * Keeps a legacy command inside the directory the policy names. The comparison is made on resolved paths
-     * rather than on the text of the command, because a command written as if it were inside that directory can
-     * still climb out of it with {@code ..}.
+     * Keeps a legacy command inside the directory the policy names. The comparison is made on real paths rather
+     * than on the text of the command: a command written as if it were inside that directory can otherwise climb
+     * out of it with {@code ..}, or be a link pointing at a program somewhere else entirely.
      */
     private void checkShellPrefix(String aName) throws AgentCommandException {
         if (policy == null) {
@@ -144,11 +144,20 @@ public class AgentServiceImpl implements IAgentService {
             throw new AgentCommandException("Command has no name");
         }
 
-        Path allowed  = Paths.get(prefix).toAbsolutePath().normalize();
-        Path resolved = Paths.get(aName).toAbsolutePath().normalize();
+        Path allowed  = realPathOf(Paths.get(prefix));
+        Path resolved = realPathOf(Paths.get(aName));
         if (!resolved.startsWith(allowed) || resolved.equals(allowed)) {
             throw new AgentCommandException("Command '" + aName + "' is not inside the allowed directory '"
                     + prefix + "'");
+        }
+    }
+
+    /** The real location of a path, so a link inside the allowed directory cannot point at a program outside it. */
+    private static Path realPathOf(Path aPath) {
+        try {
+            return aPath.toRealPath();
+        } catch (IOException e) {
+            return aPath.toAbsolutePath().normalize();
         }
     }
 

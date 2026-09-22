@@ -127,10 +127,19 @@ public class PathGuard {
         }
     }
 
+    /**
+     * Where a link actually points. A relative target is resolved against the real directory holding the link,
+     * not against the path used to reach it: reaching a link through another link would otherwise resolve
+     * {@code ..} against the wrong directory and name a different file than the one the link points at.
+     */
     private static Path readLinkTarget(Path aLink) throws StepValidationException {
         try {
             Path target = Files.readSymbolicLink(aLink);
-            return target.isAbsolute() ? target.normalize() : aLink.getParent().resolve(target).normalize();
+            if (target.isAbsolute()) {
+                return target.normalize();
+            }
+            Path parent = aLink.getParent();
+            return parent.toRealPath().resolve(target).normalize();
         } catch (IOException e) {
             throw new StepValidationException("cannot read the symbolic link " + aLink + ": " + e.getMessage());
         }

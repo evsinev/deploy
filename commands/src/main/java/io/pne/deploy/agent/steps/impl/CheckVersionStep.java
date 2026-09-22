@@ -40,6 +40,10 @@ public class CheckVersionStep implements IStep {
         aScope.checkReferences(TYPE, "url", url);
         aScope.checkReferences(TYPE, "version", version);
         UrlGuard.check(aPolicy.getStatusHosts(), TYPE, "url", StepPlanScope.withPlaceholders(url, "0"));
+        if (timeoutSeconds > aPolicy.getMaxStepSeconds()) {
+            throw new StepValidationException("step '" + TYPE + "': timeoutSeconds " + timeoutSeconds
+                    + " is over the limit of " + aPolicy.getMaxStepSeconds() + "s");
+        }
     }
 
     @Override
@@ -49,7 +53,7 @@ public class CheckVersionStep implements IStep {
             String expandedVersion = aContext.expand(version);
             UrlGuard.check(aContext.getPolicy().getStatusHosts(), TYPE, "url", expandedUrl);
 
-            VersionChecks.checkNotOlder(expandedUrl, expandedVersion, aContext::log);
+            VersionChecks.checkNotOlder(expandedUrl, expandedVersion, timeoutSeconds, aContext::log);
 
         } catch (StepValidationException e) {
             throw new StepExecutionException(e.getMessage(), e);

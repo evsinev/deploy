@@ -12,6 +12,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -54,7 +56,11 @@ final class FileOperations {
      */
     static void copy(Path aSource, Path aTarget, boolean aAtomic) throws IOException {
         if (!aAtomic) {
+            Set<PosixFilePermission> existing = readPermissions(aTarget);
             Files.copy(aSource, aTarget, StandardCopyOption.REPLACE_EXISTING);
+            if (existing != null) {
+                Files.setPosixFilePermissions(aTarget, existing);
+            }
             return;
         }
         Path temp = temporarySibling(aTarget);
@@ -68,14 +74,19 @@ final class FileOperations {
     }
 
     private static void copyPermissions(Path aFrom, Path aTo) throws IOException {
-        if (!Files.exists(aFrom)) {
-            return;
+        Set<PosixFilePermission> permissions = readPermissions(aFrom);
+        if (permissions != null) {
+            Files.setPosixFilePermissions(aTo, permissions);
         }
-        PosixFileAttributeView view = Files.getFileAttributeView(aFrom, PosixFileAttributeView.class);
-        if (view == null) {
-            return;
+    }
+
+    /** The permissions of an existing file, or {@code null} when there is no file or the filesystem has none. */
+    private static Set<PosixFilePermission> readPermissions(Path aPath) throws IOException {
+        if (!Files.exists(aPath)) {
+            return null;
         }
-        Files.setPosixFilePermissions(aTo, view.readAttributes().permissions());
+        PosixFileAttributeView view = Files.getFileAttributeView(aPath, PosixFileAttributeView.class);
+        return view == null ? null : view.readAttributes().permissions();
     }
 
     static Path temporarySibling(Path aTarget) {

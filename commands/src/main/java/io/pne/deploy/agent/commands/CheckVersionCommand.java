@@ -10,12 +10,14 @@ public class CheckVersionCommand {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckVersionCommand.class);
 
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+
     public static void main(String[] args) {
         String versionUrl = args[0];
         String newVersion = args[1];
 
         try {
-            VersionChecks.checkNotOlder(versionUrl, newVersion, LOG::info);
+            VersionChecks.checkNotOlder(versionUrl, newVersion, DEFAULT_TIMEOUT_SECONDS, LOG::info);
         } catch (Exception e) {
             LOG.error("FAILED: {}", e.getMessage());
             System.exit(1);

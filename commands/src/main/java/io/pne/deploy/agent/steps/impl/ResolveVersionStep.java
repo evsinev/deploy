@@ -62,6 +62,10 @@ public class ResolveVersionStep implements IStep {
         aScope.checkReferences(TYPE, "url", url);
         UrlGuard.check(aPolicy.getStatusHosts(), TYPE, "url", StepPlanScope.withPlaceholders(url, "0"));
 
+        if (timeoutSeconds > aPolicy.getMaxStepSeconds()) {
+            throw new StepValidationException("step '" + TYPE + "': timeoutSeconds " + timeoutSeconds
+                    + " is over the limit of " + aPolicy.getMaxStepSeconds() + "s");
+        }
         if (aScope.isDeclared(variable)) {
             throw new StepValidationException("step '" + TYPE + "': variable ${" + variable + "} is already declared");
         }

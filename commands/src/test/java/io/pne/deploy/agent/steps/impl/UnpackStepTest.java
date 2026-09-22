@@ -149,6 +149,42 @@ public class UnpackStepTest {
                 "previous", Files.readString(target.resolve("index.html"), StandardCharsets.UTF_8));
     }
 
+    @Test
+    public void refusesSomethingThatIsNotAnArchiveInsteadOfEmptyingTheDestination() throws Exception {
+        Path root    = folder.getRoot().toPath().toRealPath();
+        Path target  = Files.createDirectories(root.resolve("www"));
+        Files.writeString(target.resolve("index.html"), "previous");
+        Path archive = root.resolve("archive.zip");
+        Files.writeString(archive, "not a zip at all");
+
+        try {
+            run(root, step("unpack", "archive", archive.toString(), "to", target.toString(), "mode", "replace"));
+            fail("expected an archive with no entries to be refused");
+        } catch (StepExecutionException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("contains no entries"));
+        }
+    }
+
+    @Test
+    public void doesNotCreateDirectoriesBeyondAPlantedLink() throws Exception {
+        Path root    = folder.getRoot().toPath().toRealPath();
+        Path target  = Files.createDirectories(root.resolve("www"));
+        Path outside = Files.createDirectories(root.resolve("outside"));
+        Files.createSymbolicLink(target.resolve("config"), outside);
+
+        Path archive = zip(root.resolve("archive.zip"), Map.of("config/nested/deep/payload.txt", "nope"));
+
+        try {
+            run(root, step("unpack", "archive", archive.toString(), "to", target.toString()));
+            fail("expected the planted link to be seen through");
+        } catch (StepExecutionException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("would be written outside"));
+        }
+
+        assertFalse("nothing may be created on the far side of the link",
+                Files.exists(outside.resolve("nested")));
+    }
+
     private static Path zip(Path aPath, Map<String, String> aEntries) throws Exception {
         try (OutputStream out = Files.newOutputStream(aPath); ZipOutputStream zip = new ZipOutputStream(out)) {
             for (Map.Entry<String, String> entry : aEntries.entrySet()) {
