@@ -3,6 +3,7 @@ package io.pne.deploy.server.vertx.dashboard;
 import io.pne.deploy.client.redmine.remote.queue.PersistentSpool;
 import io.pne.deploy.server.vertx.AgentRegistry;
 import io.pne.deploy.server.service.impl.alias.AliasCommand;
+import io.pne.deploy.server.service.impl.alias.AliasStep;
 import io.pne.deploy.server.service.impl.alias.AliasDescription;
 import io.pne.deploy.server.service.impl.alias.AliasDiff;
 import io.pne.deploy.server.vertx.status.model.TaskState;
@@ -363,15 +364,24 @@ public final class DashboardView {
                     }
                 }
                 sb.append("</span></div><div class=\"cmd-body\">");
-                sb.append("<span class=\"cmd-label\">name</span><code class=\"code\">").append(esc(command.name)).append("</code>");
-                if (command.arguments != null && !command.arguments.isEmpty()) {
-                    sb.append("<span class=\"cmd-label\">arguments</span><div class=\"args\">");
-                    int k = 1;
-                    for (String arg : command.arguments) {
-                        sb.append("<div class=\"arg\"><span class=\"arg-i\">").append(k++).append("</span>")
-                          .append("<code class=\"code\">").append(esc(arg)).append("</code></div>");
+
+                if (command.recipe != null) {
+                    sb.append("<span class=\"cmd-label\">recipe</span><code class=\"code\">")
+                      .append(esc(command.recipe)).append("</code>");
+                    appendValues(sb, command.with);
+                } else if (command.steps != null) {
+                    appendSteps(sb, command.steps);
+                } else {
+                    sb.append("<span class=\"cmd-label\">name</span><code class=\"code\">").append(esc(command.name)).append("</code>");
+                    if (command.arguments != null && !command.arguments.isEmpty()) {
+                        sb.append("<span class=\"cmd-label\">arguments</span><div class=\"args\">");
+                        int k = 1;
+                        for (String arg : command.arguments) {
+                            sb.append("<div class=\"arg\"><span class=\"arg-i\">").append(k++).append("</span>")
+                              .append("<code class=\"code\">").append(esc(arg)).append("</code></div>");
+                        }
+                        sb.append("</div>");
                     }
-                    sb.append("</div>");
                 }
                 sb.append("</div></section>");
             }
@@ -381,6 +391,37 @@ public final class DashboardView {
             sb.append("<div id=\"alias-raw\" class=\"raw-card\" hidden><pre>").append(esc(aRawYaml)).append("</pre></div>");
         }
         return sb.toString();
+    }
+
+    /** The values handed to a recipe, as written in the alias. */
+    private static void appendValues(StringBuilder aOut, java.util.Map<String, Object> aValues) {
+        if (aValues == null || aValues.isEmpty()) {
+            return;
+        }
+        aOut.append("<span class=\"cmd-label\">with</span><div class=\"args\">");
+        for (java.util.Map.Entry<String, Object> value : aValues.entrySet()) {
+            aOut.append("<div class=\"arg\"><span class=\"arg-i\">").append(esc(value.getKey())).append("</span>")
+                .append("<code class=\"code\">").append(esc(String.valueOf(value.getValue()))).append("</code></div>");
+        }
+        aOut.append("</div>");
+    }
+
+    /** Steps written out in the alias itself, rather than taken from a recipe. */
+    private static void appendSteps(StringBuilder aOut, java.util.List<AliasStep> aSteps) {
+        aOut.append("<span class=\"cmd-label\">steps</span><div class=\"args\">");
+        int number = 1;
+        for (AliasStep step : aSteps) {
+            aOut.append("<div class=\"arg\"><span class=\"arg-i\">").append(number++).append("</span>")
+                .append("<code class=\"code\">").append(esc(step == null ? "?" : step.type));
+            if (step != null && step.params != null) {
+                for (java.util.Map.Entry<String, Object> param : step.params.entrySet()) {
+                    aOut.append(' ').append(esc(param.getKey())).append('=')
+                        .append(esc(String.valueOf(param.getValue())));
+                }
+            }
+            aOut.append("</code></div>");
+        }
+        aOut.append("</div>");
     }
 
     static String formatMs(double aMs) {
