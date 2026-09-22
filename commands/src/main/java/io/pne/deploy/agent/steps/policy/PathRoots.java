@@ -1,6 +1,8 @@
 package io.pne.deploy.agent.steps.policy;
 
+import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -14,6 +16,10 @@ import java.util.List;
  * <p>An entry without a wildcard is a directory prefix: it allows that directory and everything below it. An entry
  * with a wildcard is a glob matched against the whole path, where a single star stays inside one name and a double
  * star spans names - so a pattern naming the staging directory of any application allows those and nothing else.
+ *
+ * <p>The fixed leading part of every entry is resolved through symbolic links when the roots are built, because
+ * the paths being checked are resolved the same way. On a system where a directory such as the configuration
+ * tree is itself a link, comparing a resolved path against an unresolved root would refuse everything under it.
  */
 public class PathRoots {
 
@@ -35,11 +41,12 @@ public class PathRoots {
             if (!trimmed.startsWith("/")) {
                 throw new IllegalArgumentException("Path root must be absolute: " + trimmed);
             }
-            patterns.add(trimmed);
-            matchers.add(hasWildcard(trimmed)
-                    ? FileSystems.getDefault().getPathMatcher("glob:" + trimmed)
+            String resolved = withResolvedPrefix(trimmed);
+            patterns.add(resolved);
+            matchers.add(hasWildcard(resolved)
+                    ? FileSystems.getDefault().getPathMatcher("glob:" + resolved)
                     : null);
-            literalPrefixes.add(literalPrefixOf(trimmed));
+            literalPrefixes.add(literalPrefixOf(resolved));
         }
     }
 
@@ -93,6 +100,23 @@ public class PathRoots {
 
     private static boolean hasWildcard(String aPattern) {
         return aPattern.indexOf('*') >= 0 || aPattern.indexOf('?') >= 0 || aPattern.indexOf('[') >= 0;
+    }
+
+    /** The same pattern with its fixed leading part replaced by where that part really is. */
+    private static String withResolvedPrefix(String aPattern) {
+        Path prefix = literalPrefixOf(aPattern);
+        if (!Files.exists(prefix)) {
+            return aPattern;
+        }
+        try {
+            Path real = prefix.toRealPath();
+            if (real.equals(prefix)) {
+                return aPattern;
+            }
+            return real + aPattern.substring(prefix.toString().length());
+        } catch (IOException e) {
+            return aPattern;
+        }
     }
 
     private static Path literalPrefixOf(String aPattern) {

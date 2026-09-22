@@ -1,7 +1,11 @@
 package io.pne.deploy.agent.steps.policy;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
@@ -10,6 +14,34 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class PathRootsTest {
+
+    @Rule
+    public final TemporaryFolder folder = new TemporaryFolder();
+
+    @Test
+    public void aRootReachedThroughALinkStillAllowsWhatIsUnderIt() throws Exception {
+        // The paths being checked are resolved through links, so the roots have to be too, or a system where
+        // a directory is itself a link would refuse everything inside it.
+        Path base = folder.getRoot().toPath().toRealPath();
+        Path real = Files.createDirectories(base.resolve("real/apps"));
+        Files.createSymbolicLink(base.resolve("apps"), real);
+
+        PathRoots roots = new PathRoots(Collections.singletonList(base.resolve("apps").toString()));
+
+        assertTrue(roots.allows(real.resolve("one/version.txt")));
+    }
+
+    @Test
+    public void aGlobRootReachedThroughALinkStillMatches() throws Exception {
+        Path base = folder.getRoot().toPath().toRealPath();
+        Path real = Files.createDirectories(base.resolve("real/apps"));
+        Files.createSymbolicLink(base.resolve("apps"), real);
+
+        PathRoots roots = new PathRoots(Collections.singletonList(base.resolve("apps") + "/*/staging/**"));
+
+        assertTrue(roots.allows(real.resolve("one/staging/1.0")));
+        assertFalse(roots.allows(real.resolve("one/other/1.0")));
+    }
 
     @Test
     public void prefixRootAllowsItselfAndEverythingBelow() {

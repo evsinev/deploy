@@ -65,6 +65,8 @@ public class ServerWebSocketFrameHandler {
 
             case RUN_COMMAND_LOG:
                 RunAgentCommandLog logMessage = (RunAgentCommandLog) message;
+                // Every line is also a sign of life: it keeps the server waiting while the agent is working.
+                commandResponses.noteActivity(logMessage.commandId);
                 LOG_AGENT.info("{} {}: {}", aAgentId, logMessage.commandId, logMessage.message);
                 listener.onCommandLog(logMessage);
                 break;
