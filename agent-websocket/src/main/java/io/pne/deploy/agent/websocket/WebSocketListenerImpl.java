@@ -53,6 +53,11 @@ public class WebSocketListenerImpl implements IWebSocketListener {
                 } catch (AgentCommandException e) {
                     LOG.error("Couldn't execute", e);
                     queue.enqueue(new RunAgentCommandResponse(runCommandRequest.commandId, e));
+                } catch (RuntimeException e) {
+                    // The server blocks until it gets an answer, so an unexpected failure must still produce one.
+                    LOG.error("Unexpected failure while executing", e);
+                    queue.enqueue(new RunAgentCommandResponse(runCommandRequest.commandId,
+                            new AgentCommandException("Unexpected failure: " + e, e)));
                 }
                 break;
 
