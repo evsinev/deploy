@@ -41,12 +41,18 @@ public class PathRoots {
             if (!trimmed.startsWith("/")) {
                 throw new IllegalArgumentException("Path root must be absolute: " + trimmed);
             }
-            String resolved = withResolvedPrefix(trimmed);
-            patterns.add(resolved);
-            matchers.add(hasWildcard(resolved)
-                    ? FileSystems.getDefault().getPathMatcher("glob:" + resolved)
+
+            Path   literal = literalPrefixOf(trimmed);
+            Path   real    = resolve(literal);
+            String tail    = trimmed.substring(literal.toString().length());
+
+            patterns.add(real + tail);
+            literalPrefixes.add(real);
+            // The resolved part is a filename, not a pattern: escape it before it joins one, or a directory
+            // whose name happens to contain a glob character would quietly widen what the root allows.
+            matchers.add(hasWildcard(trimmed)
+                    ? FileSystems.getDefault().getPathMatcher("glob:" + escapeGlob(real.toString()) + tail)
                     : null);
-            literalPrefixes.add(literalPrefixOf(resolved));
         }
     }
 
@@ -102,21 +108,28 @@ public class PathRoots {
         return aPattern.indexOf('*') >= 0 || aPattern.indexOf('?') >= 0 || aPattern.indexOf('[') >= 0;
     }
 
-    /** The same pattern with its fixed leading part replaced by where that part really is. */
-    private static String withResolvedPrefix(String aPattern) {
-        Path prefix = literalPrefixOf(aPattern);
-        if (!Files.exists(prefix)) {
-            return aPattern;
+    /** Where the fixed leading part of a root really is, or the part itself when it does not exist yet. */
+    private static Path resolve(Path aPrefix) {
+        if (!Files.exists(aPrefix)) {
+            return aPrefix;
         }
         try {
-            Path real = prefix.toRealPath();
-            if (real.equals(prefix)) {
-                return aPattern;
-            }
-            return real + aPattern.substring(prefix.toString().length());
+            return aPrefix.toRealPath();
         } catch (IOException e) {
-            return aPattern;
+            return aPrefix;
         }
+    }
+
+    /** Makes a literal path safe to put inside a glob. */
+    private static String escapeGlob(String aPath) {
+        StringBuilder escaped = new StringBuilder(aPath.length());
+        for (char c : aPath.toCharArray()) {
+            if (c == '\\' || c == '*' || c == '?' || c == '[' || c == ']' || c == '{' || c == '}') {
+                escaped.append('\\');
+            }
+            escaped.append(c);
+        }
+        return escaped.toString();
     }
 
     private static Path literalPrefixOf(String aPattern) {

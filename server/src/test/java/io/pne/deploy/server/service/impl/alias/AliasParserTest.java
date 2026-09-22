@@ -14,6 +14,27 @@ import static org.junit.Assert.*;
 
 public class AliasParserTest {
     @Test
+    public void theTenthValueOfAnOlderAliasIsNotReadAsTheFirstOne() throws Exception {
+        AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
+
+        Task task = parser.parseAlias("legacy-many-args a b c d e f g h i j k", -3);
+
+        assertEquals(Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"),
+                task.commands.get(0).command.arguments);
+    }
+
+    @Test
+    public void aValueOfAnOlderAliasIsNotItselfSearchedForPlaceholders() throws Exception {
+        AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
+
+        // The first value contains something that looks like the second placeholder; it must be left as it is.
+        Task task = parser.parseAlias("legacy-many-args x2 b c d e f g h i j k", -3);
+
+        assertEquals("x2", task.commands.get(0).command.arguments.get(0));
+        assertEquals("b",  task.commands.get(0).command.arguments.get(1));
+    }
+
+    @Test
     public void parseAlias() throws Exception {
         AliasParser parser = new AliasParser(new File("src/test/resources/aliases"));
         Task task = parser.parseAlias("proc 3.33-40", -3);

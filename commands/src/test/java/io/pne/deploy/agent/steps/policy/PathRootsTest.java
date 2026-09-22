@@ -44,6 +44,20 @@ public class PathRootsTest {
     }
 
     @Test
+    public void aDirectoryNamedLikeAPatternIsStillTakenLiterally() throws Exception {
+        Path base = folder.getRoot().toPath().toRealPath();
+        Path real = Files.createDirectories(base.resolve("release[12]/apps"));
+        Files.createSymbolicLink(base.resolve("current"), real);
+
+        PathRoots roots = new PathRoots(Collections.singletonList(base.resolve("current") + "/*/staging/**"));
+
+        assertTrue(roots.allows(real.resolve("one/staging/1.0")));
+        assertFalse("a bracket in a directory name must not widen the root",
+                roots.allows(base.resolve("release1/apps/one/staging/1.0")));
+        assertFalse(roots.allows(base.resolve("release2/apps/one/staging/1.0")));
+    }
+
+    @Test
     public void prefixRootAllowsItselfAndEverythingBelow() {
         PathRoots roots = new PathRoots(Collections.singletonList("/srv/apps"));
 

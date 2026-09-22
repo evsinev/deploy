@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.LineNumberReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -20,6 +22,9 @@ import java.util.stream.Collectors;
  * it is parsed. The newer form is what makes a file checkable: a value can only land where a value was expected.
  */
 public class AliasDescriptionLoader {
+
+    /** Longest first, so the tenth value is not read as the first one followed by a zero. */
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\$(ISSUE_ID|[0-9]+)");
 
     private final File aliasDir;
     private final Yaml yaml = new Yaml();
@@ -97,16 +102,32 @@ public class AliasDescriptionLoader {
         return array != null ? array : new String[]{};
     }
 
+    /**
+     * The older way of filling in values: replacing numbered placeholders in the text of the file.
+     *
+     * <p>Done in one pass, so a value that happens to contain something looking like a placeholder is left
+     * alone, and longest-first, so {@code $10} is not read as {@code $1} followed by a zero. For the aliases in
+     * use today, which never go past nine values, this produces exactly what it always did.
+     */
     private String processParameters(String aText, List<String> aParameters, int aIssueId) {
-        String ret = aText;
-        for (int i = 0; i < aParameters.size(); i++) {
-            int index = i + 1;
-            ret = ret.replace("$" + index, aParameters.get(i));
+        Matcher       matcher = PLACEHOLDER.matcher(aText);
+        StringBuilder result  = new StringBuilder();
+
+        while (matcher.find()) {
+            String        token       = matcher.group(1);
+            String        replacement = matcher.group();
+            if ("ISSUE_ID".equals(token)) {
+                replacement = String.valueOf(aIssueId);
+            } else {
+                int index = Integer.parseInt(token);
+                if (index >= 1 && index <= aParameters.size()) {
+                    replacement = aParameters.get(index - 1);
+                }
+            }
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
         }
-
-        ret = ret.replace("$ISSUE_ID", String.valueOf(aIssueId));
-
-        return ret;
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     public String loadYaml(File aFile) throws IOException {
