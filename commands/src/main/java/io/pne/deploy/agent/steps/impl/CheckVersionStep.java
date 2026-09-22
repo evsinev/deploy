@@ -39,6 +39,10 @@ public class CheckVersionStep implements IStep {
     public void validate(StepPolicy aPolicy, StepPlanScope aScope) throws StepValidationException {
         aScope.checkReferences(TYPE, "url", url);
         aScope.checkReferences(TYPE, "version", version);
+        if (!version.contains("${") && !version.matches(VersionChecks.COMPARABLE_VERSION)) {
+            throw new StepValidationException("step '" + TYPE + "', parameter 'version': '" + version
+                    + "' cannot be compared; versions must look like 1.2.3 or 1.2.3-4");
+        }
         UrlGuard.check(aPolicy.getStatusHosts(), TYPE, "url", StepPlanScope.withPlaceholders(url, "0"));
         if (timeoutSeconds > aPolicy.getMaxStepSeconds()) {
             throw new StepValidationException("step '" + TYPE + "': timeoutSeconds " + timeoutSeconds

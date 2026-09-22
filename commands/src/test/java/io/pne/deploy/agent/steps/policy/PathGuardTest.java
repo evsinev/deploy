@@ -133,6 +133,22 @@ public class PathGuardTest {
     }
 
     @Test
+    public void appliesDotDotAfterFollowingAnEarlierLink() throws Exception {
+        Path root    = folder.getRoot().toPath().toRealPath();
+        Path allowed = Files.createDirectories(root.resolve("allowed"));
+        Path real    = Files.createDirectories(allowed.resolve("real/sub"));
+        Files.createSymbolicLink(allowed.resolve("alias"), real);
+        Files.createSymbolicLink(allowed.resolve("link"), Paths.get("alias/../version.txt"));
+
+        StepPolicy policy = policyWithWriteRoot(allowed);
+
+        // 'alias/..' is the directory holding the real target, not the directory holding the alias.
+        Path checked = PathGuard.checkWritable(policy, "write-file", "path", allowed.resolve("link").toString());
+
+        assertEquals(allowed.resolve("real/version.txt"), checked);
+    }
+
+    @Test
     public void refusesARelativePath() {
         try {
             PathGuard.canonicalize("write-file", "path", "relative/version.txt");

@@ -137,7 +137,14 @@ public class SignalServiceStep implements IStep {
         }
     }
 
-    /** Stops the control program and anything it left running, which could otherwise hold the output open. */
+    /**
+     * Stops the control program and the children it still has.
+     *
+     * <p>A child that outlives its parent is reparented and can no longer be found from here, so a control
+     * program that leaves something running in the background escapes this. The control program is named by the
+     * policy rather than by the plan, so that is a matter of configuring a sound one, not something a plan can
+     * bring about.
+     */
     private static void stop(Process aProcess) {
         aProcess.descendants().forEach(ProcessHandle::destroyForcibly);
         if (aProcess.isAlive()) {

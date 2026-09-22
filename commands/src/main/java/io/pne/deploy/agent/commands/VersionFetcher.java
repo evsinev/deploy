@@ -29,7 +29,10 @@ public final class VersionFetcher {
     }
 
     public static String fetch(String aUrl, int aTimeoutSeconds) throws IOException {
-        int timeoutMillis = aTimeoutSeconds * 1000;
+        int  timeoutMillis = aTimeoutSeconds * 1000;
+        // One deadline for the whole request. Timing the headers and the body separately would let a slow answer
+        // take twice as long as the step asked for.
+        long deadline      = System.currentTimeMillis() + timeoutMillis;
         URL url = new URL(aUrl);
         URLConnection con = url.openConnection();
         con.setConnectTimeout(timeoutMillis);
@@ -46,7 +49,7 @@ public final class VersionFetcher {
         }
 
         try (InputStream in = con.getInputStream()) {
-            return readFirstLine(url, in, timeoutMillis);
+            return readFirstLine(url, in, deadline);
         } finally {
             if (http != null) {
                 http.disconnect();
@@ -61,9 +64,8 @@ public final class VersionFetcher {
      * way through would otherwise be reported as a perfectly good version. The failure is asked for explicitly,
      * and the amount read is capped so that an endpoint answering with something enormous cannot exhaust memory.
      */
-    private static String readFirstLine(URL aUrl, InputStream aInput, int aTimeoutMillis) throws IOException {
-        long deadline = System.currentTimeMillis() + aTimeoutMillis;
-        try (StreamDeadline ignored = StreamDeadline.closeAt(aInput, deadline)) {
+    private static String readFirstLine(URL aUrl, InputStream aInput, long aDeadline) throws IOException {
+        try (StreamDeadline ignored = StreamDeadline.closeAt(aInput, aDeadline)) {
             Scanner scanner = new Scanner(new BoundedInputStream(aInput, MAX_RESPONSE_BYTES), "UTF-8");
             String  found   = null;
             while (found == null && scanner.hasNextLine()) {

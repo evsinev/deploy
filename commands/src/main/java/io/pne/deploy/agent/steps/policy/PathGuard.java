@@ -5,17 +5,16 @@ import io.pne.deploy.agent.steps.StepValidationException;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
  * Turns a path from a plan into a real location and checks it against the policy.
  *
- * <p>Canonicalisation matters as much as the check itself: the path is made absolute, {@code ..} is collapsed, and
- * symbolic links are followed - including a link that points at something which does not exist yet, which would
- * otherwise slip through unresolved and be followed later by the write itself. A link planted inside an allowed
- * directory therefore cannot be used to reach outside it.
+ * <p>Canonicalisation matters as much as the check itself, and it has to be done the way the operating system
+ * does it: walking the path from the root and following every link on the way. A link planted inside an allowed
+ * directory therefore cannot be used to reach outside it, including a link pointing at something that does not
+ * exist yet, which would otherwise slip through unresolved and be followed later by the write itself.
  *
  * <p>What this cannot defend against is another process on the same host swapping a directory for a link between
  * the check and the write. Java offers no way to pin a directory across those two operations, so the roots must
@@ -63,8 +62,12 @@ public class PathGuard {
     }
 
     /**
-     * Absolute, {@code ..}-free, with the existing part resolved through symbolic links. The path itself does not
-     * have to exist - a step may well be creating it.
+     * The real location a path names.
+     *
+     * <p>The path is walked one name at a time from the root, following every symbolic link as it is met, and
+     * {@code ..} is applied to what has been resolved so far. Collapsing {@code ..} beforehand, as text, would
+     * give a different and wrong answer whenever a link sits earlier in the path - which is exactly the shape an
+     * attacker would choose. The path itself does not have to exist; a step may well be creating it.
      */
     public static Path canonicalize(String aStepType, String aParam, String aPath) throws StepValidationException {
         if (aPath == null || aPath.trim().isEmpty()) {
@@ -78,68 +81,49 @@ public class PathGuard {
 
         Path path;
         try {
-            path = Paths.get(text).normalize();
+            path = Paths.get(text);
         } catch (InvalidPathException e) {
             throw new StepValidationException("step '" + aStepType + "', parameter '" + aParam
                     + "' is not a valid path: " + e.getMessage());
         }
 
-        for (Path segment : path) {
-            if ("..".equals(segment.toString())) {
-                throw new StepValidationException("step '" + aStepType + "', parameter '" + aParam
-                        + "' must not contain '..', got '" + text + "'");
-            }
-        }
-
-        return resolveExistingPart(path);
+        return resolve(path, 0);
     }
 
-    private static Path resolveExistingPart(Path aPath) throws StepValidationException {
-        return resolveExistingPart(aPath, 0);
-    }
-
-    private static Path resolveExistingPart(Path aPath, int aDepth) throws StepValidationException {
+    private static Path resolve(Path aPath, int aDepth) throws StepValidationException {
         if (aDepth > MAX_LINK_DEPTH) {
             throw new StepValidationException("Too many symbolic links while resolving " + aPath);
         }
 
-        // NOFOLLOW_LINKS on purpose: a link pointing at something that does not exist yet still exists itself,
-        // and has to be resolved here rather than left for the write to follow.
-        Path existing = aPath;
-        while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
-            existing = existing.getParent();
-        }
-        if (existing == null) {
-            return aPath;
+        Path root   = aPath.getRoot();
+        Path result = root;
+
+        for (Path element : aPath) {
+            String name = element.toString();
+            if (".".equals(name)) {
+                continue;
+            }
+            if ("..".equals(name)) {
+                Path parent = result.getParent();
+                result = parent == null ? root : parent;
+                continue;
+            }
+
+            Path candidate = result.resolve(name);
+            if (Files.isSymbolicLink(candidate)) {
+                Path target = readLink(candidate);
+                result = resolve(target.isAbsolute() ? target : result.resolve(target), aDepth + 1);
+            } else {
+                result = candidate;
+            }
         }
 
-        if (Files.isSymbolicLink(existing)) {
-            Path target = readLinkTarget(existing);
-            Path merged = existing.equals(aPath) ? target : target.resolve(existing.relativize(aPath));
-            return resolveExistingPart(merged.normalize(), aDepth + 1);
-        }
-
-        try {
-            Path real = existing.toRealPath();
-            return existing.equals(aPath) ? real : real.resolve(existing.relativize(aPath));
-        } catch (IOException e) {
-            throw new StepValidationException("cannot resolve path " + aPath + ": " + e.getMessage());
-        }
+        return result;
     }
 
-    /**
-     * Where a link actually points. A relative target is resolved against the real directory holding the link,
-     * not against the path used to reach it: reaching a link through another link would otherwise resolve
-     * {@code ..} against the wrong directory and name a different file than the one the link points at.
-     */
-    private static Path readLinkTarget(Path aLink) throws StepValidationException {
+    private static Path readLink(Path aLink) throws StepValidationException {
         try {
-            Path target = Files.readSymbolicLink(aLink);
-            if (target.isAbsolute()) {
-                return target.normalize();
-            }
-            Path parent = aLink.getParent();
-            return parent.toRealPath().resolve(target).normalize();
+            return Files.readSymbolicLink(aLink);
         } catch (IOException e) {
             throw new StepValidationException("cannot read the symbolic link " + aLink + ": " + e.getMessage());
         }

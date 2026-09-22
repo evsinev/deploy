@@ -14,6 +14,9 @@ public final class VersionChecks {
 
     private static final String VERSION_DELIMITERS = ".-_;, ";
 
+    /** What this comparison can read: numbers separated by dots, dashes or underscores. */
+    public static final String COMPARABLE_VERSION = "^[0-9]+([._\\-;, ][0-9]+)*$";
+
     private VersionChecks() {
     }
 
@@ -23,8 +26,8 @@ public final class VersionChecks {
         StringTokenizer rightTokenizer = new StringTokenizer(aRightVersion, VERSION_DELIMITERS);
 
         while (leftTokenizer.hasMoreTokens() && rightTokenizer.hasMoreTokens()) {
-            int leftNumber  = Integer.parseInt(leftTokenizer.nextToken());
-            int rightNumber = Integer.parseInt(rightTokenizer.nextToken());
+            int leftNumber  = number(aLeftVersion,  leftTokenizer.nextToken());
+            int rightNumber = number(aRightVersion, rightTokenizer.nextToken());
 
             if (leftNumber != rightNumber) {
                 return leftNumber - rightNumber;
@@ -40,6 +43,15 @@ public final class VersionChecks {
         }
 
         return 0;
+    }
+
+    private static int number(String aVersion, String aToken) {
+        try {
+            return Integer.parseInt(aToken);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Version '" + aVersion + "' cannot be compared: '" + aToken
+                    + "' is not a number. Versions must look like 1.2.3 or 1.2.3-4.");
+        }
     }
 
     public static String sign(int aCompareResult) {

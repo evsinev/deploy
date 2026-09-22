@@ -8,7 +8,14 @@ import java.io.Closeable;
  * <p>A read timeout only covers the wait for the next byte, so a source that dribbles out one byte at a time, or
  * that sends headers and then stops, can hold a transfer open indefinitely without ever tripping it. Checking the
  * clock between reads does not help either: the thread is blocked inside the read. Closing the stream from another
- * thread is what actually unblocks it.
+ * thread is what unblocks it.
+ *
+ * <p>How promptly it unblocks depends on the stream. The body of a {@code java.net.http} response is released at
+ * once; a connection kept alive by the older {@code HttpURLConnection} may only be released when the blocked read
+ * itself returns, so there the read timeout and a limit on how much will be read remain the real defence.
+ *
+ * <p>Cancelling asks the watchdog to stand down. It is a courtesy, not a barrier: if the deadline has already
+ * passed the stream may still be closed, which is harmless once the caller has what it came for.
  */
 public final class StreamDeadline implements AutoCloseable {
 

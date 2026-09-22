@@ -143,6 +143,20 @@ public class VersionStepsTest {
         }
     }
 
+    @Test
+    public void aVersionThatCannotBeComparedIsRefusedBeforeThePlanRuns() throws Exception {
+        try (TestHttpServer server = new TestHttpServer()) {
+            server.respond("/version", 200, "1.2.3");
+
+            try {
+                run(step("check-version", "url", server.url("/version"), "version", "release"));
+                fail("expected the version to be refused");
+            } catch (StepValidationException e) {
+                assertTrue(e.getMessage(), e.getMessage().contains("cannot be compared"));
+            }
+        }
+    }
+
     private void run(AgentStep aStep) throws Exception {
         run(folder.getRoot().toPath().toRealPath(), Collections.singletonList(aStep));
     }

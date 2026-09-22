@@ -93,6 +93,9 @@ public class UnpackStep implements IStep {
                     break;
 
                 case MODE_REPLACE:
+                    // Check the archive first: deleting and only then discovering that the download was an error
+                    // page would leave the destination empty where a deployment used to be.
+                    requireUsableArchive(source);
                     FileOperations.deleteRecursively(target);
                     unpackInto(aContext, source, target, target);
                     break;
@@ -225,6 +228,16 @@ public class UnpackStep implements IStep {
      * gets to an atomic replacement, so there is a short moment when the destination is missing; if the second
      * rename fails, the previous contents are put back rather than left aside under another name.
      */
+    /** Fails unless the file really is a zip with something in it. */
+    private static void requireUsableArchive(Path aArchive) throws IOException, StepExecutionException {
+        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(aArchive))) {
+            if (zip.getNextEntry() == null) {
+                throw new StepExecutionException("Archive " + aArchive
+                        + " contains no entries; it is empty or not a zip");
+            }
+        }
+    }
+
     private void atomicReplace(StepContext aContext, Path aSource, Path aTarget) throws IOException, StepExecutionException {
         long stamp    = System.nanoTime();
         Path staging  = aTarget.resolveSibling(aTarget.getFileName() + ".new-" + stamp);
