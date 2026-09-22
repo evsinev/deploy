@@ -4,7 +4,7 @@ params:
 diff:
   enabled: true
   agent: agent-1
-  gitlabProjectId: 114
+  gitlabProjectId: 1
   versionUrl: http://status.example/demo/version.txt
   versionParam: version
 
