@@ -25,8 +25,12 @@ public class DeployServiceImpl implements IDeployService {
     private final ITaskExecutionListener taskExecutionListener;
 
     public DeployServiceImpl(IAgentFinderService agentFinderService, File aAliasesDir, ITaskExecutionListener aTaskListener) {
+        this(agentFinderService, aAliasesDir, new File(aAliasesDir.getParentFile(), "recipes"), aTaskListener);
+    }
+
+    public DeployServiceImpl(IAgentFinderService agentFinderService, File aAliasesDir, File aRecipesDir, ITaskExecutionListener aTaskListener) {
         this.agentFinderService = agentFinderService;
-        aliasesParser = new AliasParser(aAliasesDir);
+        aliasesParser = new AliasParser(aAliasesDir, aRecipesDir);
         taskExecutionListener = aTaskListener;
     }
 
@@ -53,7 +57,10 @@ public class DeployServiceImpl implements IDeployService {
                             taskExecutionListener.onAgentCommandSuccess(aTask, command, agentCommand);
                         } catch (Exception e) {
                             taskExecutionListener.onAgentCommandError(aTask, command, agentCommand, e);
-                            throw new TaskException("Couldn't execute command: " + command, e);
+                            // Carry the reason into the message: this is what reaches the issue and the chat,
+                            // where a stack trace alone leaves the reader guessing what to change.
+                            throw new TaskException("Agent " + agentId + " could not run the command: "
+                                    + e.getMessage(), e);
                         }
                     }
                     taskExecutionListener.onCommandSuccess(aTask, command);

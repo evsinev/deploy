@@ -4,6 +4,7 @@ import io.pne.deploy.client.redmine.remote.impl.IRedmineRemoteConfig;
 import io.pne.deploy.server.api.IDeployService;
 import io.pne.deploy.server.api.exceptions.TaskException;
 import io.pne.deploy.server.api.task.Task;
+import io.pne.deploy.server.service.impl.alias.PlanRenderer;
 import io.pne.deploy.server.vertx.AgentConnections;
 import io.pne.deploy.server.vertx.dashboard.DashboardHttpHandler;
 import io.vertx.core.Handler;
@@ -95,6 +96,10 @@ public class HttpHandler implements Handler<HttpServerRequest> {
                     result = runAlias(aRequest.getParam("alias"));
                     break;
 
+                case "plan":
+                    result = planAlias(aRequest.getParam("alias"));
+                    break;
+
                 case "issue":
                     long issue_id = Long.parseLong(aRequest.getParam("issue_id"));
                     issues.add(issue_id);
@@ -109,6 +114,21 @@ public class HttpHandler implements Handler<HttpServerRequest> {
             response.end("\n");
         });
 
+    }
+
+    /**
+     * Works out what an alias would do and writes it out, without sending anything to an agent.
+     *
+     * <p>This is how a deployment is checked after being rewritten: the plan can be read next to the script it
+     * replaces before it is ever run.
+     */
+    private String planAlias(String aAlias) {
+        try {
+            return PlanRenderer.render(deployService.parseAlias(aAlias, -2));
+        } catch (Exception e) {
+            LOG.warn("Couldn't work out a plan for alias: {}", aAlias, e);
+            return "alias: " + aAlias + "\n" + e.getMessage() + "\n";
+        }
     }
 
     private String runAlias(String aAlias) {

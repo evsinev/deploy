@@ -99,7 +99,7 @@ public class VertxServerApplication {
         this.vertx = Vertx.vertx();
 
         agentConnections    = new AgentConnections();
-        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), aConfig.getAliasesDir(), taskListener);
+        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener, agentRegistry), aConfig.getAliasesDir(), aConfig.getRecipesDir(), taskListener);
 
         ArrayBlockingQueue<Long>     pendingIssues = new ArrayBlockingQueue<>(1000);
 
@@ -159,7 +159,7 @@ public class VertxServerApplication {
         new ProcessorMetrics().bindTo(metrics);
         MetricsHttpHandler        metricsHttpHandler = new MetricsHttpHandler(metrics);
 
-        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener), config.getAliasesDir(), taskListener);
+        deployService       = new DeployServiceImpl(new VertxAgentFinderServiceImpl(agentConnections, gson, response, taskListener, agentRegistry), config.getAliasesDir(), config.getRecipesDir(), taskListener);
 
         // Ring buffer of recent agent command-output logs, written by the server listener and read by the dashboard.
         AgentLogBuffer agentLogBuffer = new AgentLogBuffer(200);

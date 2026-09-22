@@ -18,12 +18,18 @@ public class VertxAgentFinderServiceImpl implements IAgentFinderService {
     private final CommandResponses commandResponses;
     private final LocalAgentServiceImpl localAgentService = new LocalAgentServiceImpl((aCommandId, aText) -> LOG.info("{}: {}", aCommandId, aText));
     private final ITaskExecutionListener taskListener;
+    private final AgentRegistry          registry;
 
     public VertxAgentFinderServiceImpl(AgentConnections agentConnections, Gson gson, CommandResponses aResponses, ITaskExecutionListener aListener) {
+        this(agentConnections, gson, aResponses, aListener, null);
+    }
+
+    public VertxAgentFinderServiceImpl(AgentConnections agentConnections, Gson gson, CommandResponses aResponses, ITaskExecutionListener aListener, AgentRegistry aRegistry) {
         this.agentConnections = agentConnections;
         this.gson = gson;
         commandResponses = aResponses;
         taskListener = aListener;
+        registry = aRegistry;
     }
 
     @Override
@@ -32,6 +38,6 @@ public class VertxAgentFinderServiceImpl implements IAgentFinderService {
            return localAgentService;
         }
 
-        return new VertxAgentServiceImpl(agentConnections, gson, commandResponses, taskListener);
+        return new VertxAgentServiceImpl(agentConnections, gson, commandResponses, taskListener, registry);
     }
 }
