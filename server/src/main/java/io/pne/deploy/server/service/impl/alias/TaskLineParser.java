@@ -3,9 +3,7 @@ package io.pne.deploy.server.service.impl.alias;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Turns the words of a task line into the values an alias declared.
@@ -19,7 +17,12 @@ public class TaskLineParser {
     private TaskLineParser() {
     }
 
+    /** Names the server fills in; a file must not declare one of these and then be surprised by its value. */
+    public static final List<String> RESERVED_NAMES = List.of("issueId", "alias");
+
     public static Parsed parse(String aAliasName, List<String> aWords, List<AliasParam> aParams) {
+        checkDeclarations(aAliasName, aParams);
+
         List<Word>           words     = new ArrayList<>();
         for (int i = 0; i < aWords.size(); i++) {
             words.add(new Word(aWords.get(i), i + 1));
@@ -73,6 +76,25 @@ public class TaskLineParser {
             values.put(param.name, check(aAliasName, param, values.get(param.name), aParams));
         }
         return new Parsed(values, lineIndex);
+    }
+
+    private static void checkDeclarations(String aAliasName, List<AliasParam> aParams) {
+        List<String> seen = new ArrayList<>();
+        for (AliasParam param : aParams) {
+            if (param == null || param.name == null || param.name.trim().isEmpty()) {
+                throw new IllegalArgumentException("Alias " + aAliasName
+                        + ": every entry under 'params:' needs a name");
+            }
+            if (RESERVED_NAMES.contains(param.name)) {
+                throw new IllegalArgumentException("Alias " + aAliasName + ": '" + param.name
+                        + "' is filled in by the server and cannot be declared; choose another name");
+            }
+            if (seen.contains(param.name)) {
+                throw new IllegalArgumentException("Alias " + aAliasName + ": '" + param.name
+                        + "' is declared more than once");
+            }
+            seen.add(param.name);
+        }
     }
 
     private static boolean isKeyed(AliasParam aParam) {
@@ -186,30 +208,7 @@ public class TaskLineParser {
             }
             value = aParam.defaultValue;
         }
-        if (value == null) {
-            return null;
-        }
-
-        ParamType type    = ParamType.of(aParam.type);
-        String    pattern = aParam.pattern != null ? aParam.pattern : type.getPattern();
-
-        if (type == ParamType.ENUM) {
-            if (aParam.values == null || !aParam.values.contains(value)) {
-                throw new IllegalArgumentException("Alias " + aAliasName + ": '" + aParam.name + "' must be one of "
-                        + aParam.values + ", got '" + value + "'");
-            }
-            return value;
-        }
-        if (pattern == null) {
-            throw new IllegalArgumentException("Alias " + aAliasName + ": '" + aParam.name
-                    + "' is a string and needs a pattern");
-        }
-        if (!Pattern.compile(pattern).matcher(value).matches()) {
-            throw new IllegalArgumentException("Alias " + aAliasName + ": '" + aParam.name + "' is '" + value
-                    + "', which is not a valid " + type.name().toLowerCase(Locale.ROOT)
-                    + " (expected " + pattern + ")");
-        }
-        return value;
+        return ParamChecker.check("Alias " + aAliasName, aParam, value);
     }
 
     private static String describe(AliasParam aParam) {

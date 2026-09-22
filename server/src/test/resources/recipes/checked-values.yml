@@ -1,0 +1,11 @@
+description: A recipe that insists on where an artifact may come from.
+
+params:
+  source:  { type: string, pattern: '^trusted\.example$' }
+  version: { type: version }
+
+steps:
+  - type: fetch
+    params:
+      url: "http://${source}/artifacts/?version=${version}"
+      to:  "/srv/demo/staging/${version}"

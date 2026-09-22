@@ -73,7 +73,9 @@ public class StepPlanResolver {
                         + (param.description == null ? "" : " (" + param.description + ")"));
             }
             if (value != null) {
-                values.put(param.name, value);
+                // Checked here as well as where it came from: a value that reaches a recipe through another
+                // value, or through a default, would otherwise never be held to what the recipe declared.
+                values.put(param.name, checkUnlessDeferred(where, param, value, deferred));
             }
         }
 
@@ -92,6 +94,9 @@ public class StepPlanResolver {
             AliasStep step  = aSteps.get(i);
             String    where = aWhere + ", step " + (i + 1);
 
+            if (step == null) {
+                throw new IllegalArgumentException(where + " is empty");
+            }
             if (step.type == null || step.type.trim().isEmpty()) {
                 throw new IllegalArgumentException(where + " has no type; known types are " + registry.getTypes());
             }
@@ -112,12 +117,25 @@ public class StepPlanResolver {
         return plan;
     }
 
+    /**
+     * Checks a value against what the recipe declared, unless it still holds a reference the agent fills in
+     * while the plan runs - there is nothing to check yet in that case.
+     */
+    private static String checkUnlessDeferred(String aWhere, AliasParam aParam, String aValue, Set<String> aDeferred) {
+        for (String name : aDeferred) {
+            if (aValue.contains("${" + name + "}")) {
+                return aValue;
+            }
+        }
+        return ParamChecker.check(aWhere, aParam, aValue);
+    }
+
     /** Names that only exist once the plan is running, because a step works them out then. */
     private static Set<String> deferredNames(List<AliasStep> aSteps) {
         Set<String> names = new LinkedHashSet<>();
         if (aSteps != null) {
             for (AliasStep step : aSteps) {
-                if (ResolveVersionStep.TYPE.equals(step.type) && step.params != null) {
+                if (step != null && ResolveVersionStep.TYPE.equals(step.type) && step.params != null) {
                     Object name = step.params.get("var");
                     if (name != null) {
                         names.add(String.valueOf(name));

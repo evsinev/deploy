@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.LineNumberReader;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -21,9 +20,6 @@ import java.util.stream.Collectors;
  * it is parsed. The newer form is what makes a file checkable: a value can only land where a value was expected.
  */
 public class AliasDescriptionLoader {
-
-    /** A file that declares its values is read in the checked form. */
-    private static final Pattern DECLARES_PARAMS = Pattern.compile("(?m)^params\\s*:");
 
     private final File aliasDir;
     private final Yaml yaml = new Yaml();
@@ -47,17 +43,24 @@ public class AliasDescriptionLoader {
 
         String yamlText = loadYaml(file);
 
-        if (declaresParams(yamlText)) {
-            return parse(file, yamlText);
+        // Which form the file is in is decided by reading it, not by looking for a word in its text: a file that
+        // declares its values must never be put through text replacement, whichever way it happens to be written.
+        AliasDescription asWritten = tryParse(yamlText);
+        if (asWritten != null && asWritten.params != null) {
+            return asWritten;
         }
 
         String withParameters = processParameters(yamlText, aliasParameters.parameters, aIssueId);
         return parse(file, withParameters);
     }
 
-    /** True when the file declares the values it expects, and is therefore read in the checked form. */
-    public static boolean declaresParams(String aYamlText) {
-        return DECLARES_PARAMS.matcher(aYamlText).find();
+    /** Parses the file as it stands, or returns {@code null} when it only makes sense after text replacement. */
+    private AliasDescription tryParse(String aYamlText) {
+        try {
+            return yaml.loadAs(aYamlText, AliasDescription.class);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     public File aliasFile(String aName) {

@@ -74,6 +74,9 @@ public class AgentRegistry {
         m.lastSeenMs    = now;
         m.status        = Status.CONNECTED;
         // version/heap are kept from a previous connect until the fresh AgentInfo frame arrives (avoids a flicker).
+        // Capabilities are not: what the previous connection could do says nothing about this one, and acting on
+        // a stale answer would mean sending a plan to an agent that cannot run it.
+        m.capabilities  = null;
     }
 
     public synchronized void onInfo(String aAgentId, AgentInfo aInfo) {
