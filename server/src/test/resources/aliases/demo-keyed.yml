@@ -1,0 +1,11 @@
+params:
+  - { name: appVersion,   type: version, key: app }
+  - { name: assetVersion, type: version, key: assets }
+
+commands:
+  - agents: agent-1
+    steps:
+      - type: write-file
+        params: { path: /srv/demo/app-version.txt,   content: "${appVersion}",   newline: false }
+      - type: write-file
+        params: { path: /srv/demo/asset-version.txt, content: "${assetVersion}", newline: false }

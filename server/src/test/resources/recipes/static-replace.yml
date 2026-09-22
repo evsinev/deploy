@@ -1,0 +1,19 @@
+description: Download an archive of static files and replace a directory with its contents.
+
+params:
+  app:        { type: name,    required: true }
+  artifact:   { type: name,    required: true }
+  version:    { type: version, required: true }
+  target:     { type: path,    required: true }
+  source:     { type: name,    defaultValue: "${site.artifactSource}" }
+  stagingDir: { type: path,    defaultValue: "/srv/${app}/staging" }
+  mode:       { type: enum,    defaultValue: replace, values: [ replace, atomic-replace ] }
+
+steps:
+  - type: fetch
+    params:
+      url: "http://${source}/artifacts/?artifact=${artifact}&version=${version}"
+      to:  "${stagingDir}/${version}"
+
+  - type: unpack
+    params: { archive: "${stagingDir}/${version}", to: "${target}", mode: "${mode}" }

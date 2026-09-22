@@ -1,0 +1,28 @@
+params:
+  - { name: version, type: version, description: version to deploy }
+
+diff:
+  enabled: true
+  agent: agent-1
+  gitlabProjectId: 114
+  versionUrl: http://status.example/demo/version.txt
+  versionParam: version
+
+commands:
+  - agents: agent-1
+    recipe: service-redeploy
+    with:
+      app: demo
+      artifact: demo-app
+      version: "${version}"
+      versionUrl: http://status.example/demo/version.txt
+      waitSeconds: 180
+      sleepAfter: 10
+
+  - agents: agent-2
+    recipe: static-replace
+    with:
+      app: demo
+      artifact: demo-static
+      version: "${version}"
+      target: /srv/www/demo

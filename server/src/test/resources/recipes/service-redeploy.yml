@@ -1,0 +1,40 @@
+description: >
+  Download an artifact, record the version, ask the supervisor to restart the service,
+  and wait until the service reports the new version.
+
+params:
+  app:         { type: name,    required: true,  description: name of the service }
+  artifact:    { type: name,    required: true }
+  version:     { type: version, required: true }
+  versionUrl:  { type: url,     required: true }
+  waitSeconds: { type: int,     required: true }
+  source:      { type: name,    defaultValue: "${site.artifactSource}" }
+  stagingDir:  { type: path,    defaultValue: "/srv/${app}/staging" }
+  versionFile: { type: path,    defaultValue: "${stagingDir}/.VERSION" }
+  service:     { type: path,    defaultValue: "/service/${app}" }
+  sleepBefore: { type: int,     required: false, defaultValue: "0" }
+  sleepAfter:  { type: int,     required: false, defaultValue: "0" }
+
+steps:
+  - type: check-version
+    params: { url: "${versionUrl}", version: "${version}" }
+
+  - type: fetch
+    params:
+      url: "http://${source}/artifacts/?artifact=${artifact}&version=${version}"
+      to:  "${stagingDir}/${version}"
+
+  - type: write-file
+    params: { path: "${versionFile}", content: "${version}" }
+
+  - type: sleep
+    params: { seconds: "${sleepBefore}", reason: let the load balancer take the service out }
+
+  - type: signal-service
+    params: { service: "${service}" }
+
+  - type: sleep
+    params: { seconds: "${sleepAfter}", reason: give the service time to go down and come back }
+
+  - type: wait-url
+    params: { url: "${versionUrl}", version: "${version}", timeoutSeconds: "${waitSeconds}" }
