@@ -15,6 +15,12 @@ import java.util.List;
  */
 public class StepPolicy {
 
+    /** Write the command to the supervisor's control channel. Nothing is executed. */
+    public static final String SERVICE_CONTROL_SUPERVISE = "supervise";
+
+    /** Run the control program named by the policy instead. */
+    public static final String SERVICE_CONTROL_PROGRAM = "program";
+
     private final boolean       allowShell;
     private final String        shellAllowedPrefix;
     private final HostAllowList fetchHosts;
@@ -22,6 +28,7 @@ public class StepPolicy {
     private final PathRoots     writeRoots;
     private final PathRoots     readRoots;
     private final PathRoots     serviceDirs;
+    private final String        serviceControl;
     private final Path          serviceControlBinary;
     private final long          maxFetchBytes;
     private final long          maxUnpackBytes;
@@ -38,6 +45,7 @@ public class StepPolicy {
         writeRoots           = new PathRoots(aBuilder.writeRoots);
         readRoots            = new PathRoots(aBuilder.readRoots.isEmpty() ? aBuilder.writeRoots : aBuilder.readRoots);
         serviceDirs          = new PathRoots(aBuilder.serviceDirs);
+        serviceControl       = aBuilder.serviceControl;
         serviceControlBinary = aBuilder.serviceControlBinary;
         maxFetchBytes        = aBuilder.maxFetchBytes;
         maxUnpackBytes       = aBuilder.maxUnpackBytes;
@@ -93,6 +101,19 @@ public class StepPolicy {
         return serviceControlBinary;
     }
 
+    /**
+     * True when a service is controlled by running a program rather than by writing to the supervisor's control
+     * channel. Writing is the default: it starts no process, which is what a host watching for unexpected
+     * launches inside a container wants to see.
+     */
+    public boolean isServiceControlledByProgram() {
+        return SERVICE_CONTROL_PROGRAM.equals(serviceControl);
+    }
+
+    public String getServiceControl() {
+        return serviceControl;
+    }
+
     public long getMaxFetchBytes() {
         return maxFetchBytes;
     }
@@ -126,6 +147,7 @@ public class StepPolicy {
                 + ", writeRoots=" + writeRoots
                 + ", readRoots=" + readRoots
                 + ", serviceDirs=" + serviceDirs
+                + ", serviceControl=" + serviceControl
                 + ", serviceControlBinary=" + serviceControlBinary
                 + ", maxFetchBytes=" + maxFetchBytes
                 + ", maxUnpackBytes=" + maxUnpackBytes
@@ -145,6 +167,7 @@ public class StepPolicy {
         private List<String> writeRoots           = new ArrayList<>();
         private List<String> readRoots            = new ArrayList<>();
         private List<String> serviceDirs          = new ArrayList<>();
+        private String       serviceControl       = SERVICE_CONTROL_SUPERVISE;
         private Path         serviceControlBinary = Paths.get("/usr/bin/svc");
         private long         maxFetchBytes        = 1024L * 1024L * 1024L;
         private long         maxUnpackBytes       = 4L * 1024L * 1024L * 1024L;
@@ -185,6 +208,18 @@ public class StepPolicy {
 
         public Builder serviceDirs(List<String> aValue) {
             serviceDirs = new ArrayList<>(aValue);
+            return this;
+        }
+
+        public Builder serviceControl(String aValue) {
+            if (aValue != null && !aValue.trim().isEmpty()) {
+                String value = aValue.trim();
+                if (!SERVICE_CONTROL_SUPERVISE.equals(value) && !SERVICE_CONTROL_PROGRAM.equals(value)) {
+                    throw new IllegalArgumentException("serviceControl must be '" + SERVICE_CONTROL_SUPERVISE
+                            + "' or '" + SERVICE_CONTROL_PROGRAM + "', got '" + value + "'");
+                }
+                serviceControl = value;
+            }
             return this;
         }
 

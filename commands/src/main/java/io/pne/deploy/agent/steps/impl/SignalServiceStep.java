@@ -16,30 +16,24 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tells the process supervisor to signal a service, which is how a service is asked to pick up a new version.
+ * Tells the supervisor to act on a service, which is how a service is asked to pick up a new version.
  *
- * <p>This is the only step that starts a process. It runs one configured control program with a fixed argument
- * list - never a shell - and only for a directory the policy names, so a plan cannot turn it into a way of running
- * arbitrary commands.
+ * <p>By default the command is written straight to the supervisor's control channel, so nothing is executed:
+ * the agent starts no process at all, and a host watching for unexpected launches inside the container sees
+ * none. Where the supervisor does not work that way, the policy can name a control program to run instead.
  */
 public class SignalServiceStep implements IStep {
 
     public static final String TYPE = "signal-service";
 
-    private static final Map<String, String> SIGNAL_OPTIONS = Map.of(
-              "hup",  "-h"
-            , "term", "-t"
-            , "up",   "-u"
-            , "down", "-d"
-    );
-
-    /** Only a reload is in use today; the rest stay refused until something needs them. */
-    private static final List<String> ALLOWED_SIGNALS = Arrays.asList("hup");
+    /** What the supervisor understands: one letter per command, and the option of the program that sends it. */
+    private static final Map<String, Command> COMMANDS = commands();
 
     private static final int  PROCESS_TIMEOUT_SECONDS = 60;
     private static final long OUTPUT_DRAIN_MILLIS     = 2_000;
@@ -50,11 +44,8 @@ public class SignalServiceStep implements IStep {
     public SignalServiceStep(StepParams aParams) throws StepValidationException {
         service = aParams.required("service");
         signal  = aParams.optional("signal", "hup");
-        if (!SIGNAL_OPTIONS.containsKey(signal)) {
-            throw aParams.error("signal", "must be one of " + SIGNAL_OPTIONS.keySet() + ", got '" + signal + "'");
-        }
-        if (!ALLOWED_SIGNALS.contains(signal)) {
-            throw aParams.error("signal", "'" + signal + "' is not enabled; allowed signals are " + ALLOWED_SIGNALS);
+        if (!COMMANDS.containsKey(signal)) {
+            throw aParams.error("signal", "must be one of " + COMMANDS.keySet() + ", got '" + signal + "'");
         }
     }
 
@@ -66,12 +57,21 @@ public class SignalServiceStep implements IStep {
     @Override
     public void validate(StepPolicy aPolicy, StepPlanScope aScope) throws StepValidationException {
         aScope.checkReferences(TYPE, "service", service);
-        PathGuard.checkServiceDir(aPolicy, TYPE, "service", StepPlanScope.withPlaceholders(service, "0"));
+        Path directory = PathGuard.checkServiceDir(aPolicy, TYPE, "service", StepPlanScope.withPlaceholders(service, "0"));
 
-        Path binary = aPolicy.getServiceControlBinary();
-        if (binary == null || !Files.isExecutable(binary)) {
-            throw new StepValidationException("step '" + TYPE + "': the service control program " + binary
-                    + " is missing or not executable");
+        if (aPolicy.isServiceControlledByProgram()) {
+            Path binary = aPolicy.getServiceControlBinary();
+            if (binary == null || !Files.isExecutable(binary)) {
+                throw new StepValidationException("step '" + TYPE + "': the service control program " + binary
+                        + " is missing or not executable");
+            }
+            return;
+        }
+
+        // Nothing to run, so the one thing worth knowing up front is whether this really is a supervised service.
+        if (Files.isDirectory(directory) && !SuperviseControl.looksSupervised(directory)) {
+            throw new StepValidationException("step '" + TYPE + "': " + SuperviseControl.controlFile(directory)
+                    + " does not exist, so " + directory + " is not a service a supervisor is managing");
         }
     }
 
@@ -79,18 +79,23 @@ public class SignalServiceStep implements IStep {
     public void execute(StepContext aContext) throws StepExecutionException {
         StepPolicy policy = aContext.getPolicy();
         try {
-            Path directory = PathGuard.checkServiceDir(policy, TYPE, "service", aContext.expand(service));
-            Path binary    = policy.getServiceControlBinary();
+            Path    directory = PathGuard.checkServiceDir(policy, TYPE, "service", aContext.expand(service));
+            Command command   = COMMANDS.get(signal);
 
-            List<String> command = Arrays.asList(binary.toString(), SIGNAL_OPTIONS.get(signal), directory.toString());
-            aContext.log("running " + String.join(" ", command));
+            if (policy.isServiceControlledByProgram()) {
+                runControlProgram(aContext, Arrays.asList(
+                        policy.getServiceControlBinary().toString(), command.option, directory.toString()));
+                return;
+            }
 
-            runControlProgram(aContext, command);
+            Path control = SuperviseControl.controlFile(directory);
+            aContext.log("sending '" + command.letter + "' (" + signal + ") to " + control);
+            SuperviseControl.send(control, command.letter);
 
         } catch (StepValidationException e) {
             throw new StepExecutionException(e.getMessage(), e);
         } catch (IOException e) {
-            throw new StepExecutionException("Cannot signal " + service + ": " + e, e);
+            throw new StepExecutionException("Cannot signal " + service + ": " + e.getMessage(), e);
         }
     }
 
@@ -100,6 +105,7 @@ public class SignalServiceStep implements IStep {
      * The process is killed on a timeout and on an interrupt, so nothing is left running behind the step.
      */
     private void runControlProgram(StepContext aContext, List<String> aCommand) throws IOException, StepExecutionException {
+        aContext.log("running " + String.join(" ", aCommand));
         Process process = new ProcessBuilder(aCommand).redirectErrorStream(true).start();
 
         Thread reader = new Thread(() -> {
@@ -155,5 +161,24 @@ public class SignalServiceStep implements IStep {
     @Override
     public long getMaxSeconds() {
         return PROCESS_TIMEOUT_SECONDS;
+    }
+
+    private static Map<String, Command> commands() {
+        Map<String, Command> commands = new LinkedHashMap<>();
+        commands.put("hup",  new Command('h', "-h"));
+        commands.put("term", new Command('t', "-t"));
+        return commands;
+    }
+
+    /** One supervisor command: the letter written to the control channel, and the option of the control program. */
+    private static final class Command {
+
+        private final char   letter;
+        private final String option;
+
+        private Command(char aLetter, String aOption) {
+            letter = aLetter;
+            option = aOption;
+        }
     }
 }
