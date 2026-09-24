@@ -7,6 +7,22 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-27
+
+**Two fixes to the deploy plans added in 1.0-26**
+
+- A deploy started in the moments right after an agent reconnects — following a restart or a network
+  blip — could be refused with "cannot run step plans", because the agent says what it can do
+  immediately after connecting but that message still has to arrive. The server now gives a
+  freshly connected agent a few seconds to answer. An agent that has already answered is not waited
+  for, so a genuinely older agent is still refused at once.
+- A [policy root](/deploy/reference/deploy-steps/#the-agent-policy) whose parent directory is a
+  symbolic link refused everything underneath it. Paths are resolved through links before they are
+  compared with the roots, so the roots are now resolved the same way, even when the directory they
+  name does not exist yet.
+
+Neither affects an agent with no policy file, which keeps running the older commands.
+
 ## 1.0-26
 
 **Deploy without shell scripts on the agent**
