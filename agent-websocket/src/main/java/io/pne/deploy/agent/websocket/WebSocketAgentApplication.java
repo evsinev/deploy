@@ -16,11 +16,15 @@ import io.pne.deploy.agent.service.impl.AgentApplicationListenerNoOp;
 import io.pne.deploy.agent.service.impl.AgentServiceImpl;
 import io.pne.deploy.agent.service.impl.EnvAgentStartupParametersImpl;
 import io.pne.deploy.agent.service.log.IAgentLogService;
+import io.pne.deploy.agent.service.policy.PolicyLoader;
+import io.pne.deploy.agent.steps.policy.StepPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.util.Collections;
+import java.util.List;
 
 import static java.lang.Runtime.getRuntime;
 import static java.lang.Thread.currentThread;
@@ -35,6 +39,7 @@ public class WebSocketAgentApplication {
     private final    IAgentApplicationListener agentListener;
     private final    IAgentStartupParameters   parameters;
     private final    WebSocketOutputQueue      queue;
+    private final    List<String>              capabilities;
 
     public static void main(String[] args) {
         EnvAgentStartupParametersImpl startupParameters = new EnvAgentStartupParametersImpl();
@@ -49,7 +54,12 @@ public class WebSocketAgentApplication {
         queue             = new WebSocketOutputQueue(gson);
         IAgentChannelService agentChannelService = new WebSocketAgentChannelService(queue);
         IAgentLogService logService    = (aId, aText) -> agentChannelService.sendLog(new RunAgentCommandLog(aId, aText));
-        IAgentService     agentService = new AgentServiceImpl(logService);
+
+        StepPolicy       stepPolicy   = PolicyLoader.loadOrNull(aParameters.getPolicyFile());
+        AgentServiceImpl agentService = new AgentServiceImpl(logService, stepPolicy);
+        capabilities = agentService.isStepsSupported()
+                ? List.of(AgentInfo.CAPABILITY_STEPS_1)
+                : Collections.emptyList();
 
         parameters        = aParameters;
         agentListener     = aAgentListener;
@@ -104,11 +114,11 @@ public class WebSocketAgentApplication {
         }
     }
 
-    /** Snapshot pushed to the server right after connecting: baked version + current JVM heap. */
-    private static AgentInfo buildAgentInfo() {
+    /** Snapshot pushed to the server right after connecting: baked version, current JVM heap, what this agent can run. */
+    private AgentInfo buildAgentInfo() {
         Runtime runtime = getRuntime();
         long    heapUsed = runtime.totalMemory() - runtime.freeMemory();
-        return new AgentInfo(AgentVersion.get(), heapUsed, runtime.maxMemory());
+        return new AgentInfo(AgentVersion.get(), heapUsed, runtime.maxMemory(), capabilities);
     }
 
     private WebSocketSession connectToServer() throws IOException {

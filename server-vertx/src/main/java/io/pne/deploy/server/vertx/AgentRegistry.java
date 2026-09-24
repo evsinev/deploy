@@ -3,6 +3,7 @@ package io.pne.deploy.server.vertx;
 import io.pne.deploy.agent.api.messages.AgentInfo;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -27,9 +28,17 @@ public class AgentRegistry {
         public final String version;
         public final Long   heapUsed;
         public final Long   heapMax;
+        /** What the agent said it can run. Empty for an agent released before it said anything. */
+        public final List<String> capabilities;
 
         public AgentRecord(String aAgentId, String aIp, long aConnectedAtMs, long aLastSeenMs, Status aStatus,
                            String aVersion, Long aHeapUsed, Long aHeapMax) {
+            this(aAgentId, aIp, aConnectedAtMs, aLastSeenMs, aStatus, aVersion, aHeapUsed, aHeapMax,
+                    Collections.emptyList());
+        }
+
+        public AgentRecord(String aAgentId, String aIp, long aConnectedAtMs, long aLastSeenMs, Status aStatus,
+                           String aVersion, Long aHeapUsed, Long aHeapMax, List<String> aCapabilities) {
             agentId       = aAgentId;
             ip            = aIp;
             connectedAtMs = aConnectedAtMs;
@@ -38,6 +47,7 @@ public class AgentRegistry {
             version       = aVersion;
             heapUsed      = aHeapUsed;
             heapMax       = aHeapMax;
+            capabilities  = aCapabilities == null ? Collections.emptyList() : aCapabilities;
         }
     }
 
@@ -50,6 +60,7 @@ public class AgentRegistry {
         String version;
         Long   heapUsed;
         Long   heapMax;
+        List<String> capabilities;
     }
 
     private final Map<String, Mutable> map = new HashMap<>();
@@ -63,18 +74,43 @@ public class AgentRegistry {
         m.lastSeenMs    = now;
         m.status        = Status.CONNECTED;
         // version/heap are kept from a previous connect until the fresh AgentInfo frame arrives (avoids a flicker).
+        // Capabilities are not: what the previous connection could do says nothing about this one, and acting on
+        // a stale answer would mean sending a plan to an agent that cannot run it.
+        m.capabilities  = null;
     }
 
     public synchronized void onInfo(String aAgentId, AgentInfo aInfo) {
         Mutable m = map.computeIfAbsent(aAgentId, id -> new Mutable());
         m.agentId    = aAgentId;
-        m.version    = aInfo.version;
-        m.heapUsed   = aInfo.heapUsed;
-        m.heapMax    = aInfo.heapMax;
+        m.version      = aInfo.version;
+        m.heapUsed     = aInfo.heapUsed;
+        m.heapMax      = aInfo.heapMax;
+        m.capabilities = aInfo.getCapabilities();
         m.lastSeenMs = System.currentTimeMillis();
         if (m.status == null) {
             m.status = Status.CONNECTED;
         }
+    }
+
+    /**
+     * Whether an agent said it can do something.
+     *
+     * <p>An agent that has not said so is treated as unable, so a server that has moved on does not send a
+     * connected but older agent something it would not understand.
+     */
+    public synchronized boolean hasCapability(String aAgentId, String aCapability) {
+        Mutable m = map.get(aAgentId);
+        return m != null && m.capabilities != null && m.capabilities.contains(aCapability);
+    }
+
+    /** What an agent said it can do, for a message that has to explain why something was not sent. */
+    public synchronized String describe(String aAgentId) {
+        Mutable m = map.get(aAgentId);
+        if (m == null) {
+            return "agent " + aAgentId + " has never connected";
+        }
+        return "agent " + aAgentId + " (version " + m.version + ", " + m.status + ") reports "
+                + (m.capabilities == null || m.capabilities.isEmpty() ? "no capabilities" : m.capabilities);
     }
 
     public synchronized void onDisconnect(String aAgentId) {
@@ -90,7 +126,7 @@ public class AgentRegistry {
         List<AgentRecord> list = new ArrayList<>(map.size());
         for (Mutable m : map.values()) {
             list.add(new AgentRecord(m.agentId, m.ip, m.connectedAtMs, m.lastSeenMs, m.status,
-                    m.version, m.heapUsed, m.heapMax));
+                    m.version, m.heapUsed, m.heapMax, m.capabilities));
         }
         list.sort(Comparator
                 .comparingInt((AgentRecord r) -> r.status == Status.CONNECTED ? 0 : 1)

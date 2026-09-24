@@ -1,0 +1,10 @@
+params:
+  - { name: host,    type: name }
+  - { name: version, type: version }
+
+commands:
+  - agents: agent-1
+    recipe: checked-values
+    with:
+      source:  "${host}"
+      version: "${version}"

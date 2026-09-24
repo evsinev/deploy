@@ -26,6 +26,11 @@ public class VertxServerApplicationTest {
             public File getAliasesDir() {
                 return new File("../server/src/test/resources/aliases");
             }
+
+            @Override
+            public File getRecipesDir() {
+                return new File("../server/src/test/resources/recipes");
+            }
         }, StartupParametersFactory.getStartupParameters(IRedmineRemoteConfig.class));
         application.start();
         try {

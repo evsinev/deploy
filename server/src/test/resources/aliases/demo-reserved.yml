@@ -1,0 +1,8 @@
+params:
+  - { name: issueId, type: version }
+
+commands:
+  - agents: agent-1
+    steps:
+      - type: write-file
+        params: { path: /srv/demo/version.txt, content: "${issueId}" }

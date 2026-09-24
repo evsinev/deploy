@@ -13,4 +13,7 @@ public interface IVertxServerConfiguration extends IStartupConfig {
 
     @AStartupParameter(name = "VERTX_ALIASES_DIR", value = "./aliases")
     File getAliasesDir();
+
+    @AStartupParameter(name = "VERTX_RECIPES_DIR", value = "./recipes")
+    File getRecipesDir();
 }

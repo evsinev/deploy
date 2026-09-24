@@ -27,8 +27,9 @@ all pull requests. Always get this green before pushing. There is no Travis or o
 
 ## Modules (reactor order)
 
-`util` (config marker) · `commands` (agent CLI helpers) · `agent-api` (wire contract) ·
-`server-api` (deploy domain) · `agent` (shell executor) · `server` (deploy core + alias parsing) ·
+`util` (config marker) · `commands` (step library + agent CLI helpers) · `agent-api` (wire contract) ·
+`server-api` (deploy domain) · `agent` (step executor + policy + legacy shell executor) ·
+`server` (deploy core + alias/recipe parsing) ·
 `client-redmine` (Redmine/GitLab/Telegram + durable queues) · `server-vertx` (Vert.x runtime +
 entry point) · `agent-websocket` (agent entry point) · `integration-test` (end-to-end).
 
@@ -42,6 +43,14 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
   overrides it to `compile`).
 - **Immutables**: `@Value.Immutable` interfaces generate `Immutable*` builders
   (`ImmutableRedmineIssue.builder()…`). Only `client-redmine` declares the dependency.
+- **Deploy plans**: an alias that declares `params:` is turned into a list of typed steps (`recipe:` + `with:`,
+  or inline `steps:`) and sent as `AgentCommandType.STEPS`; the agent runs those steps in process after checking
+  the whole plan against `etc/policy.yml` on its host. An alias without `params:` keeps the older behaviour
+  (numbered placeholders replaced in the file text, `AgentCommandType.SHELL`, a program started on the agent).
+  Both forms may appear in one alias while files are being moved over. Step types live in
+  `commands/.../steps/impl/` and are registered in `StepRegistry.defaults()`; adding one means adding it there
+  and nowhere else. Agent-side settings are read from `AGENT_POLICY_FILE` (default `./etc/policy.yml`); with no
+  policy file the agent refuses step plans and runs only the older commands.
 - **Env config**: config interfaces `extends io.pne.deploy.util.env.IStartupConfig` with methods
   annotated `@AStartupParameter(name = "ENV_VAR", value = "default"[, maskVariable = true])`
   (`value` is always a String literal, even for `int`/`long`/`boolean`). Resolve at runtime with
@@ -69,6 +78,12 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
   (`PrometheusConfig`, `PrometheusMeterRegistry`). Micrometer 1.13+ moved these to
   `io.micrometer.prometheusmetrics`; do not bump without updating the imports.
 - **The server binds `127.0.0.1` only** (`WebSocketVerticle.start`). Tests hit `http://127.0.0.1:<port>`.
+- **Paths and hosts in a step plan are checked twice**: once when the plan is built, once again as each step
+  runs, because a value a step works out at run time cannot be checked earlier. `PathGuard` walks a path from
+  the root following every symlink, the way the operating system does - do not replace it with `normalize()`
+  plus a prefix test, which a link inside an allowed directory defeats.
+- **The server waits for an agent as long as the agent keeps reporting** (`CommandResponses`), with an overall
+  cap. A fixed wait would report a slow deployment as failed while it was still running.
 
 ## Runnable artifacts
 
@@ -83,7 +98,12 @@ internal endpoint. It contains a hardcoded api-key — treat it as sensitive.
 ## Where things live
 
 - HTTP routing: `server-vertx/src/main/java/io/pne/deploy/server/vertx/http/HttpHandler.java`
-  (order: Redmine callback → dashboard → status → `/metrics` → `?command=`).
+  (order: Redmine callback → dashboard → status → `/metrics` → `?command=`). `?command=plan&alias=<line>`
+  prints what an alias would do without running it.
+- Steps: `commands/src/main/java/io/pne/deploy/agent/steps/` (`StepPlanExecutor`, `StepRegistry`, `policy/`,
+  `impl/`). Agent policy loading: `agent/.../service/policy/PolicyLoader.java`.
+- Aliases and recipes: `server/src/main/java/io/pne/deploy/server/service/impl/alias/` (`AliasParser`,
+  `AliasDescriptionLoader`, `TaskLineParser`, `StepPlanResolver`, `PlanRenderer`, `recipe/RecipeLoader`).
 - Server wiring / `main`: `server-vertx/.../VertxServerApplication.java`,
   `server-vertx/.../WebSocketVerticle.java`.
 - Dashboard (htmx + SSE): `server-vertx/.../dashboard/` (`DashboardHttpHandler`, `DashboardView`,

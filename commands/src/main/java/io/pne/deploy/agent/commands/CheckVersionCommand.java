@@ -3,65 +3,24 @@ package io.pne.deploy.agent.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.StringTokenizer;
-
+/**
+ * Command line wrapper around {@link VersionChecks#checkNotOlder}, kept for plans that still run this as a process.
+ */
 public class CheckVersionCommand {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckVersionCommand.class);
 
-    public static void main(String[] args) throws IOException {
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+
+    public static void main(String[] args) {
         String versionUrl = args[0];
         String newVersion = args[1];
 
-        String currentVersion = getUrlContent(versionUrl);
-        LOG.info("Current version = {}", currentVersion);
-
-        int compareResult = compareVersions(newVersion, currentVersion);
-        String sign = getSign(compareResult);
-        LOG.info("{} {} {}", newVersion, sign, currentVersion);
-
-        if(compareResult < 0) {
-            LOG.error("FAILED: New version must be greater or equals");
+        try {
+            VersionChecks.checkNotOlder(versionUrl, newVersion, DEFAULT_TIMEOUT_SECONDS, LOG::info);
+        } catch (Exception e) {
+            LOG.error("FAILED: {}", e.getMessage());
             System.exit(1);
         }
-    }
-
-    private static String getSign(int aCompare) {
-        if(aCompare == 0) {
-            return "=";
-        }
-
-        return aCompare > 0 ? ">" : "<";
-    }
-
-    private static int compareVersions(String aLeftVersion, String aRightVersion) {
-        String versionDelimiters = ".-_;, ";
-        StringTokenizer leftTokenizer = new StringTokenizer(aLeftVersion, versionDelimiters);
-        StringTokenizer rightTokenizer = new StringTokenizer(aRightVersion, versionDelimiters);
-
-        while(leftTokenizer.hasMoreTokens() && rightTokenizer.hasMoreTokens()) {
-            int leftNumber = Integer.parseInt(leftTokenizer.nextToken());
-            int rightNumber = Integer.parseInt(rightTokenizer.nextToken());
-
-            if(leftNumber != rightNumber) {
-                return leftNumber - rightNumber;
-            }
-        }
-
-        if(leftTokenizer.hasMoreTokens()) {
-            throw new IllegalStateException(aLeftVersion + " has more tokens than " + aRightVersion);
-        }
-
-        if(rightTokenizer.hasMoreTokens()) {
-            throw new IllegalStateException(aRightVersion + " has more tokens than " + aLeftVersion);
-        }
-
-        return 0;
-    }
-
-    private static String getUrlContent(String aUrl) throws IOException {
-        LOG.info("Loading {}", aUrl);
-        return VersionFetcher.fetch(aUrl);
     }
 }

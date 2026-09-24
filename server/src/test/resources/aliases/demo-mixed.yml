@@ -1,0 +1,12 @@
+params:
+  - { name: version, type: version }
+
+commands:
+  - agents: agent-1
+    name: ./bin/legacy-deploy.sh
+    arguments: [ "${version}" ]
+
+  - agents: agent-2
+    steps:
+      - type: write-file
+        params: { path: /srv/demo/version.txt, content: "${version}" }
