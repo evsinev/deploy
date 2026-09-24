@@ -108,13 +108,25 @@ public class PathRoots {
         return aPattern.indexOf('*') >= 0 || aPattern.indexOf('?') >= 0 || aPattern.indexOf('[') >= 0;
     }
 
-    /** Where the fixed leading part of a root really is, or the part itself when it does not exist yet. */
+    /**
+     * Where the fixed leading part of a root really is.
+     *
+     * <p>The part itself often does not exist yet, so what gets resolved is the deepest part of it that does,
+     * with the rest appended. Resolving only the whole thing would leave a root untouched whenever one of its
+     * parent directories is a link - and then every path under it, which is resolved in full, would look like
+     * it lay somewhere else and be refused.
+     */
     private static Path resolve(Path aPrefix) {
-        if (!Files.exists(aPrefix)) {
+        Path existing = aPrefix;
+        while (existing != null && !Files.exists(existing)) {
+            existing = existing.getParent();
+        }
+        if (existing == null) {
             return aPrefix;
         }
         try {
-            return aPrefix.toRealPath();
+            Path real = existing.toRealPath();
+            return existing.equals(aPrefix) ? real : real.resolve(existing.relativize(aPrefix));
         } catch (IOException e) {
             return aPrefix;
         }

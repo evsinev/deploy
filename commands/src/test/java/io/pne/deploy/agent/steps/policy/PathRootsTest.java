@@ -32,6 +32,19 @@ public class PathRootsTest {
     }
 
     @Test
+    public void aRootIsResolvedEvenWhenOnlyItsParentExists() throws Exception {
+        // The directory named by the root is created later, but its parent is already a link. A path under it
+        // resolves through that link, so the root has to as well.
+        Path base = folder.getRoot().toPath().toRealPath();
+        Path real = Files.createDirectories(base.resolve("real"));
+        Files.createSymbolicLink(base.resolve("link"), real);
+
+        PathRoots roots = new PathRoots(Collections.singletonList(base.resolve("link/apps") + "/*/env/**"));
+
+        assertTrue(roots.allows(real.resolve("apps/one/env/VERSION")));
+    }
+
+    @Test
     public void aGlobRootReachedThroughALinkStillMatches() throws Exception {
         Path base = folder.getRoot().toPath().toRealPath();
         Path real = Files.createDirectories(base.resolve("real/apps"));
