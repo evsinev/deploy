@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -99,5 +100,53 @@ public class AgentRegistryTest {
         AgentRecord record = registry.snapshot().get(0);
         assertEquals(Status.CONNECTED, record.status);
         assertEquals("1.0-15", record.version);
+    }
+
+    @Test
+    public void waitsForAFreshlyConnectedAgentToSayWhatItCanDo() throws Exception {
+        AgentRegistry registry = new AgentRegistry();
+        registry.onConnect("agent-1", "127.0.0.1");
+
+        // The agent has connected but its answer is still in flight.
+        assertFalse(registry.hasCapability("agent-1", AgentInfo.CAPABILITY_STEPS_1));
+
+        Thread answering = new Thread(() -> {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            registry.onInfo("agent-1", new AgentInfo("1.0-26", 1L, 2L, List.of(AgentInfo.CAPABILITY_STEPS_1)));
+        });
+        answering.start();
+        try {
+            assertTrue(registry.awaitCapability("agent-1", AgentInfo.CAPABILITY_STEPS_1, 5_000));
+        } finally {
+            answering.join();
+        }
+    }
+
+    @Test
+    public void doesNotWaitOnceTheAgentHasAnswered() {
+        AgentRegistry registry = new AgentRegistry();
+        registry.onConnect("agent-1", "127.0.0.1");
+        registry.onInfo("agent-1", new AgentInfo("1.0-25", 1L, 2L, List.of()));
+
+        long started = System.currentTimeMillis();
+        assertFalse(registry.awaitCapability("agent-1", AgentInfo.CAPABILITY_STEPS_1, 5_000));
+        assertTrue("an agent that has answered is not waited for", System.currentTimeMillis() - started < 1_000);
+    }
+
+    @Test
+    public void reconnectingClearsWhatThePreviousConnectionCouldDo() {
+        AgentRegistry registry = new AgentRegistry();
+        registry.onConnect("agent-1", "127.0.0.1");
+        registry.onInfo("agent-1", new AgentInfo("1.0-26", 1L, 2L, List.of(AgentInfo.CAPABILITY_STEPS_1)));
+        assertTrue(registry.hasCapability("agent-1", AgentInfo.CAPABILITY_STEPS_1));
+
+        registry.onConnect("agent-1", "127.0.0.1");
+
+        assertFalse("a new connection has to say for itself", registry.hasCapability("agent-1", AgentInfo.CAPABILITY_STEPS_1));
     }
 }

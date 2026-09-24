@@ -69,12 +69,15 @@ public class VertxAgentServiceImpl implements IAgentService {
      * <p>Without this the plan would be sent, the agent would try to start it as a program, and the deployment
      * would fail with a message about a missing file. Saying plainly that the agent is too old is what an
      * operator can act on.
+     *
+     * <p>An agent that has only just connected is given a moment to answer first: it says what it can do
+     * immediately after connecting, but that message still has to arrive.
      */
     private void checkAgentUnderstands(RunAgentCommandRequest aCommand) throws AgentCommandException {
         if (aCommand.command.type != AgentCommandType.STEPS || registry == null) {
             return;
         }
-        if (!registry.hasCapability(aCommand.agentId, AgentInfo.CAPABILITY_STEPS_1)) {
+        if (!registry.awaitCapability(aCommand.agentId, AgentInfo.CAPABILITY_STEPS_1, AgentRegistry.CAPABILITY_WAIT_MS)) {
             throw new AgentCommandException("Agent " + aCommand.agentId + " cannot run step plans: "
                     + registry.describe(aCommand.agentId)
                     + ". Update the agent, or install its policy file, before using an alias with steps.");

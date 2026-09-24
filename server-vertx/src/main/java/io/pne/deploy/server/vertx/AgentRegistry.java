@@ -79,6 +79,9 @@ public class AgentRegistry {
         m.capabilities  = null;
     }
 
+    /** How long to give a freshly connected agent to say what it can do before concluding that it cannot. */
+    public static final long CAPABILITY_WAIT_MS = 5_000;
+
     public synchronized void onInfo(String aAgentId, AgentInfo aInfo) {
         Mutable m = map.computeIfAbsent(aAgentId, id -> new Mutable());
         m.agentId    = aAgentId;
@@ -90,6 +93,7 @@ public class AgentRegistry {
         if (m.status == null) {
             m.status = Status.CONNECTED;
         }
+        notifyAll();
     }
 
     /**
@@ -101,6 +105,34 @@ public class AgentRegistry {
     public synchronized boolean hasCapability(String aAgentId, String aCapability) {
         Mutable m = map.get(aAgentId);
         return m != null && m.capabilities != null && m.capabilities.contains(aCapability);
+    }
+
+    /**
+     * The same, but gives an agent that has only just connected a moment to answer.
+     *
+     * <p>An agent says what it can do immediately after connecting, but that message still has to arrive. A
+     * deploy started in that moment - after a restart or a network blip - would otherwise be told the agent
+     * cannot run plans when in fact nobody had asked it yet.
+     */
+    public synchronized boolean awaitCapability(String aAgentId, String aCapability, long aTimeoutMs) {
+        long deadline = System.currentTimeMillis() + aTimeoutMs;
+        while (!hasCapability(aAgentId, aCapability)) {
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0) {
+                return false;
+            }
+            Mutable m = map.get(aAgentId);
+            if (m != null && m.capabilities != null) {
+                return false;       // it has answered, and this is not among the things it can do
+            }
+            try {
+                wait(remaining);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return true;
     }
 
     /** What an agent said it can do, for a message that has to explain why something was not sent. */
