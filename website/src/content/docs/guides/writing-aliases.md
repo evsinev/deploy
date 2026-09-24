@@ -33,17 +33,38 @@ options inside the alias file, not in the invocation.
 
 ### Parameter substitution
 
-Before the YAML is parsed, tokens are substituted textually:
+There are two forms, and a file is read in whichever one it is written in.
 
-- `$1`, `$2`, … — the positional parameters after the alias name (`$1` = `3.33-40` above).
-- `$ISSUE_ID` — the Redmine issue id that triggered the deploy (`0` when there is none).
+An alias that **declares the values it expects** under `params:` is parsed first, and the values are then put
+into the parsed result. A value can only ever become a value: it cannot add a step, change which agents run, or
+alter the shape of the file, whatever it contains. This is the form to write new aliases in.
+
+An alias **without** `params:` keeps the older behaviour: `$1`, `$2`, … and `$ISSUE_ID` are replaced in the text
+of the file before it is parsed. Nothing about these files changes, and both forms may appear in the same alias
+while it is being moved over.
 
 ## Schema
 
 ```yaml
+params:                   # optional — declaring these turns on the checked form
+  - name: <name>          #   referred to as ${name} below
+    type: <type>          #   version | int | name | url | path | enum | string (default: version)
+    required: <bool>      #   default true
+    defaultValue: <text>  #   used when the value is not given
+    position: <int>       #   which word of the invocation holds it (default: in order of declaration)
+    key: <word>           #   or: the word after this keyword holds it
+    description: <text>   #   shown when the value is missing
 commands:                 # required — a list, executed in order
   - agents: <ids>         #   comma-separated agent ids (e.g. web-01,web-02 or localhost)
-    name: <executable>    #   the program/script to run on each agent
+    recipe: <name>        #   a shared list of steps, from VERTX_RECIPES_DIR
+    with:                 #   the values that recipe expects
+      <name>: <value>
+  - agents: <ids>
+    steps:                #   or: steps written out here, for a one-off
+      - type: <type>      #   see Deploy steps
+        params: { … }
+  - agents: <ids>
+    name: <executable>    #   or: the older form — a program to run on each agent
     arguments:            #   optional list of arguments
       - <arg>
 diff:                     # optional — post a GitLab diff to Redmine/Telegram before deploying
@@ -57,9 +78,101 @@ diff:                     # optional — post a GitLab diff to Redmine/Telegram 
   instance: <name>       #   optional — target instance name
 ```
 
-Each entry under `commands` becomes a shell command run on every listed agent (see
-[Writing commands](/deploy/guides/writing-commands/)). The special agent id `localhost` runs in-process on the
-server.
+Each command says exactly one of `recipe`, `steps` or `name`. The first two build a plan of
+[typed steps](/deploy/reference/deploy-steps/) that the agent carries out itself; `name` is the older form and
+runs a program on the agent (see [Writing commands](/deploy/guides/writing-commands/)). The special agent id
+`localhost` runs in-process on the server.
+
+## Recipes
+
+A recipe is a shared list of steps with the values it expects, kept in `VERTX_RECIPES_DIR` (default
+`./recipes`). It holds what every deployment of a kind does; the alias holds which application, which host and
+which version. That separation is what stops the same sequence from being copied once per application and
+drifting apart afterwards.
+
+```yaml
+# recipes/service-redeploy.yml
+description: Download an artifact, record the version, restart the service, wait for it to come back.
+
+params:
+  app:         { type: name,    required: true }
+  artifact:    { type: name,    required: true }
+  version:     { type: version, required: true }
+  versionUrl:  { type: url,     required: true }
+  waitSeconds: { type: int,     required: true }
+  source:      { type: name,    defaultValue: "${site.artifactSource}" }
+  stagingDir:  { type: path,    defaultValue: "/srv/${app}/staging" }
+  service:     { type: path,    defaultValue: "/service/${app}" }
+
+steps:
+  - type: check-version
+    params: { url: "${versionUrl}", version: "${version}" }
+  - type: fetch
+    params:
+      url: "http://${source}/artifacts/?artifact=${artifact}&version=${version}"
+      to:  "${stagingDir}/${version}"
+  - type: write-file
+    params: { path: "${stagingDir}/.VERSION", content: "${version}" }
+  - type: signal-service
+    params: { service: "${service}" }
+  - type: wait-url
+    params: { url: "${versionUrl}", version: "${version}", timeoutSeconds: "${waitSeconds}" }
+```
+
+A default may use the values declared above it. Every value handed to a recipe is held to the type the recipe
+declared, whether it came from the invocation, from another value, or from a default.
+
+An alias then names the recipe and fills it in:
+
+```yaml
+params:
+  - { name: version, type: version, description: version to deploy }
+
+commands:
+  - agents: web-01
+    recipe: service-redeploy
+    with:
+      app: myapp
+      artifact: myapp-dist
+      version: "${version}"
+      versionUrl: http://web-01:8080/version
+      waitSeconds: 180
+```
+
+### Values that differ between sites
+
+`aliases/_site.yml` holds the values that describe where the aliases are deployed rather than what they do, and
+they are referred to as `${site.<name>}`. Files whose name starts with `_` are settings, not aliases.
+
+```yaml
+# aliases/_site.yml
+vars:
+  artifactSource: artifacts.internal
+```
+
+### Naming values on the invocation
+
+By default the declared values are taken from the words after the alias name, in the order they are declared.
+`position` claims a particular word, and `key` takes the word after a keyword — which is what keeps an
+invocation carrying several versions readable:
+
+```yaml
+params:
+  - { name: appVersion,   type: version, key: app }
+  - { name: assetVersion, type: version, key: assets }
+```
+
+```
+release app 3.33-40 assets 1.4-7
+```
+
+A missing value is reported with a usage line built from the declaration, a value of the wrong shape is
+refused, and a word nothing claims is reported rather than ignored.
+
+### Seeing the plan before running it
+
+`GET /?command=plan&alias=<alias …>` prints what an alias would do, with every value filled in, without sending
+anything to an agent. Read it next to the script it replaces while moving a deployment over.
 
 ## Example
 

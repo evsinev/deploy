@@ -22,6 +22,7 @@ trigger deploys. Keep the server on loopback or behind an authenticating reverse
 | GET | `/metrics` (exact) | Prometheus exposition. See [Metrics](/deploy/reference/metrics/). |
 | GET | `/?command=listAgents` | List connected agents. |
 | GET | `/?command=run&alias=<alias …>` | Parse and run an [alias](/deploy/guides/writing-aliases/) asynchronously. |
+| GET | `/?command=plan&alias=<alias …>` | Print what that alias would do, with every value filled in, without running it. |
 | GET | `/?command=issue&issue_id=<long>` | Enqueue an issue. |
 
 The dashboard also exposes a few htmx fragment endpoints under `DASHBOARD_PATH`

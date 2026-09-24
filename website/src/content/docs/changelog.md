@@ -7,6 +7,41 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-26
+
+**Deploy without shell scripts on the agent**
+
+A deploy can now be described as a list of typed steps instead of a script to run on the agent. The
+server builds the plan from the alias; the agent checks the whole plan against a policy file on its
+own host and then carries it out inside its own process. The only program it still starts is the
+configured service-control binary.
+
+- Nine [step types](/deploy/reference/deploy-steps/) cover what the scripts did: `fetch`, `unpack`,
+  `write-file`, `copy-file`, `signal-service`, `sleep`, `check-version`, `wait-url` and
+  `resolve-version`.
+- Each agent host says what a plan may do there in
+  [`AGENT_POLICY_FILE`](/deploy/reference/deploy-steps/#the-agent-policy) — the sources it may
+  download from, the directories it may write to, the services it may signal, and how long it may
+  take. **An agent with no policy file refuses plans** and runs only the older commands, so nothing
+  changes until you install one.
+- An alias may [declare the values it expects](/deploy/guides/writing-aliases/#parameter-substitution)
+  under `params:`. Those values are put into the parsed file rather than into its text, so a value
+  can only ever become a value; a missing one is reported with a usage line, and one of the wrong
+  shape is refused before anything runs.
+- Shared [recipes](/deploy/guides/writing-aliases/#recipes) in `VERTX_RECIPES_DIR` hold what every
+  deployment of a kind does, so the same sequence is no longer copied once per application.
+- [`?command=plan`](/deploy/reference/http-api/) prints what an alias would do without running it,
+  and the dashboard **Aliases** screen shows the recipe and steps of an alias.
+- A download now has to answer with the status it was asked for. A plain `curl` without `-f` stores
+  an error page under the name of the artifact and lets the next step install it; that cannot happen
+  any more.
+- The server keeps waiting for an agent as long as the agent reports progress, with an overall cap.
+  A deploy that waits for a slow service used to be reported as failed while it was still running.
+
+Nothing has to be converted at once: an alias without `params:` behaves exactly as before, both forms
+may appear in the same alias, and the server refuses to send a plan to an agent that has not reported
+it can run one. Update the agents before the aliases that use steps.
+
 ## 1.0-25
 
 **Dashboard SSE streams survive a reverse proxy**

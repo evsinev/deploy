@@ -92,8 +92,9 @@ Both entry points are packaged as `jar-with-dependencies` by `maven-assembly-plu
   `server-vertx/target/server-vertx-1.0-SNAPSHOT-jar-with-dependencies.jar`.
 - Agent: main `io.pne.deploy.agent.websocket.WebSocketAgentApplication`.
 
-Release: `release-deploy-server.sh` runs `./mvnw clean package` and uploads the server jar to an
-internal endpoint. It contains a hardcoded api-key — treat it as sensitive.
+Release: pushing any tag runs `.github/workflows/release.yml`, which builds both fat jars with
+`-Ddeploy.agent.version=<tag>` and publishes a GitHub release with them attached. Tags are `1.0-N`.
+Add the entry to `website/src/content/docs/changelog.md` in the same commit that precedes the tag.
 
 ## Where things live
 
