@@ -7,6 +7,23 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-28
+
+**A service is restarted without starting a process**
+
+Asking a supervisor to reload a service used to run the `svc` program. A host watching for unexpected launches
+inside a container reported every deploy — both the program and the helper the JVM starts to launch it.
+
+The command is now written straight to the supervisor's control channel, the named pipe at
+`<service>/supervise/control`, which is exactly what that program does; the supervisor still does the
+signalling. Nothing is executed, so those reports stop. A supervisor that is not running is noticed and
+reported rather than waited for, and the command is not delivered later when it comes back.
+
+- `signal` now takes `term` as well as `hup`.
+- A supervisor without a control channel is still supported: set
+  [`serviceControl: program`](/deploy/reference/deploy-steps/#the-agent-policy) in the policy.
+- The agent no longer needs `/usr/bin/svc` mounted into its container.
+
 ## 1.0-27
 
 **Two fixes to the deploy plans added in 1.0-26**

@@ -25,6 +25,7 @@ public class PolicyLoaderTest {
                 + "writeRoots:  [ /srv/apps ]\n"
                 + "readRoots:   [ /srv/apps, /srv/shared ]\n"
                 + "serviceDirs: [ /service ]\n"
+                + "serviceControl: program\n"
                 + "serviceControlBinary: /usr/local/bin/control\n"
                 + "limits:\n"
                 + "  maxFetchBytes: 1024\n"
@@ -37,9 +38,27 @@ public class PolicyLoaderTest {
         assertTrue(policy.getWriteRoots().allows(Paths.get("/srv/apps/one")));
         assertTrue(policy.getReadRoots().allows(Paths.get("/srv/shared/one")));
         assertTrue(policy.getServiceDirs().allows(Paths.get("/service/demo")));
+        assertTrue(policy.isServiceControlledByProgram());
         assertEquals(Paths.get("/usr/local/bin/control"), policy.getServiceControlBinary());
         assertEquals(1024, policy.getMaxFetchBytes());
         assertEquals(120, policy.getMaxPlanSeconds());
+    }
+
+    @Test
+    public void aServiceIsControlledThroughTheSupervisorUnlessAskedOtherwise() {
+        StepPolicy policy = PolicyLoader.parse(new StringReader("serviceDirs: [ /service ]\n"));
+
+        assertFalse("nothing is executed by default", policy.isServiceControlledByProgram());
+    }
+
+    @Test
+    public void refusesAServiceControlItDoesNotKnow() {
+        try {
+            PolicyLoader.parse(new StringReader("serviceControl: magic\n"));
+            fail("expected the setting to be refused");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            assertTrue(e.getMessage(), e.getMessage().contains("serviceControl"));
+        }
     }
 
     @Test

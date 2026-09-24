@@ -38,7 +38,7 @@ public class PolicyLoader {
 
     private static final Set<String> KNOWN_KEYS = new LinkedHashSet<>(Arrays.asList(
               "allowShell", "shellAllowedPrefix", "fetchHosts", "statusHosts"
-            , "writeRoots", "readRoots", "serviceDirs", "serviceControlBinary", "limits"
+            , "writeRoots", "readRoots", "serviceDirs", "serviceControl", "serviceControlBinary", "limits"
     ));
 
     private static final Set<String> KNOWN_LIMITS = new LinkedHashSet<>(Arrays.asList(
@@ -86,7 +86,8 @@ public class PolicyLoader {
                 .statusHosts(stringList(map, "statusHosts"))
                 .writeRoots(stringList(map, "writeRoots"))
                 .readRoots(stringList(map, "readRoots"))
-                .serviceDirs(stringList(map, "serviceDirs"));
+                .serviceDirs(stringList(map, "serviceDirs"))
+                .serviceControl(stringValue(map, "serviceControl", null));
 
         String controlBinary = stringValue(map, "serviceControlBinary", "");
         if (!controlBinary.isEmpty()) {

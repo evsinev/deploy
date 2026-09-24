@@ -71,15 +71,24 @@ never widens who can read a file.
 
 ### `signal-service`
 
-Asks the process supervisor to signal a service, which is how a service is told to pick up a new version.
+Asks the process supervisor to act on a service, which is how a service is told to pick up a new version.
 
 | Parameter | Default | Meaning |
 |---|---|---|
 | `service` | required | Service directory; must be one the policy names. |
-| `signal` | `hup` | Only `hup` is enabled. |
+| `signal` | `hup` | `hup` or `term`. |
 
-This is the only step that starts a process. It runs the one control program named by the policy with a fixed
-argument list — never a shell.
+The command is written straight to the supervisor's control channel — the named pipe at
+`<service>/supervise/control`, one letter per command — which is exactly what the `svc` program does, and it is
+the supervisor that then signals the service. **Nothing is executed**, so a host watching for unexpected
+launches inside the container sees none.
+
+A running supervisor holds the reading end of that pipe open, so the write happens at once. If nothing is
+reading it the supervisor is not running, and the step says so instead of waiting; the command is not delivered
+later, when the supervisor happens to come back.
+
+Where the supervisor does not work this way, set `serviceControl: program` in the policy and the step runs the
+program named by `serviceControlBinary` with a fixed argument list instead — never a shell.
 
 ### `sleep`
 
@@ -163,7 +172,9 @@ readRoots: []                      # defaults to writeRoots
 
 serviceDirs:                       # which services may be signalled
   - /service/*
-serviceControlBinary: /usr/bin/svc
+serviceControl: supervise          # write to the supervisor's control channel; nothing is executed (default)
+# serviceControl: program          # or run a program instead, for a supervisor that has no control channel
+# serviceControlBinary: /usr/bin/svc
 
 limits:
   maxFetchBytes:    1073741824
