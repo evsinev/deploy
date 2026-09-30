@@ -12,20 +12,37 @@ import io.pne.deploy.agent.steps.policy.StepPolicy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
-/** Copies the contents of one file over another, leaving the permissions of an existing destination untouched. */
+/**
+ * Copies the contents of one file over another, leaving the permissions of an existing destination untouched.
+ *
+ * <p>Two modes: {@code replace} writes the copy beside the destination and moves it into place, so a reader sees
+ * either the old contents or the new ones; {@code in-place} empties the destination and writes into it, as
+ * {@code cat source > target} does, so it stays the same file - for a file mounted on its own into a container,
+ * which a replacement would never reach.
+ */
 public class CopyFileStep implements IStep {
 
     public static final String TYPE = "copy-file";
 
-    private final String  from;
-    private final String  to;
-    private final boolean atomic;
+    public static final String MODE_REPLACE  = "replace";
+    public static final String MODE_IN_PLACE = "in-place";
+
+    private static final List<String> MODES = Arrays.asList(MODE_REPLACE, MODE_IN_PLACE);
+
+    private final String from;
+    private final String to;
+    private final String mode;
 
     public CopyFileStep(StepParams aParams) throws StepValidationException {
-        from   = aParams.required("from");
-        to     = aParams.required("to");
-        atomic = aParams.boolValue("atomic", true);
+        from = aParams.required("from");
+        to   = aParams.required("to");
+        mode = aParams.optional("mode", MODE_REPLACE);
+        if (!MODES.contains(mode)) {
+            throw aParams.error("mode", "must be one of " + MODES + ", got '" + mode + "'");
+        }
     }
 
     @Override
@@ -50,8 +67,12 @@ public class CopyFileStep implements IStep {
             if (!Files.isRegularFile(source)) {
                 throw new StepExecutionException("Not a file: " + source);
             }
-            FileOperations.copy(source, target, atomic);
-            aContext.log("copied " + Files.size(target) + " byte(s) from " + source + " to " + target);
+            if (MODE_IN_PLACE.equals(mode)) {
+                FileOperations.copyInPlace(source, target);
+            } else {
+                FileOperations.copy(source, target);
+            }
+            aContext.log("copied " + Files.size(target) + " byte(s) from " + source + " to " + target + " (" + mode + ")");
         } catch (StepValidationException e) {
             throw new StepExecutionException(e.getMessage(), e);
         } catch (IOException e) {

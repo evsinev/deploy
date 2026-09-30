@@ -7,6 +7,18 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-29
+
+**A file can be copied into the file that is already there**
+
+[`copy-file`](/deploy/reference/deploy-steps/#copy-file) takes `mode: in-place`, which empties the destination
+and writes into it, the way `cat source > target` does. The default still writes a new file beside the
+destination and moves it over, so the destination is a different file afterwards — and a file mounted on its
+own into a container keeps showing the old one, so a service reading it there never saw the copy.
+
+- `atomic` is gone from `copy-file`; `mode` replaces it. `atomic: false` deleted the destination and created it
+  again, which changed the file just as a replacement does. A plan that still sets it is refused by name.
+
 ## 1.0-28
 
 **A service is restarted without starting a process**

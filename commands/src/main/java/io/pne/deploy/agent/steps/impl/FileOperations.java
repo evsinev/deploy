@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
@@ -50,19 +51,11 @@ final class FileOperations {
     }
 
     /**
-     * Copies the contents of one file over another. An atomic copy replaces the destination file, so the
-     * permissions the destination already had are carried over to the replacement rather than inherited from
-     * the source - a copy must not widen who can read a file.
+     * Copies the contents of one file over another by writing a new file beside it and moving that into place.
+     * The destination is a new file afterwards, so the permissions it already had are carried over to the
+     * replacement rather than inherited from the source - a copy must not widen who can read a file.
      */
-    static void copy(Path aSource, Path aTarget, boolean aAtomic) throws IOException {
-        if (!aAtomic) {
-            Set<PosixFilePermission> existing = readPermissions(aTarget);
-            Files.copy(aSource, aTarget, StandardCopyOption.REPLACE_EXISTING);
-            if (existing != null) {
-                Files.setPosixFilePermissions(aTarget, existing);
-            }
-            return;
-        }
+    static void copy(Path aSource, Path aTarget) throws IOException {
         Path temp = temporarySibling(aTarget);
         try {
             Files.copy(aSource, temp, StandardCopyOption.REPLACE_EXISTING);
@@ -70,6 +63,19 @@ final class FileOperations {
             moveInto(temp, aTarget);
         } finally {
             Files.deleteIfExists(temp);
+        }
+    }
+
+    /**
+     * Copies the contents of one file into another, emptying the destination and writing into it, as
+     * {@code cat source > target} does. The destination stays the same file, which is what a reader holding it
+     * needs - a file mounted on its own into a container, for one, keeps showing the file it was mounted from, and
+     * a replacement would never reach it. A reader can see the file half written while this runs.
+     */
+    static void copyInPlace(Path aSource, Path aTarget) throws IOException {
+        try (OutputStream output = Files.newOutputStream(aTarget, StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+            Files.copy(aSource, output);
         }
     }
 

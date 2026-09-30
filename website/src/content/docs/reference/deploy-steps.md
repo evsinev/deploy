@@ -67,7 +67,13 @@ never widens who can read a file.
 |---|---|---|
 | `from` | required | Source path; must be inside the readable roots. |
 | `to` | required | Destination path. |
-| `atomic` | `true` | Write beside the destination and move into place. |
+| `mode` | `replace` | `replace` writes beside the destination and moves it into place; `in-place` empties the destination and writes into it. |
+
+`replace` means a reader sees either the old contents or the new ones, never a mix, but afterwards the
+destination is a different file. That is invisible to anything that opens the file by name, and not to a
+program that was handed the file itself: a file mounted on its own into a container keeps showing the one it
+was mounted from, so the container never sees the copy. `in-place` is `cat source > target` — the destination
+stays the same file, at the price of a moment in which it is half written.
 
 ### `signal-service`
 
