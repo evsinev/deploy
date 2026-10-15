@@ -74,9 +74,10 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
   Removing either breaks tests or the runnable jars at runtime.
 - **Nashorn.** The JS engine was removed from the JDK, so `ISSUE_VALIDATION_SCRIPT` runs on the
   standalone `org.openjdk.nashorn:nashorn-core:15.4` (`runtime` scope, `client-redmine`).
-- **micrometer is pinned to `1.12.6`** so the `io.micrometer.prometheus.*` package still exists
-  (`PrometheusConfig`, `PrometheusMeterRegistry`). Micrometer 1.13+ moved these to
-  `io.micrometer.prometheusmetrics`; do not bump without updating the imports.
+- **micrometer uses `micrometer-registry-prometheus-simpleclient`**, not `micrometer-registry-prometheus`:
+  since 1.13 only the simpleclient artifact keeps the `io.micrometer.prometheus.*` package
+  (`PrometheusConfig`, `PrometheusMeterRegistry`); the plain one moved to `io.micrometer.prometheusmetrics`.
+  Switching artifacts means updating the imports.
 - **The server binds `127.0.0.1` only** (`WebSocketVerticle.start`). Tests hit `http://127.0.0.1:<port>`.
 - **Paths and hosts in a step plan are checked twice**: once when the plan is built, once again as each step
   runs, because a value a step works out at run time cannot be checked earlier. `PathGuard` walks a path from

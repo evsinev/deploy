@@ -30,10 +30,10 @@
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <logback.version>1.6.0</logback.version>
-        <vertx.version>   4.5.27 </vertx.version>
+        <logback.version>1.6.5</logback.version>
+        <vertx.version>   4.5.35 </vertx.version>
         <slf4j.version>2.0.18</slf4j.version>
-        <jackson.version>2.22.1</jackson.version>
+        <jackson.version>2.22.3</jackson.version>
 
         <!-- Agent version reported to the dashboard; baked at build time (release.yml passes the git tag). -->
         <deploy.agent.version>${project.version}</deploy.agent.version>
@@ -266,7 +266,7 @@
             <dependency>
                 <groupId>com.payneteasy</groupId>
                 <artifactId>telegram-bot-client</artifactId>
-                <version>1.0-10</version>
+                <version>1.0-12</version>
             </dependency>
 
             <dependency>
@@ -277,8 +277,8 @@
 
             <dependency>
                 <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-registry-prometheus</artifactId>
-                <version>1.12.13</version>
+                <artifactId>micrometer-registry-prometheus-simpleclient</artifactId>
+                <version>1.17.1</version>
             </dependency>
 
         </dependencies>
