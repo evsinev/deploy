@@ -87,12 +87,6 @@
             <artifactId>jul-to-slf4j</artifactId>
         </dependency>
 
-
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>com.payneteasy</groupId>
             <artifactId>startup-parameters</artifactId>
