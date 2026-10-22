@@ -7,6 +7,17 @@ Notable user-facing changes per release. Each [GitHub release](https://github.co
 attaches the runnable jars (`deploy-server-<tag>.jar`, `deploy-agent-<tag>.jar`) — see
 [Installation](/deploy/installation/#run-from-a-release).
 
+## 1.0-30
+
+**Logs can be written as JSON, and dependencies with known CVEs are updated**
+
+- Both jars now include the [strilog](https://github.com/evsinev/strilog-encoder) JSON encoder, so a logback
+  configuration can write one JSON object per line (NDJSON) with
+  `<encoder class="com.payneteasy.strilog.encoder.json.JsonEncoder"/>`. The bundled configuration is
+  unchanged: logs stay plain text unless you supply your own with `-Dlogback.configurationFile=...`.
+- Vert.x, Netty, logback, Jackson and Micrometer are updated, and the ASM library used to run
+  `ISSUE_VALIDATION_SCRIPT` is pinned to 9.11.1, to pick up their CVE fixes.
+
 ## 1.0-29
 
 **A file can be copied into the file that is already there**
