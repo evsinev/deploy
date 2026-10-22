@@ -34,6 +34,7 @@
         <vertx.version>   4.5.35 </vertx.version>
         <slf4j.version>2.0.18</slf4j.version>
         <jackson.version>2.22.3</jackson.version>
+        <asm.version>9.11.1</asm.version>
 
         <!-- Agent version reported to the dashboard; baked at build time (release.yml passes the git tag). -->
         <deploy.agent.version>${project.version}</deploy.agent.version>
@@ -124,6 +125,21 @@
                 <groupId>org.openjdk.nashorn</groupId>
                 <artifactId>nashorn-core</artifactId>
                 <version>15.7</version>
+            </dependency>
+
+            <!--
+                ASM is transitive only: nashorn-core 15.7 (latest release, runtime scope in client-redmine) pulls
+                the asm 7.3.1 family and uses it at runtime to compile ISSUE_VALIDATION_SCRIPT and Java adapters.
+                Pin the whole ASM family to 9.11.1: CVE-2026-110257..110263, CVE-2026-110270, CVE-2026-110591
+                (fixed in 9.11) and CVE-2026-112046 (fixed in 9.11.1).
+                Nashorn with the pinned ASM is covered by NashornAsmCompatibilityTest (client-redmine).
+            -->
+            <dependency>
+                <groupId>org.ow2.asm</groupId>
+                <artifactId>asm-bom</artifactId>
+                <version>${asm.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <dependency>
