@@ -260,6 +260,13 @@
                 </exclusions>
             </dependency>
 
+            <!-- NDJSON encoder for logback (com.payneteasy.strilog.encoder.json.JsonEncoder) -->
+            <dependency>
+                <groupId>com.payneteasy.strilog-encoder</groupId>
+                <artifactId>strilog-json-encoder-shaded</artifactId>
+                <version>1.0-8</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-core</artifactId>

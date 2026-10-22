@@ -82,6 +82,11 @@
             <version>1.0-4</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.payneteasy.strilog-encoder</groupId>
+            <artifactId>strilog-json-encoder-shaded</artifactId>
+        </dependency>
+
 
     </dependencies>
 
