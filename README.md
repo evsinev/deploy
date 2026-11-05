@@ -58,7 +58,7 @@ flowchart LR
 | `server-api` | Server-side domain contract (`IDeployService`, `Task`, listeners). |
 | `agent` | Agent runtime: executes shell commands via `ProcessBuilder`. |
 | `server` | Transport-agnostic core: `DeployServiceImpl`, alias parsing, local agent. |
-| `client-redmine` | Redmine/GitLab/Telegram integration + durable queues (`PersistentSpool`). |
+| `client-tracker` | Redmine/GitLab/Telegram integration + durable queues (`PersistentSpool`). |
 | `server-vertx` | Vert.x runtime and entry point; HTTP routing, dashboard/status/metrics. |
 | `agent-websocket` | WebSocket agent entry point. |
 | `integration-test` | End-to-end tests wiring the server and a WebSocket agent. |
