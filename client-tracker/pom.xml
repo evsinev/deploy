@@ -4,9 +4,9 @@
     <packaging>jar</packaging>
 
     <groupId>io.pne.deploy</groupId>
-    <artifactId>client-redmine</artifactId>
+    <artifactId>client-tracker</artifactId>
 
-    <name>Client Redmine ${project.version}</name>
+    <name>Client Tracker ${project.version}</name>
 
     <parent>
         <groupId>io.pne</groupId>

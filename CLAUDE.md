@@ -30,7 +30,7 @@ all pull requests. Always get this green before pushing. There is no Travis or o
 `util` (config marker) · `commands` (step library + agent CLI helpers) · `agent-api` (wire contract) ·
 `server-api` (deploy domain) · `agent` (step executor + policy + legacy shell executor) ·
 `server` (deploy core + alias/recipe parsing) ·
-`client-redmine` (Redmine/GitLab/Telegram + durable queues) · `server-vertx` (Vert.x runtime +
+`client-tracker` (Redmine/GitLab/Telegram + durable queues) · `server-vertx` (Vert.x runtime +
 entry point) · `agent-websocket` (agent entry point) · `integration-test` (end-to-end).
 
 groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
@@ -39,10 +39,10 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
 
 - **Logging**: manual `private static final Logger LOG = LoggerFactory.getLogger(X.class);` —
   Lombok `@Slf4j` is **not** used.
-- **Lombok**: `@Data` / `@Builder` / `@Value` on model/data classes (`provided` scope; `client-redmine`
+- **Lombok**: `@Data` / `@Builder` / `@Value` on model/data classes (`provided` scope; `client-tracker`
   overrides it to `compile`).
 - **Immutables**: `@Value.Immutable` interfaces generate `Immutable*` builders
-  (`ImmutableRedmineIssue.builder()…`). Only `client-redmine` declares the dependency.
+  (`ImmutableRedmineIssue.builder()…`). Only `client-tracker` declares the dependency.
 - **Deploy plans**: an alias that declares `params:` is turned into a list of typed steps (`recipe:` + `with:`,
   or inline `steps:`) and sent as `AgentCommandType.STEPS`; the agent runs those steps in process after checking
   the whole plan against `etc/policy.yml` on its host. An alias without `params:` keeps the older behaviour
@@ -73,7 +73,7 @@ groupId is `io.pne.deploy`; parent is `io.pne:deploy:1.0-SNAPSHOT`.
     (`server-vertx/pom.xml`, `agent-websocket/pom.xml`).
   Removing either breaks tests or the runnable jars at runtime.
 - **Nashorn.** The JS engine was removed from the JDK, so `ISSUE_VALIDATION_SCRIPT` runs on the
-  standalone `org.openjdk.nashorn:nashorn-core:15.7` (`runtime` scope, `client-redmine`). Nashorn compiles
+  standalone `org.openjdk.nashorn:nashorn-core:15.7` (`runtime` scope, `client-tracker`). Nashorn compiles
   scripts with ASM at runtime; the ASM family it pulls (7.3.1) is pinned to 9.11.1 via `asm-bom` in the
   parent pom (CVE fixes) and covered by `NashornAsmCompatibilityTest` - keep the pin when bumping Nashorn.
 - **micrometer uses `micrometer-registry-prometheus-simpleclient`**, not `micrometer-registry-prometheus`:
@@ -113,11 +113,11 @@ Add the entry to `website/src/content/docs/changelog.md` in the same commit that
 - Dashboard (htmx + SSE): `server-vertx/.../dashboard/` (`DashboardHttpHandler`, `DashboardView`,
   `IDashboardConfig`, `resources/dashboard/`).
 - Metrics: `server-vertx/.../metrics/` (`QueueMetrics`, `MetricsHttpHandler`).
-- Durable queues: `client-redmine/.../remote/queue/PersistentSpool.java` (+ `Backoff`). Three spools
+- Durable queues: `client-tracker/.../remote/queue/PersistentSpool.java` (+ `Backoff`). Three spools
   under `QUEUE_DIR`: `redmine/`, `telegram/`, `deploy-review/`. A new one needs
   `QueueMetrics.sendLatencyRecorder` + `QueueMetrics.register` + a `dashboardQueues` entry.
-- Redmine/GitLab/Telegram: `client-redmine/.../process/impl/` and `client-redmine/.../remote/impl/`.
-- Deploy-review webhook: `client-redmine/.../remote/impl/RemoteDeployReviewServiceImpl.java`, enqueued
+- Redmine/GitLab/Telegram: `client-tracker/.../process/impl/` and `client-tracker/.../remote/impl/`.
+- Deploy-review webhook: `client-tracker/.../remote/impl/RemoteDeployReviewServiceImpl.java`, enqueued
   from `RedmineIssuesProcessServiceImpl.processIssue` just before `deployService.runTask` (the 🛫 moment).
 
 ## Don't

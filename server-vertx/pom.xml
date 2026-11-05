@@ -30,7 +30,7 @@
 
         <dependency>
             <groupId>io.pne.deploy</groupId>
-            <artifactId>client-redmine</artifactId>
+            <artifactId>client-tracker</artifactId>
             <version>${project.version}</version>
         </dependency>
 
