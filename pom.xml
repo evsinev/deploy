@@ -31,7 +31,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <logback.version>1.6.5</logback.version>
-        <vertx.version>   4.5.35 </vertx.version>
+        <vertx.version>   4.5.36 </vertx.version>
         <slf4j.version>2.0.18</slf4j.version>
         <jackson.version>2.22.3</jackson.version>
         <asm.version>9.11.1</asm.version>
